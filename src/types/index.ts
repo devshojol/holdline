@@ -185,7 +185,7 @@ export interface MapSummary {
 /* Practice                                                            */
 /* ------------------------------------------------------------------ */
 
-export type PracticeMode = 'angle-hold' | 'jiggle' | 'site-clear' | 'deathmatch' | 'spray';
+export type PracticeMode = 'angle-hold' | 'jiggle' | 'site-clear' | 'retake' | 'deathmatch' | 'spray';
 
 export interface PracticeConfig {
   mapId: string;
@@ -307,6 +307,8 @@ export interface HudSettings {
   showKillFeed: boolean;
   showHitmarkers: boolean;
   showDamageIndicator: boolean;
+  /** Flash a warning under the crosshair when the first bullet of a burst is fired while moving. */
+  showMoveWarning: boolean;
   showPerfMetrics: boolean;
   /** Minimap in the top-left corner. */
   showMinimap: boolean;
@@ -398,7 +400,9 @@ export interface SessionStats {
   /** Shots fired at bots that were only jiggling/shoulder peeking. */
   baitedShots: number;
   perWeapon: Partial<Record<WeaponId, WeaponStatLine>>;
-  /** Site-clear rounds (site-clear mode only): rounds started, rounds won and the time each win took (seconds). */
+  /** First bullets fired while still moving (the rest were counter-strafed or standing). */
+  firstShotsMoving?: number;
+  /** Round modes (site clear, retake): rounds started, rounds won and the time each win took (seconds). */
   clear?: { rounds: number; cleared: number; times: number[] };
   /** Spray-control results (spray mode only). */
   spray?: SpraySummary;

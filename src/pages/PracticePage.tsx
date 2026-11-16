@@ -1,4 +1,4 @@
-import { Lock, Play, SlidersHorizontal } from 'lucide-react';
+import { Copy, Lock, Play, SlidersHorizontal } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { BotBehavior, BotTuning, BotWeapons, Difficulty, PracticeConfig, PracticeMode, Side, WeaponId } from '../types';
 import { store, useAppStore } from '../hooks/useAppStore';
@@ -9,6 +9,7 @@ import { DIFFICULTY_PRESETS } from '../settings/defaults';
 import { BEHAVIOR_INFO, DIFFICULTY_LABEL, MODE_INFO, fmtDuration } from '../utils/labels';
 import { PRIMARY_WEAPONS, SECONDARY_WEAPONS, WEAPONS } from '../game/weapons/weaponConfigs';
 import { spotUsableFrom } from '../game/practice/PracticeDirector';
+import { exportSetupCode, importSetupCode } from '../utils/setupCode';
 
 function usableSpotIds(cfg: PracticeConfig): Set<string> {
   const def = getMapDefinition(cfg.mapId);
@@ -37,13 +38,16 @@ export function PracticePage() {
   const raw = useAppStore((s) => s.practice);
   const cfg = useMemo(() => normaliseConfig(raw), [raw]);
   const [advanced, setAdvanced] = useState(cfg.difficulty === 'custom');
+  const [code, setCode] = useState('');
+  const [codeMsg, setCodeMsg] = useState('');
   const def = getMapDefinition(cfg.mapId);
   const loc = def.locations.find((l) => l.id === cfg.locationId)!;
   const setup = loc.sides[cfg.side];
   const usable = useMemo(() => usableSpotIds(cfg), [cfg]);
   const selectedSpots = cfg.enemySpotIds.length ? cfg.enemySpotIds : setup.enemySpots.map((s) => s.id);
   const activeSpots = selectedSpots.filter((id) => usable.has(id));
-  const maxBots = cfg.mode === 'deathmatch' ? 10 : cfg.mode === 'site-clear' ? Math.max(1, Math.min(6, setup.enemySpots.length)) : Math.max(1, activeSpots.length);
+  const roundMode = cfg.mode === 'site-clear' || cfg.mode === 'retake';
+  const maxBots = cfg.mode === 'deathmatch' ? 10 : roundMode ? Math.max(1, Math.min(6, setup.enemySpots.length)) : Math.max(1, activeSpots.length);
 
   const update = (patch: Partial<PracticeConfig>) => store.updatePractice(normaliseConfig({ ...cfg, ...patch }));
 
@@ -200,7 +204,7 @@ export function PracticePage() {
           >
             <div className="grid gap-4 md:grid-cols-2">
               <Slider
-                label={cfg.mode === 'deathmatch' ? 'Number of bots' : cfg.mode === 'site-clear' ? 'Defenders per round' : 'Bots peeking at once'}
+                label={cfg.mode === 'deathmatch' ? 'Number of bots' : roundMode ? 'Defenders per round' : 'Bots peeking at once'}
                 value={Math.min(cfg.botCount, maxBots)}
                 min={1}
                 max={maxBots}
@@ -270,6 +274,7 @@ export function PracticePage() {
             )}
             {cfg.mode === 'jiggle' && <p className="text-sm text-mute">Jiggle training mixes jiggle peeks, shoulder baits and occasional committed peeks/swings.</p>}
             {cfg.mode === 'site-clear' && <p className="text-sm text-mute">Defenders start hidden at cover around this location and are placed differently every round. Walk (Shift) to stay quiet: they turn towards footsteps and gunfire.</p>}
+            {cfg.mode === 'retake' && <p className="text-sm text-mute">The spike sits on the nearest site, or among the defenders when there is none close. Stand next to it and hold E (or 4) for 5 seconds; letting go starts the defuse over. The fuse is 45 seconds.</p>}
             {cfg.mode === 'deathmatch' && <p className="text-sm text-mute">Deathmatch bots navigate the whole map, react to your gunfire and footsteps, and take cover when hurt.</p>}
             {advanced && (
               <div className="mt-3 grid gap-x-6 border-t border-line pt-3 md:grid-cols-2">
@@ -293,8 +298,8 @@ export function PracticePage() {
             <div className="grid gap-x-6 md:grid-cols-2">
               <Toggle
                 label="Bots shoot back"
-                hint={cfg.mode === 'deathmatch' || cfg.mode === 'site-clear' ? 'Always on in this mode' : 'Turn off for pure aim reps'}
-                checked={cfg.botsShootBack || cfg.mode === 'deathmatch' || cfg.mode === 'site-clear'}
+                hint={cfg.mode === 'deathmatch' || roundMode ? 'Always on in this mode' : 'Turn off for pure aim reps'}
+                checked={cfg.botsShootBack || cfg.mode === 'deathmatch' || roundMode}
                 onChange={(v) => update({ botsShootBack: v })}
               />
               <Toggle label="Infinite reserve ammo" hint="Magazines still need reloading" checked={cfg.infiniteAmmo} onChange={(v) => update({ infiniteAmmo: v })} />
@@ -344,6 +349,45 @@ export function PracticePage() {
             <Button size="lg" className="mt-5 w-full" onClick={start}>
               <Play size={20} /> Start practice
             </Button>
+            <div className="mt-4 border-t border-line pt-4">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-dim">Share this setup</div>
+              <div className="flex gap-2">
+                <input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="Paste a TALS1- setup code"
+                  aria-label="Setup code"
+                  className="min-w-0 flex-1 border border-line bg-bg/60 px-2 py-1.5 font-mono text-xs text-ink outline-none focus:border-accent"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const loaded = importSetupCode(code);
+                    if (!loaded) return setCodeMsg("That isn't a setup code this version can read.");
+                    store.updatePractice(normaliseConfig(loaded));
+                    setAdvanced(loaded.difficulty === 'custom');
+                    setCodeMsg('Setup loaded.');
+                  }}
+                >
+                  Load
+                </Button>
+              </div>
+              <Button
+                variant="outline"
+                className="mt-2 w-full"
+                onClick={() => {
+                  const c = exportSetupCode({ ...cfg, botCount: Math.min(cfg.botCount, maxBots) });
+                  setCode(c);
+                  navigator.clipboard?.writeText(c).then(
+                    () => setCodeMsg('Code copied to the clipboard.'),
+                    () => setCodeMsg('Code is in the box above.'),
+                  );
+                }}
+              >
+                <Copy size={14} /> Copy setup code
+              </Button>
+              {codeMsg && <p className="mt-2 text-xs text-mute">{codeMsg}</p>}
+            </div>
           </Card>
         </div>
       </div>

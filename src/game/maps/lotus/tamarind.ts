@@ -144,7 +144,7 @@ export const tamarind: MapDefinition = {
   palette: {
     sky: ['#86b5a4', '#e2ead3'],
     fog: '#cfdcc6',
-    kit: { roof: 'flat', roofColor: '#7f8a6c', awnings: false, bunting: false },
+    kit: { roof: 'flat', roofColor: '#7f8a6c', awnings: false, bunting: false, landmark: 'ziggurat' },
     mood: { sun: '#ffeec8', ambient: '#c0cfe4', bounce: '#a59c84', saturation: 12 },
     zones: {
       a: { wall: '#9fae94', floor: '#7f8a72', accent: '#c7963f' },

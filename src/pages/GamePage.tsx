@@ -1,4 +1,4 @@
-import { LogOut, MousePointer2, Play, RotateCcw, Square, TriangleAlert } from 'lucide-react';
+import { ChevronRight, LogOut, MousePointer2, Play, RotateCcw, Square, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { EngineStatus, HudState, KillFeedEntry, PauseInfo, PracticeConfig, SessionStats, WeaponId } from '../types';
 import { GameEngine } from '../game/engine/GameEngine';
@@ -30,6 +30,7 @@ const PAUSE_TEXT: Record<PauseInfo['reason'], string> = {
 
 export function GamePage({ config }: { config: PracticeConfig }) {
   const settings = useAppStore((s) => s.settings);
+  const routine = useAppStore((s) => s.routine);
   const hostRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
@@ -76,6 +77,7 @@ export function GamePage({ config }: { config: PracticeConfig }) {
           break;
         case 'ended':
           if (ev.stats.shots > 0 || ev.stats.durationSec >= 10) store.addSession(ev.stats);
+          store.recordRoutineScore(ev.stats.score);
           setReport(ev.stats);
           break;
         case 'error':
@@ -267,7 +269,7 @@ export function GamePage({ config }: { config: PracticeConfig }) {
               <span>WASD move · Shift walk</span>
               <span>Ctrl / C crouch · Space jump</span>
               <span>LMB fire · RMB aim / burst</span>
-              <span>R reload · 1 / 2 or wheel weapons</span>
+              <span>R reload · 1 / 2 or wheel weapons{config.mode === 'retake' ? ' · E defuse' : ''}</span>
               <span>B weapon menu</span>
               <span>Esc pause</span>
             </div>
@@ -280,11 +282,25 @@ export function GamePage({ config }: { config: PracticeConfig }) {
           <div className="mx-auto max-w-4xl animate-in">
             <div className="font-display text-sm font-semibold uppercase tracking-[0.25em] text-accent">Session complete</div>
             <div className="mb-4 font-display text-5xl font-bold uppercase">Session report</div>
+            {routine && (
+              <div className="mb-4 border border-accent/40 bg-accent/10 px-4 py-3 text-sm">
+                <span className="font-display font-bold uppercase tracking-widest text-accent">Daily routine</span> · drill {routine.index + 1} of {routine.steps.length}
+                {' · '}
+                {routine.titles[routine.index]} · running total{' '}
+                <span className="font-semibold text-ink">{routine.scores.reduce((a, b) => a + b, 0)}</span>
+              </div>
+            )}
             <SessionReportBody s={report} />
             <div className="mt-6 flex flex-wrap gap-2">
-              <Button onClick={() => store.play({ ...config, ...loadout })}>
-                <RotateCcw size={16} /> Play again
-              </Button>
+              {routine ? (
+                <Button onClick={() => store.nextRoutineStep()}>
+                  <ChevronRight size={16} /> {routine.index + 1 < routine.steps.length ? `Next drill: ${routine.titles[routine.index + 1]}` : 'Finish routine'}
+                </Button>
+              ) : (
+                <Button onClick={() => store.play({ ...config, ...loadout })}>
+                  <RotateCcw size={16} /> Play again
+                </Button>
+              )}
               <Button
                 variant="outline"
                 onClick={() => {

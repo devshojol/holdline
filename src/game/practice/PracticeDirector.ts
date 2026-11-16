@@ -10,6 +10,7 @@ import type { BotView } from '../bots/BotVisual';
 import { DeathmatchBehavior } from '../bots/behaviors/DeathmatchBehavior';
 import { PeekBehavior } from '../bots/behaviors/PeekBehavior';
 import { analysePeekLine, BOT_EYE, isHumanoidVisible } from '../bots/perception/visibility';
+import { nearestWalkable } from '../bots/navigation/GridNavigator';
 import type { MapData } from '../maps/MapData';
 import { STAND_EYE } from '../player/PlayerController';
 import type { SessionTracker } from './SessionTracker';
@@ -62,6 +63,24 @@ const BOT_WEAPON_POOLS: Record<Exclude<BotWeapons, 'mirror'>, [WeaponId, number]
   ],
 };
 
+/** Retake: seconds until the spike detonates, seconds of holding to defuse, and how close you must stand. */
+export const SPIKE_FUSE = 45;
+export const SPIKE_DEFUSE = 5;
+export const SPIKE_RANGE = 2.2;
+
+export interface Spike {
+  x: number;
+  y: number;
+  z: number;
+  /** Seconds left on the fuse. */
+  fuse: number;
+  /** Defuse progress, 0–1. Letting go or stepping away resets it. */
+  progress: number;
+  state: 'armed' | 'defused' | 'exploded';
+  /** The player is close enough to defuse. */
+  inRange: boolean;
+}
+
 /** How long a bot keeps its firing slot after it last asked to shoot (seconds). */
 const ATTACK_SLOT_HOLD = 1.2;
 
@@ -84,6 +103,7 @@ export const MODE_LABELS: Record<PracticeConfig['mode'], string> = {
   'angle-hold': 'Angle Holding',
   jiggle: 'Jiggle Peek Training',
   'site-clear': 'Site Clear',
+  retake: 'Retake',
   deathmatch: 'Deathmatch',
   spray: 'Spray Control',
 };
@@ -101,6 +121,10 @@ export class PracticeDirector {
   private round = 0;
   private roundStart = 0;
   private nextRoundAt = -1;
+  /** Retake: the planted spike (null in every other mode). */
+  spike: Spike | null = null;
+  /** Set by the engine each frame: the player is holding the defuse key. */
+  useHeld = false;
 
   constructor(private readonly d: DirectorDeps) {
     const setup = d.location.sides[d.config.side];
@@ -121,8 +145,35 @@ export class PracticeDirector {
     this.spots = spots;
     // Site clear: defenders start hidden at any of the side's cover positions that isn't on top of the
     // player's spawn. The player comes to them, so a post needn't be visible from the spawn.
-    const far = setup.enemySpots.filter((s) => Math.hypot(s.cover[0] - this.playerSpawn.pos[0], s.cover[2] - this.playerSpawn.pos[2]) >= 9);
-    this.posts = far.length >= 2 ? far : setup.enemySpots;
+    // Positions picked in the menu are respected when enough of them are left.
+    const isFar = (s: EnemySpot) => Math.hypot(s.cover[0] - this.playerSpawn.pos[0], s.cover[2] - this.playerSpawn.pos[2]) >= 9;
+    const picked = chosen.filter(isFar);
+    const far = setup.enemySpots.filter(isFar);
+    this.posts = picked.length >= 2 ? picked : far.length >= 2 ? far : setup.enemySpots;
+    if (d.config.mode === 'retake') {
+      // Plant on the nearest site if the defenders' posts surround one, otherwise in the middle of them.
+      const cx = this.posts.reduce((a, s) => a + s.cover[0], 0) / this.posts.length;
+      const cz = this.posts.reduce((a, s) => a + s.cover[2], 0) / this.posts.length;
+      let at: [number, number] = [cx, cz];
+      let best = 16;
+      for (const m of d.map.def.siteMarks) {
+        const x = d.map.space.x(m.c);
+        const z = d.map.space.z(m.r);
+        const dist = Math.hypot(x - cx, z - cz);
+        if (dist < best) {
+          best = dist;
+          at = [x, z];
+        }
+      }
+      const { nav, space } = d.map;
+      const idx = nearestWalkable(nav, space.col(at[0]), space.row(at[1]), 6);
+      const x = idx >= 0 ? space.x(idx % nav.cols) : at[0];
+      const z = idx >= 0 ? space.z(Math.floor(idx / nav.cols)) : at[1];
+      const y = idx >= 0 ? nav.height[idx] : 0;
+      this.spike = { x, y, z, fuse: SPIKE_FUSE, progress: 0, state: 'armed', inRange: false };
+      // defenders hold the posts closest to it
+      this.posts = [...this.posts].sort((a, b) => Math.hypot(a.cover[0] - x, a.cover[2] - z) - Math.hypot(b.cover[0] - x, b.cover[2] - z));
+    }
 
     // Deathmatch spawn cells: walkable ground cells.
     const { nav, space } = d.map;
@@ -248,7 +299,9 @@ export class PracticeDirector {
   private startRound(ctx: BotContext) {
     const n = Math.max(1, Math.min(this.d.config.botCount, this.posts.length, 6));
     while (this.bots.length < n) this.makeBot();
-    const pool = [...this.posts];
+    // retake: draw from the posts nearest the spike (the list is sorted by distance to it)
+    const pool = this.spike ? this.posts.slice(0, n + 2) : [...this.posts];
+    if (this.spike) Object.assign(this.spike, { fuse: SPIKE_FUSE, progress: 0, state: 'armed', inRange: false });
     const sp = this.playerSpawn;
     for (const bot of this.bots) {
       const post = pool.splice(Math.floor(ctx.rng() * pool.length), 1)[0];
@@ -272,14 +325,26 @@ export class PracticeDirector {
 
   /** Short status for the HUD (site clear only). */
   get statusLabel(): string | null {
+    if (this.spike) {
+      const sp = this.spike;
+      if (sp.state === 'defused') return `Retake · Round ${this.round} · spike defused`;
+      if (sp.state === 'exploded') return `Retake · Round ${this.round} · spike detonated`;
+      const t = Math.ceil(sp.fuse);
+      return `Retake · Round ${this.round} · 0:${String(t).padStart(2, '0')} · ${this.activeBots} left`;
+    }
     if (this.mode !== 'site-clear') return null;
     const left = this.activeBots;
     return left > 0 ? `Site Clear · Round ${this.round} · ${left} left` : `Site Clear · Round ${this.round} cleared`;
   }
 
+  /** Modes played as rounds against posted defenders who don't respawn. */
+  private get roundMode() {
+    return this.mode === 'site-clear' || this.mode === 'retake';
+  }
+
   start(ctx: BotContext) {
     if (this.mode === 'spray') return; // a wall is the only target
-    if (this.mode === 'site-clear') {
+    if (this.roundMode) {
       this.startRound(ctx);
       return;
     }
@@ -292,6 +357,7 @@ export class PracticeDirector {
   }
 
   onBotKilled(bot: Bot, ctx: BotContext) {
+    if (this.mode === 'retake') return; // killing everyone isn't enough: the spike still has to be defused
     if (this.mode === 'site-clear') {
       if (!this.bots.some((b) => b !== bot && b.alive) && this.nextRoundAt < 0 && this.playerRespawnAt < 0) {
         this.d.tracker.roundCleared(ctx.time - this.roundStart);
@@ -321,7 +387,25 @@ export class PracticeDirector {
   update(ctx: BotContext, dt: number, respawnPlayer: (x: number, y: number, z: number, yawDeg: number) => void) {
     for (const b of this.bots) b.update(ctx, dt);
 
-    // site clear: the round is won, so send the player back and post new defenders
+    // retake: run the fuse and the defuse
+    const sp = this.spike;
+    if (sp && sp.state === 'armed' && this.nextRoundAt < 0 && this.playerRespawnAt < 0) {
+      sp.fuse -= dt;
+      sp.inRange = ctx.player.alive && Math.hypot(ctx.player.pos.x - sp.x, ctx.player.pos.z - sp.z) < SPIKE_RANGE && Math.abs(ctx.player.pos.y - sp.y) < 1.5;
+      sp.progress = sp.inRange && this.useHeld ? sp.progress + dt / SPIKE_DEFUSE : 0;
+      if (sp.progress >= 1) {
+        sp.progress = 1;
+        sp.state = 'defused';
+        this.d.tracker.roundCleared(SPIKE_FUSE - sp.fuse);
+        this.nextRoundAt = ctx.time + 2.5;
+      } else if (sp.fuse <= 0) {
+        sp.fuse = 0;
+        sp.state = 'exploded';
+        this.nextRoundAt = ctx.time + 2.5;
+      }
+    }
+
+    // round modes: the round is over, so send the player back and post new defenders
     if (this.nextRoundAt >= 0 && ctx.time >= this.nextRoundAt) {
       const s = this.playerSpawn;
       respawnPlayer(s.pos[0], s.pos[1], s.pos[2], s.yaw);
@@ -344,8 +428,8 @@ export class PracticeDirector {
       this.playerRespawnAt = -1;
       // spawn protection: nobody shoots for a moment after the player is back
       ctx.graceUntil = ctx.time + (this.mode === 'deathmatch' ? 2 : 1.2);
-      if (this.mode === 'site-clear') {
-        // died mid-clear: the round is lost, start a new one from the spawn
+      if (this.roundMode) {
+        // died mid-round: the round is lost, start a new one from the spawn
         const s = this.playerSpawn;
         respawnPlayer(s.pos[0], s.pos[1], s.pos[2], s.yaw);
         this.startRound(ctx);

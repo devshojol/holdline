@@ -61,7 +61,10 @@ export class SessionTracker {
     const st = this.stats;
     st.shots++;
     this.weapon(s.weapon.id).shots++;
-    if (s.firstShot) st.firstShots++;
+    if (s.firstShot) {
+      st.firstShots++;
+      if (s.moving) st.firstShotsMoving = (st.firstShotsMoving ?? 0) + 1;
+    }
     if (s.bulletIndex >= 3) st.sprayShots++;
     if (s.moving) st.movingShots++;
   }
@@ -144,7 +147,7 @@ export class SessionTracker {
     const reactionBonus = st.reactionTimes.reduce((a, rt) => a + Math.max(0, 700 - rt) / 10, 0);
     let score = st.kills * 100 + this.hsKills * 50 - st.deaths * 120;
     if (st.mode === 'angle-hold') score += reactionBonus - st.escapes * 50;
-    else if (st.mode === 'site-clear' && st.clear) score += st.clear.cleared * 200 + st.clear.times.reduce((a, t) => a + Math.max(0, 40 - t) * 5, 0);
+    else if ((st.mode === 'site-clear' || st.mode === 'retake') && st.clear) score += st.clear.cleared * 200 + st.clear.times.reduce((a, t) => a + Math.max(0, 40 - t) * 5, 0);
     else if (st.mode === 'jiggle') score += reactionBonus * 0.5 - st.baitedShots * 10 - st.escapes * 40;
     st.score = Math.round(score);
     return st.score;

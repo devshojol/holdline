@@ -114,7 +114,11 @@ export class Effects {
     }
   }
 
-  wallImpact(x: number, y: number, z: number, nx: number, ny: number, nz: number) {
+  /**
+   * Bullet hole plus debris that suits what was hit: bright sparks off metal, wood chips off
+   * crates, pale dust off plaster and stone.
+   */
+  wallImpact(x: number, y: number, z: number, nx: number, ny: number, nz: number, surface = 'wall') {
     const hole = this.holes[this.holeIndex];
     this.holeIndex = (this.holeIndex + 1) % this.holes.length;
     hole.position.set(x + nx * 0.004, y + ny * 0.004, z + nz * 0.004);
@@ -126,7 +130,17 @@ export class Effects {
     this.sparkEmitter.set(x + nx * 0.02, y + ny * 0.02, z + nz * 0.02);
     this.sparks.direction1 = new Vector3(nx - 0.6, ny + 0.4, nz - 0.6);
     this.sparks.direction2 = new Vector3(nx + 0.6, ny + 1.0, nz + 0.6);
-    this.sparks.manualEmitCount = 7;
+    const kind = surfaceKind(surface);
+    const look = IMPACT_LOOK[kind];
+    this.sparks.color1 = look.c1;
+    this.sparks.color2 = look.c2;
+    this.sparks.blendMode = kind === 'metal' ? ParticleSystem.BLENDMODE_ADD : ParticleSystem.BLENDMODE_STANDARD;
+    this.sparks.minSize = look.size * 0.5;
+    this.sparks.maxSize = look.size;
+    this.sparks.minEmitPower = look.power * 0.4;
+    this.sparks.maxEmitPower = look.power;
+    this.sparks.maxLifeTime = look.life;
+    this.sparks.manualEmitCount = look.count;
   }
 
   fleshImpact(x: number, y: number, z: number, headshot: boolean) {
@@ -179,3 +193,18 @@ export class Effects {
     for (const t of this.tracers) t.mesh.dispose();
   }
 }
+
+export type SurfaceKind = 'metal' | 'wood' | 'stone';
+
+/** Group the collision surfaces into the three materials the impact effects distinguish. */
+export function surfaceKind(surface: string): SurfaceKind {
+  if (surface === 'stack') return 'metal';
+  if (surface === 'crate' || surface === 'crate-low') return 'wood';
+  return 'stone';
+}
+
+const IMPACT_LOOK: Record<SurfaceKind, { c1: Color4; c2: Color4; size: number; power: number; life: number; count: number }> = {
+  metal: { c1: new Color4(1, 0.9, 0.6, 1), c2: new Color4(1, 0.65, 0.25, 1), size: 0.05, power: 7, life: 0.3, count: 11 },
+  wood: { c1: new Color4(0.62, 0.45, 0.28, 1), c2: new Color4(0.42, 0.3, 0.18, 1), size: 0.07, power: 3.5, life: 0.45, count: 8 },
+  stone: { c1: new Color4(0.85, 0.8, 0.72, 0.9), c2: new Color4(0.65, 0.6, 0.54, 0.8), size: 0.09, power: 2.6, life: 0.5, count: 7 },
+};

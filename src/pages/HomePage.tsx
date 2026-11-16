@@ -13,12 +13,14 @@ const DAILY: { mode: PracticeMode; title: string; target: string; patch: Partial
   { mode: 'angle-hold', title: 'Warm-up: hold A Main', target: '2 min angle hold', patch: { locationId: 'a-main', side: 'defend', behavior: 'mixed', durationSec: 120, botCount: 2 } },
   { mode: 'jiggle', title: "Don't take the bait", target: '2 min jiggle drill', patch: { locationId: 'mid', side: 'attack', durationSec: 120, botCount: 2 } },
   { mode: 'site-clear', title: 'Take the site', target: '3 min site clear', patch: { locationId: 'a-main', side: 'attack', durationSec: 180, botCount: 3 } },
+  { mode: 'retake', title: 'Defuse under pressure', target: '3 min retake', patch: { locationId: 'a-main', side: 'attack', durationSec: 180, botCount: 3 } },
   { mode: 'deathmatch', title: 'Live fire', target: '5 min deathmatch', patch: { durationSec: 300, botCount: 5 } },
 ];
 
 export function HomePage() {
   const practice = useAppStore((s) => s.practice);
   const sessions = useAppStore((s) => s.sessions);
+  const routineHistory = useAppStore((s) => s.routineHistory);
   const last = sessions[0];
   const today = dayKey(Date.now());
   const todays = sessions.filter((s) => dayKey(s.startedAt) === today);
@@ -123,7 +125,25 @@ export function HomePage() {
               );
             })}
           </div>
-          <div className="mt-3 text-xs text-dim">{todays.length} session{todays.length === 1 ? '' : 's'} today</div>
+          <Button
+            className="mt-3 w-full"
+            onClick={() =>
+              store.startRoutine(
+                DAILY.map((d) => normaliseConfig({ ...practice, ...d.patch, mode: d.mode, playerSpawnId: '', enemySpotIds: [] })),
+                DAILY.map((d) => d.title),
+              )
+            }
+          >
+            <Play size={16} /> Run the full routine · {Math.round(DAILY.reduce((a, d) => a + (d.patch.durationSec ?? 0), 0) / 60)} min
+          </Button>
+          <div className="mt-3 text-xs text-dim">
+            {todays.length} session{todays.length === 1 ? '' : 's'} today
+            {routineHistory.length > 0 && (
+              <>
+                {' · '}routine today {routineHistory.find((r) => r.day === today)?.total ?? '—'} · best {Math.max(...routineHistory.map((r) => r.total))}
+              </>
+            )}
+          </div>
         </Card>
 
         <Card title="Last used weapon" right={<Badge>{weapon.category}</Badge>}>

@@ -252,3 +252,61 @@ describe('site clear', () => {
     expect(tracker.stats.clear).toMatchObject({ rounds: 3, cleared: 1 });
   });
 });
+
+describe('retake', () => {
+  it('plants a spike near the defenders, defuses on a 5-second hold and detonates when the fuse runs out', async () => {
+    const { PracticeDirector, SPIKE_FUSE } = await import('../src/game/practice/PracticeDirector');
+    const { SessionTracker } = await import('../src/game/practice/SessionTracker');
+    const { DEFAULT_PRACTICE } = await import('../src/settings/defaults');
+    const def = MAP_DEFINITIONS[0];
+    const map = buildMapData(def);
+    const config = { ...DEFAULT_PRACTICE, mapId: def.id, locationId: def.locations[0].id, side: 'attack' as const, mode: 'retake' as const, botCount: 2, playerSpawnId: '', enemySpotIds: [] };
+    const tracker = new SessionTracker(config);
+    const director = new PracticeDirector({ map, location: def.locations[0], config, tracker, createVisual: null, rng: seeded(3) });
+    const player = new PlayerController(map.world);
+    const sp = director.playerSpawn;
+    player.spawn(sp.pos[0], sp.pos[1], sp.pos[2], sp.yaw);
+    const { ctx } = context(map.world, map, player, director.bots, seeded(5));
+    ctx.botsShootBack = false;
+    director.start(ctx);
+    const spike = director.spike!;
+    expect(spike).toBeTruthy();
+    // the spike stands on walkable ground
+    const i = map.space.row(spike.z) * map.nav.cols + map.space.col(spike.x);
+    expect(map.nav.walkable[i]).toBe(1);
+    expect(director.bots).toHaveLength(2);
+
+    const step = (seconds: number) => {
+      for (let t = 0; t < seconds; t += 1 / 30) {
+        ctx.time += 1 / 30;
+        director.update(ctx, 1 / 30, (x, y, z, yaw) => player.spawn(x, y, z, yaw));
+      }
+    };
+    // away from the spike, holding the key does nothing
+    director.useHeld = true;
+    step(1);
+    expect(spike.progress).toBe(0);
+    expect(spike.fuse).toBeLessThan(SPIKE_FUSE);
+    // next to it: letting go resets, a full hold defuses
+    player.spawn(spike.x + 1, spike.y, spike.z, 0);
+    step(2);
+    expect(spike.progress).toBeGreaterThan(0.3);
+    director.useHeld = false;
+    step(0.1);
+    expect(spike.progress).toBe(0);
+    director.useHeld = true;
+    step(5.1);
+    expect(spike.state).toBe('defused');
+    expect(tracker.stats.clear).toMatchObject({ rounds: 1, cleared: 1 });
+    // a new round re-arms it; left alone it detonates and the round is not counted as won
+    director.useHeld = false;
+    step(3);
+    expect(spike.state).toBe('armed');
+    expect(tracker.stats.clear!.rounds).toBe(2);
+    step(SPIKE_FUSE);
+    expect(spike.state).toBe('exploded');
+    step(4);
+    expect(tracker.stats.clear).toMatchObject({ cleared: 1 });
+    expect(tracker.stats.clear!.rounds).toBeGreaterThanOrEqual(3);
+  });
+});

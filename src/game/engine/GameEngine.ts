@@ -56,7 +56,8 @@ import {
   Vector3,
   type AbstractEngine,
 } from '../rendering/babylon';
-import { Effects } from '../rendering/Effects';
+import { Effects, surfaceKind } from '../rendering/Effects';
+import { SPIKE_FUSE, type Spike } from '../practice/PracticeDirector';
 import { renderMap, type MapRenderResult } from '../rendering/MapRenderer';
 import { muzzleFlashTexture, radialTexture, setTextureQuality } from '../rendering/textures';
 import { ViewModel } from '../weapons/ViewModel';
@@ -146,6 +147,12 @@ export class GameEngine {
   private visTimer = 0;
   private lastHud: HudState | null = null;
   private hitmarker = { t: 0, kind: 'body' as 'body' | 'head' | 'kill' };
+  /** Seconds left on the "moving" warning under the crosshair. */
+  private moveWarn = 0;
+  private spikeLamp: StandardMaterial | null = null;
+  private spikeState: Spike['state'] = 'armed';
+  private spikeBeep = 0;
+  private spikeBlink = 0;
   private damageIndicators: DamageIndicator[] = [];
   private deathFlash = 0;
   private killFeedId = 1;
@@ -434,7 +441,7 @@ export class GameEngine {
       world: this.map.world,
       map: this.map,
       player: this.player,
-      botsShootBack: this.config.botsShootBack || this.config.mode === 'deathmatch' || this.config.mode === 'site-clear',
+      botsShootBack: this.config.botsShootBack || this.config.mode === 'deathmatch' || this.config.mode === 'site-clear' || this.config.mode === 'retake',
       bots: this.director.bots,
       rng: Math.random,
       botFire: (bot, origin, dir) => this.resolveBotShot(bot, origin, dir),
@@ -446,6 +453,7 @@ export class GameEngine {
       },
     };
     this.director.start(this.ctx);
+    if (this.director.spike) this.buildSpike(this.director.spike);
     mark('director');
     if (this.director.unusableSpots.length) {
       console.info('[TAL] spots not visible from this spawn were skipped:', this.director.unusableSpots);
@@ -808,7 +816,9 @@ export class GameEngine {
     this.weapons.update(dt, this.input, this.player);
     this.reloadSounds();
     this.boltSounds();
+    this.director.useHeld = this.input.isDown('use');
     this.director.update(this.ctx, dt, (x, y, z, yaw) => this.respawnPlayer(x, y, z, yaw));
+    this.updateSpike(dt);
     const sprayDone = this.spray?.update(this.time);
     if (sprayDone) this.tracker.spray(sprayDone);
     this.visTimer -= dt;
@@ -927,6 +937,56 @@ export class GameEngine {
     ctx.fill();
   }
 
+  /** Retake: the planted spike — a small case with a light that blinks faster as the fuse runs down. */
+  private buildSpike(sp: Spike) {
+    const body = CreateBox('spike', { width: 0.34, height: 0.3, depth: 0.22 }, this.scene);
+    body.position.set(sp.x, sp.y + 0.15, sp.z);
+    const bm = new StandardMaterial('spike-mat', this.scene);
+    bm.diffuseColor = Color3.FromHexString('#23272e');
+    bm.specularColor = new Color3(0.2, 0.2, 0.2);
+    body.material = bm;
+    body.isPickable = false;
+    const lamp = CreateBox('spike-lamp', { width: 0.12, height: 0.5, depth: 0.12 }, this.scene);
+    lamp.position.set(sp.x, sp.y + 0.5, sp.z);
+    const lm = new StandardMaterial('spike-lamp-mat', this.scene);
+    lm.diffuseColor = Color3.Black();
+    lm.specularColor = Color3.Black();
+    lm.emissiveColor = Color3.FromHexString('#ff3b2f');
+    lamp.material = lm;
+    lamp.isPickable = false;
+    this.spikeLamp = lm;
+  }
+
+  private updateSpike(dt: number) {
+    const sp = this.director.spike;
+    if (!sp || !this.spikeLamp) return;
+    if (sp.state !== this.spikeState) {
+      this.spikeState = sp.state;
+      if (sp.state === 'exploded') {
+        this.deathFlash = 1;
+        this.audio.play('impact', { volume: 1, rate: 0.3 });
+      } else if (sp.state === 'defused') this.audio.play('equip', { volume: 0.8, rate: 0.7 });
+    }
+    if (sp.state === 'defused') {
+      this.spikeLamp.emissiveColor.set(0.2, 0.9, 0.5);
+      return;
+    }
+    if (sp.state === 'exploded') {
+      this.spikeLamp.emissiveColor.set(1, 0.6, 0.2);
+      return;
+    }
+    // beep and blink: once a second at first, several times a second near the end
+    this.spikeBeep -= dt;
+    if (this.spikeBeep <= 0) {
+      this.spikeBeep = Math.max(0.14, 0.16 + (sp.fuse / SPIKE_FUSE) * 0.9);
+      this.spikeBlink = 0.09;
+      this.audio.play('dry', { pos: [sp.x, sp.y + 0.4, sp.z], volume: 0.9, rate: 2.4 });
+    }
+    this.spikeBlink -= dt;
+    const on = this.spikeBlink > 0;
+    this.spikeLamp.emissiveColor.set(on ? 1 : 0.25, on ? 0.3 : 0.04, on ? 0.2 : 0.03);
+  }
+
   private respawnPlayer(x: number, y: number, z: number, yaw: number) {
     this.player.spawn(x, y, z, yaw);
     this.weapons.refill();
@@ -940,6 +1000,7 @@ export class GameEngine {
   private resolvePlayerShot(shot: ShotInfo) {
     const { origin: o, dir: d, weapon } = shot;
     this.tracker.shot(shot);
+    if (shot.firstShot && shot.moving) this.moveWarn = 0.8;
     if (this.spray) {
       const done = this.spray.onShot(shot, this.time);
       if (done) this.tracker.spray(done);
@@ -1004,8 +1065,10 @@ export class GameEngine {
     } else {
       if (wall) {
         end = [wall.x, wall.y, wall.z];
-        this.effects.wallImpact(wall.x, wall.y, wall.z, wall.nx, wall.ny, wall.nz);
-        this.audio.play('impact', { pos: end, volume: 0.35 });
+        this.effects.wallImpact(wall.x, wall.y, wall.z, wall.nx, wall.ny, wall.nz, wall.box.surface);
+        // one impact sound, pitched by material: a high ring off metal, a dull knock on wood
+        const kind = surfaceKind(wall.box.surface);
+        this.audio.play('impact', { pos: end, volume: kind === 'metal' ? 0.45 : 0.35, rate: (kind === 'metal' ? 1.7 : kind === 'wood' ? 0.7 : 1) * (0.94 + Math.random() * 0.12) });
       } else end = [o[0] + d[0] * 250, o[1] + d[1] * 250, o[2] + d[2] * 250];
       if (this.config.mode === 'jiggle') {
         const baiting = this.director.bots.some(
@@ -1063,7 +1126,7 @@ export class GameEngine {
     } else {
       if (wall) {
         end = [wall.x, wall.y, wall.z];
-        this.effects.wallImpact(wall.x, wall.y, wall.z, wall.nx, wall.ny, wall.nz);
+        this.effects.wallImpact(wall.x, wall.y, wall.z, wall.nx, wall.ny, wall.nz, wall.box.surface);
       } else end = [o[0] + d[0] * 200, o[1] + d[1] * 200, o[2] + d[2] * 200];
       // near miss whiz
       const tx = eye[0] - o[0];
@@ -1136,6 +1199,42 @@ export class GameEngine {
       });
     }
 
+    // retake: defuse prompt and progress bar
+    const spike = this.director?.spike;
+    if (spike && spike.state === 'armed' && spike.inRange && this.player.alive && this.status !== 'ended') {
+      const bw = 220 * dpr;
+      const bh = 8 * dpr;
+      const by = cy + 70 * dpr;
+      ctx.font = `700 ${Math.round(14 * dpr)}px "Barlow Condensed", system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillText(spike.progress > 0 ? 'DEFUSING…' : 'HOLD E TO DEFUSE', cx + dpr, by - 5 * dpr);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(spike.progress > 0 ? 'DEFUSING…' : 'HOLD E TO DEFUSE', cx, by - 6 * dpr);
+      ctx.fillStyle = 'rgba(10,14,20,0.7)';
+      ctx.fillRect(cx - bw / 2, by, bw, bh);
+      ctx.fillStyle = '#5ee0c8';
+      ctx.fillRect(cx - bw / 2, by, bw * spike.progress, bh);
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.lineWidth = dpr;
+      ctx.strokeRect(cx - bw / 2, by, bw, bh);
+    }
+
+    if (this.moveWarn > 0) {
+      this.moveWarn -= dt;
+      if (this.settings.hud.showMoveWarning && this.status !== 'ended') {
+        const a = Math.min(1, this.moveWarn / 0.3);
+        ctx.font = `700 ${Math.round(13 * dpr)}px "Barlow Condensed", system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = `rgba(0,0,0,${0.5 * a})`;
+        ctx.fillText('MOVING — STOP BEFORE YOU SHOOT', cx + dpr, cy + 39 * dpr);
+        ctx.fillStyle = `rgba(255,190,70,${a})`;
+        ctx.fillText('MOVING — STOP BEFORE YOU SHOOT', cx, cy + 38 * dpr);
+      }
+    }
+
     if (this.settings.hud.showHitmarkers && this.hitmarker.t > 0) {
       this.hitmarker.t -= dt;
       const a = Math.min(1, this.hitmarker.t / 0.15);
@@ -1165,7 +1264,7 @@ export class GameEngine {
         12,
         { x: this.player.pos.x, z: this.player.pos.z, yaw: this.player.yaw, alive: this.player.alive },
         this.director.bots.map((b) => ({ x: b.x, z: b.z, alive: b.alive, visible: b.visibleToPlayer })),
-        { size: 220, viewRange: 26, enemyRange: this.settings.hud.minimapEnemyRange, fov: this.camera.fov },
+        { size: 220, viewRange: 26, enemyRange: this.settings.hud.minimapEnemyRange, fov: this.camera.fov, objective: this.director.spike },
       );
     }
 

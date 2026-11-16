@@ -155,6 +155,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
     showHitmarkers: true,
     showDamageIndicator: true,
     showPerfMetrics: false,
+    showMoveWarning: true,
     showMinimap: true,
     minimapEnemyRange: 30,
   },

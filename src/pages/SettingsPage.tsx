@@ -214,6 +214,7 @@ export function SettingsPage() {
             <Toggle label="Weapon & ammo" checked={settings.hud.showAmmo} onChange={(v) => setH({ showAmmo: v })} />
             <Toggle label="Kill feed" checked={settings.hud.showKillFeed} onChange={(v) => setH({ showKillFeed: v })} />
             <Toggle label="Hit markers" checked={settings.hud.showHitmarkers} onChange={(v) => setH({ showHitmarkers: v })} />
+            <Toggle label="Moving-shot warning" checked={settings.hud.showMoveWarning} onChange={(v) => setH({ showMoveWarning: v })} />
             <Toggle label="Damage direction" checked={settings.hud.showDamageIndicator} onChange={(v) => setH({ showDamageIndicator: v })} />
             <Toggle label="Minimap" checked={settings.hud.showMinimap} onChange={(v) => setH({ showMinimap: v })} />
             <Slider

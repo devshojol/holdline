@@ -146,7 +146,7 @@ export const dunehold: MapDefinition = {
   palette: {
     sky: ['#a9c6e0', '#f4d9b0'],
     fog: '#e6d2b5',
-    kit: { roof: 'flat', roofColor: '#c9a874', wallUnits: true },
+    kit: { roof: 'flat', roofColor: '#c9a874', wallUnits: true, landmark: 'minaret' },
     zones: {
       a: { wall: '#d8b98c', floor: '#c2a57d', accent: '#b5532e' },
       b: { wall: '#cfa77a', floor: '#b8986e', accent: '#2f7f86' },

@@ -17,6 +17,11 @@ export const MODE_INFO: Record<PracticeMode, { label: string; short: string; des
     short: 'Site Clear',
     desc: 'Push in and clear every defender. They hold hidden posts, turn to your footsteps and fight back. Each clear is timed; dying restarts the round.',
   },
+  retake: {
+    label: 'Retake',
+    short: 'Retake',
+    desc: 'The spike is planted and defenders hold it. Fight your way in and hold E on the spike to defuse before the 45-second fuse runs out.',
+  },
   deathmatch: {
     label: 'Deathmatch',
     short: 'Deathmatch',

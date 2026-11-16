@@ -158,7 +158,7 @@ export const sanctum: MapDefinition = {
   palette: {
     sky: ['#88b4dc', '#f2e6cf'],
     fog: '#eadfca',
-    kit: { roofColor: '#5f6f7a' },
+    kit: { roofColor: '#5f6f7a', landmark: 'pagoda' },
     zones: {
       a: { wall: '#e6d3b1', floor: '#bba88a', accent: '#5f8f45' },
       b: { wall: '#ecdcbd', floor: '#c2b092', accent: '#b0473a' },

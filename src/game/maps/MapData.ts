@@ -54,9 +54,13 @@ export interface MapKit {
   /** Wall-mounted cooling units and pipe runs (modern settings only). */
   wallUnits: boolean;
   crateColor: string;
+  /** The shape that marks each site from a distance. */
+  landmark: Landmark;
 }
 
-const DEFAULT_KIT: MapKit = { roof: 'tile', roofColor: '#a8644a', awnings: true, bunting: true, vista: 'hills', wallUnits: false, crateColor: '#a5794b' };
+export type Landmark = 'tower' | 'minaret' | 'pagoda' | 'sign' | 'watertank' | 'ziggurat' | 'crane' | 'lighthouse';
+
+const DEFAULT_KIT: MapKit = { roof: 'tile', roofColor: '#a8644a', awnings: true, bunting: true, vista: 'hills', wallUnits: false, crateColor: '#a5794b', landmark: 'tower' };
 
 export function mapKit(def: MapDefinition): MapKit {
   return { ...DEFAULT_KIT, ...def.palette.kit };

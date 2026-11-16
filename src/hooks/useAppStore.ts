@@ -16,6 +16,28 @@ export interface AppState {
   /** Config of the running session (null = in menus). */
   playing: PracticeConfig | null;
   lastSession: SessionStats | null;
+  /** The daily routine being played: its drills in order, which one is up and the scores so far. */
+  routine: Routine | null;
+  /** Finished routines, newest first. */
+  routineHistory: RoutineResult[];
+}
+
+export interface Routine {
+  steps: PracticeConfig[];
+  titles: string[];
+  index: number;
+  scores: number[];
+}
+
+export interface RoutineResult {
+  /** Local day, YYYY-MM-DD. */
+  day: string;
+  total: number;
+}
+
+function today(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 const MAX_SESSIONS = 300;
@@ -55,6 +77,8 @@ function initialState(): AppState {
     presets: load<CrosshairPreset[]>('crosshair-presets', []),
     playing: null,
     lastSession: null,
+    routine: null,
+    routineHistory: load<RoutineResult[]>('routine-history', []),
   };
 }
 
@@ -93,7 +117,33 @@ export const store = {
     set({ playing: cfg, practice: cfg });
   },
   stopPlaying() {
-    set({ playing: null });
+    set({ playing: null, routine: null });
+  },
+  /** Start the daily routine: the drills run back to back. The saved practice setup is left alone. */
+  startRoutine(steps: PracticeConfig[], titles: string[]) {
+    if (steps.length === 0) return;
+    if (state.settings.graphics.fullscreen) void enterGameFullscreen();
+    set({ routine: { steps, titles, index: 0, scores: [] }, playing: steps[0] });
+  },
+  /** Record the score of the routine drill that just ended (once per drill). */
+  recordRoutineScore(score: number) {
+    const r = state.routine;
+    if (!r || r.scores.length !== r.index) return;
+    set({ routine: { ...r, scores: [...r.scores, score] } });
+  },
+  /** Move to the next routine drill, or finish and save the total after the last one. */
+  nextRoutineStep() {
+    const r = state.routine;
+    if (!r) return;
+    if (r.index + 1 < r.steps.length) {
+      if (state.settings.graphics.fullscreen) void enterGameFullscreen();
+      set({ routine: { ...r, index: r.index + 1 }, playing: r.steps[r.index + 1] });
+      return;
+    }
+    const total = r.scores.reduce((a, b) => a + b, 0);
+    const routineHistory = [{ day: today(), total }, ...state.routineHistory].slice(0, 200);
+    save('routine-history', routineHistory);
+    set({ routineHistory, routine: null, playing: null, page: 'home' });
   },
   addSession(s: SessionStats) {
     const sessions = [s, ...state.sessions].slice(0, MAX_SESSIONS);

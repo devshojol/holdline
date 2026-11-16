@@ -30,6 +30,8 @@ export interface MinimapOptions {
   enemyRange: number;
   /** Horizontal field of view (radians) for the view cone. */
   fov: number;
+  /** An objective to mark (the planted spike). */
+  objective?: { x: number; z: number } | null;
 }
 
 export class Minimap {
@@ -257,6 +259,29 @@ export class Minimap {
       ctx.stroke();
       ctx.fillStyle = '#ffffff';
       ctx.fillText(s.letter, sx, sy + 0.5 * dpr);
+    }
+
+    // objective marker: a diamond, kept at the panel edge when it is further away than the view
+    if (o.objective) {
+      let [sx, sy] = toScreen(o.objective.x, o.objective.z);
+      const lim = size / 2 - 9 * dpr;
+      const m = Math.max(Math.abs(sx - cx), Math.abs(sy - cy));
+      if (m > lim) {
+        sx = cx + ((sx - cx) * lim) / m;
+        sy = cy + ((sy - cy) * lim) / m;
+      }
+      const r = 6 * dpr;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - r);
+      ctx.lineTo(sx + r, sy);
+      ctx.lineTo(sx, sy + r);
+      ctx.lineTo(sx - r, sy);
+      ctx.closePath();
+      ctx.fillStyle = '#ffb54a';
+      ctx.fill();
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.strokeStyle = 'rgba(20,12,0,0.9)';
+      ctx.stroke();
     }
 
     // enemies within range (always), visible ones emphasised

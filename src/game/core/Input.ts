@@ -14,6 +14,8 @@ export type Action =
   | 'crouch'
   | 'jump'
   | 'reload'
+  /** Hold to defuse the spike (retake mode). */
+  | 'use'
   | 'primary'
   | 'secondary'
   /** Swap to the other weapon (mouse wheel). */
@@ -42,6 +44,8 @@ const KEYMAP: Record<string, Action> = {
   KeyC: 'crouch',
   Space: 'jump',
   KeyR: 'reload',
+  KeyE: 'use',
+  Digit4: 'use',
   Digit1: 'primary',
   Digit2: 'secondary',
   KeyB: 'loadout',

@@ -825,28 +825,166 @@ function addLandmarks(
     if (!best) return;
     const zoneId = def.zoneOf(Math.floor(mark.c), Math.floor(mark.r));
     const zone = def.palette.zones[zoneId] ?? Object.values(def.palette.zones)[0];
-    const h = size / 2;
     const { x, z, y } = best;
-    const shaftTop = y + (index % 2 ? 6.5 : 8.5);
     const trim = shade(zone.wall, 0.8);
-    const ring = (y0: number, y1: number, out: number, color: string) =>
-      detail('', color).box([x - h - out, y0, z - h - out], [x + h + out, y1, z + h + out], FLAT_UV, false);
-    wall(zoneId).box([x - h, y - 0.5, z - h], [x + h, shaftTop, z + h], { kind: 'world', tile: 4, vHeight: WALL_HEIGHT });
-    ring(y + 2.2, y + 2.5, 0.08, trim);
-    ring(shaftTop - 2.9, shaftTop - 2.3, 0.05, zone.accent); // the site's colour band
-    ring(shaftTop, shaftTop + 0.3, 0.22, trim);
-    // open belfry: dark core, four corner piers, a cap
-    const top = shaftTop + 0.3;
-    detail('', '#221d1a').box([x - h + 0.5, top, z - h + 0.5], [x + h - 0.5, top + 2.2, z + h - 0.5], FLAT_UV);
-    for (const px of [x - h, x + h - 0.7])
-      for (const pz of [z - h, z + h - 0.7]) detail('', shade(zone.wall, 1.05)).box([px, top, pz], [px + 0.7, top + 2.2, pz + 0.7], FLAT_UV);
-    ring(top + 2.2, top + 2.5, 0.2, trim);
-    const cap: MapBox = { min: [x - h, 0, z - h], max: [x + h, top + 2.5, z + h], kind: 'wall', zone: zoneId };
-    addRoof(cap, kit.roof, roof, detail('', trim));
-    if (kit.roof === 'flat') {
-      // mast with a warning light
-      detail('', '#5b6166').box([x - 0.07, top + 2.5, z - 0.07], [x + 0.07, top + 6, z + 0.07], FLAT_UV);
-      detail('landmark-light', '#ff5a4a', '#d8402f').box([x - 0.16, top + 6, z - 0.16], [x + 0.16, top + 6.3, z + 0.16], FLAT_UV);
+    const light = shade(zone.wall, 1.05);
+    const tall = index % 2 === 0;
+    /** Square block centred on the landmark: half-width `h`, from y0 to y1. */
+    const flatBlock = (color: string, h: number, y0: number, y1: number, emissive?: string, key = '') =>
+      detail(key, color, emissive).box([x - h, y0, z - h], [x + h, y1, z + h], FLAT_UV, false);
+    const wallBlock = (h: number, y0: number, y1: number) =>
+      wall(zoneId).box([x - h, y0, z - h], [x + h, y1, z + h], { kind: 'world', tile: 4, vHeight: WALL_HEIGHT });
+    const roofOn = (h: number, top: number, style: 'tile' | 'flat' = kit.roof) =>
+      addRoof({ min: [x - h, 0, z - h], max: [x + h, top, z + h], kind: 'wall', zone: zoneId }, style, roof, detail('', trim));
+    const beacon = (top: number) => {
+      detail('', '#5b6166').box([x - 0.07, top, z - 0.07], [x + 0.07, top + 3, z + 0.07], FLAT_UV);
+      detail('landmark-light', '#ff5a4a', '#d8402f').box([x - 0.16, top + 3, z - 0.16], [x + 0.16, top + 3.3, z + 0.16], FLAT_UV);
+    };
+
+    switch (kit.landmark) {
+      case 'tower': {
+        // bell tower: shaft with the site's colour band, an open belfry and a roof
+        const h = 1.7;
+        const shaftTop = y + (tall ? 8.5 : 6.5);
+        wallBlock(h, y - 0.5, shaftTop);
+        flatBlock(trim, h + 0.08, y + 2.2, y + 2.5);
+        flatBlock(zone.accent, h + 0.05, shaftTop - 2.9, shaftTop - 2.3);
+        flatBlock(trim, h + 0.22, shaftTop, shaftTop + 0.3);
+        const top = shaftTop + 0.3;
+        flatBlock('#221d1a', h - 0.5, top, top + 2.2);
+        for (const px of [x - h, x + h - 0.7])
+          for (const pz of [z - h, z + h - 0.7]) detail('', light).box([px, top, pz], [px + 0.7, top + 2.2, pz + 0.7], FLAT_UV);
+        flatBlock(trim, h + 0.2, top + 2.2, top + 2.5);
+        roofOn(h, top + 2.5);
+        if (kit.roof === 'flat') beacon(top + 2.5);
+        break;
+      }
+      case 'minaret': {
+        // slim shaft, a balcony, a narrower upper stage and a stepped dome in the site's colour
+        const base = y + (tall ? 9 : 7);
+        wallBlock(1.15, y - 0.5, base);
+        flatBlock(trim, 1.75, base, base + 0.25);
+        flatBlock(light, 1.7, base + 0.25, base + 0.95);
+        flatBlock('#221d1a', 0.95, base + 0.25, base + 3);
+        for (const px of [x - 0.95, x + 0.6])
+          for (const pz of [z - 0.95, z + 0.6]) detail('', light).box([px, base + 0.25, pz], [px + 0.35, base + 3, pz + 0.35], FLAT_UV);
+        flatBlock(trim, 1.2, base + 3, base + 3.3);
+        const dome = [1.05, 0.9, 0.68, 0.4];
+        dome.forEach((h, i) => flatBlock(zone.accent, h, base + 3.3 + i * 0.42, base + 3.3 + (i + 1) * 0.42));
+        flatBlock('#d9b25a', 0.06, base + 3.3 + dome.length * 0.42, base + 6.2);
+        break;
+      }
+      case 'pagoda': {
+        // stacked storeys, each smaller than the last, each under its own tiled roof
+        let floor = y - 0.3;
+        const tiers = tall ? [1.7, 1.35, 1.0, 0.7] : [1.7, 1.3, 0.9];
+        for (const h of tiers) {
+          wallBlock(h, floor, floor + 2.3);
+          flatBlock(zone.accent, h + 0.04, floor + 1.95, floor + 2.3);
+          roofOn(h, floor + 2.3, 'tile');
+          floor += 2.3 + 0.14 + Math.min(2.4, (h + 0.38) * 0.55) * 0.45;
+        }
+        flatBlock('#d9b25a', 0.07, floor, floor + 2.6);
+        break;
+      }
+      case 'sign': {
+        // office block with a glowing vertical sign on two sides and a mast
+        const h = 1.5;
+        const top = y + (tall ? 10 : 8);
+        wallBlock(h, y - 0.5, top);
+        flatBlock(trim, h + 0.15, top, top + 0.35);
+        const glow = shade(zone.accent, 0.75);
+        detail(`landmark-neon-${zone.accent}`, zone.accent, glow).box([x - 0.5, y + 1.6, z - h - 0.12], [x + 0.5, top - 0.9, z - h], FLAT_UV, false);
+        detail(`landmark-neon-${zone.accent}`, zone.accent, glow).box([x - h - 0.12, y + 1.6, z - 0.5], [x - h, top - 0.9, z + 0.5], FLAT_UV, false);
+        detail(`landmark-neon-${zone.accent}`, zone.accent, glow).box([x + h, y + 1.6, z - 0.5], [x + h + 0.12, top - 0.9, z + 0.5], FLAT_UV, false);
+        detail(`landmark-neon-${zone.accent}`, zone.accent, glow).box([x - 0.5, y + 1.6, z + h], [x + 0.5, top - 0.9, z + h + 0.12], FLAT_UV, false);
+        beacon(top + 0.35);
+        break;
+      }
+      case 'watertank': {
+        // rooftop water tank on four legs with hoops and a pointed lid
+        const legs = y + (tall ? 3.6 : 2.8);
+        for (const px of [x - 1.2, x + 1.02])
+          for (const pz of [z - 1.2, z + 1.02]) detail('', '#4f4a44').box([px, y - 0.2, pz], [px + 0.18, legs, pz + 0.18], FLAT_UV);
+        flatBlock('#4f4a44', 1.45, legs, legs + 0.16);
+        flatBlock('#8a6a4c', 1.3, legs + 0.16, legs + 3.2);
+        for (const hy of [0.7, 1.7, 2.7]) flatBlock('#3d3833', 1.34, legs + hy, legs + hy + 0.1);
+        flatBlock(zone.accent, 1.33, legs + 1.05, legs + 1.45);
+        roofOn(1.3, legs + 3.2, 'tile');
+        break;
+      }
+      case 'ziggurat': {
+        // stepped stone pyramid with a dark shrine on top
+        const steps = tall ? [1.7, 1.4, 1.1, 0.8] : [1.7, 1.3, 0.9];
+        let floor = y - 0.3;
+        steps.forEach((h, i) => {
+          wallBlock(h, floor, floor + 1.7);
+          if (i === 1) flatBlock(zone.accent, h + 0.04, floor + 1.25, floor + 1.55);
+          flatBlock(trim, h + 0.1, floor + 1.7, floor + 1.88);
+          floor += 1.88;
+        });
+        const top = steps[steps.length - 1];
+        flatBlock('#1f211c', top - 0.25, floor, floor + 1.5);
+        for (const px of [x - top + 0.05, x + top - 0.3])
+          for (const pz of [z - top + 0.05, z + top - 0.3]) detail('', light).box([px, floor, pz], [px + 0.25, floor + 1.5, pz + 0.25], FLAT_UV);
+        flatBlock(trim, top, floor + 1.5, floor + 1.8);
+        break;
+      }
+      case 'crane': {
+        // tower crane: lattice mast, cab, a long jib over the yard and a short counter-jib
+        const paint = '#e0a12a';
+        const top = y + (tall ? 15 : 12);
+        const m = 0.8;
+        for (const px of [x - m, x + m - 0.16])
+          for (const pz of [z - m, z + m - 0.16]) detail('', paint).box([px, y - 0.2, pz], [px + 0.16, top, pz + 0.16], FLAT_UV);
+        for (let ry = y + 1.5; ry < top; ry += 1.8) {
+          detail('', paint).box([x - m, ry, z - m], [x + m, ry + 0.1, z - m + 0.1], FLAT_UV, false);
+          detail('', paint).box([x - m, ry, z + m - 0.1], [x + m, ry + 0.1, z + m], FLAT_UV, false);
+          detail('', paint).box([x - m, ry, z - m], [x - m + 0.1, ry + 0.1, z + m], FLAT_UV, false);
+          detail('', paint).box([x + m - 0.1, ry, z - m], [x + m, ry + 0.1, z + m], FLAT_UV, false);
+        }
+        flatBlock('#39424c', 1.0, top, top + 0.3);
+        detail('', '#d7dade').box([x - 0.9, top + 0.3, z - 0.9], [x + 0.3, top + 1.7, z + 0.3], FLAT_UV, false);
+        // the jib points towards the site it marks
+        const dx = sx - x;
+        const dz = sz - z;
+        const alongX = Math.abs(dx) >= Math.abs(dz);
+        const dir = (alongX ? dx : dz) >= 0 ? 1 : -1;
+        const beam = (from: number, to: number, y0: number, y1: number, w: number) => {
+          const a = Math.min(from, to);
+          const b = Math.max(from, to);
+          if (alongX) detail('', paint).box([x + a, y0, z - w], [x + b, y1, z + w], FLAT_UV, false);
+          else detail('', paint).box([x - w, y0, z + a], [x + w, y1, z + b], FLAT_UV, false);
+        };
+        beam(-4.5 * dir, 13 * dir, top + 1.7, top + 2.05, 0.3);
+        beam(-4.5 * dir, -2.6 * dir, top + 0.9, top + 1.7, 0.5); // counterweight
+        flatBlock(paint, 0.12, top + 2.05, top + 4);
+        // hoist cable and hook block
+        const hx = alongX ? x + 9 * dir : x;
+        const hz = alongX ? z : z + 9 * dir;
+        detail('', '#2b2f33').box([hx - 0.03, top - 3, hz - 0.03], [hx + 0.03, top + 1.7, hz + 0.03], FLAT_UV, false);
+        detail('', '#2b2f33').box([hx - 0.25, top - 3.5, hz - 0.25], [hx + 0.25, top - 3, hz + 0.25], FLAT_UV, false);
+        beacon(top + 4 - 2.7);
+        break;
+      }
+      case 'lighthouse': {
+        // tapering tower in bands of white and the site's colour, a gallery and a lit lamp room
+        const bands = tall ? 6 : 5;
+        let floor = y - 0.4;
+        for (let i = 0; i < bands; i++) {
+          const h = 1.6 - i * 0.14;
+          flatBlock(i % 2 ? zone.accent : '#efe9dc', h, floor, floor + 1.7);
+          floor += 1.7;
+        }
+        flatBlock('#3a4046', 1.55, floor, floor + 0.2);
+        flatBlock('#3a4046', 1.5, floor + 0.2, floor + 0.75);
+        flatBlock('#fff2b8', 0.62, floor + 0.2, floor + 1.9, '#e6c860', 'landmark-lamp');
+        for (const px of [x - 0.75, x + 0.63])
+          for (const pz of [z - 0.75, z + 0.63]) detail('', '#3a4046').box([px, floor + 0.2, pz], [px + 0.12, floor + 1.9, pz + 0.12], FLAT_UV);
+        flatBlock('#3a4046', 0.95, floor + 1.9, floor + 2.1);
+        roofOn(0.85, floor + 2.1, 'tile');
+        break;
+      }
     }
   });
 }

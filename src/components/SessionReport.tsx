@@ -30,18 +30,19 @@ export function SessionReportBody({ s }: { s: SessionStats }) {
         <Stat label="Avg reaction" value={rt ? `${rt} ms` : '—'} sub={`${s.reactionTimes.length} samples`} />
         <Stat label="Avg time to kill" value={kt ? `${kt} ms` : '—'} sub="from first sight" />
         <Stat label="First-shot acc." value={p(s.firstShotHits, s.firstShots)} sub={`${s.firstShots} first bullets`} />
+        <Stat label="Stopped before shooting" value={p(s.firstShots - (s.firstShotsMoving ?? 0), s.firstShots)} sub={`${s.firstShotsMoving ?? 0} first bullets fired moving`} />
         <Stat label="Spray acc." value={p(s.sprayHits, s.sprayShots)} sub="bullet 4+" />
         <Stat label="Moving-shot acc." value={p(s.movingHits, s.movingShots)} sub={`${s.movingShots} shots while moving`} />
         <Stat label="Damage" value={`${s.damageDealt}`} sub={`taken ${s.damageTaken}`} />
-        {s.clear && <Stat label="Rounds cleared" value={`${s.clear.cleared} / ${s.clear.rounds}`} sub="defenders all down" />}
+        {s.clear && <Stat label={s.mode === 'retake' ? 'Spikes defused' : 'Rounds cleared'} value={`${s.clear.cleared} / ${s.clear.rounds}`} sub={s.mode === 'retake' ? 'before the fuse ran out' : 'defenders all down'} />}
         {s.clear && (
           <Stat
-            label="Avg clear time"
+            label={s.mode === 'retake' ? 'Avg time to defuse' : 'Avg clear time'}
             value={s.clear.times.length ? `${(s.clear.times.reduce((a, t) => a + t, 0) / s.clear.times.length).toFixed(1)} s` : '—'}
             sub={s.clear.times.length ? `best ${Math.min(...s.clear.times).toFixed(1)} s` : 'no round cleared'}
           />
         )}
-        {s.mode !== 'deathmatch' && s.mode !== 'site-clear' && <Stat label="Escapes" value={s.escapes} sub="bots that peeked & lived" />}
+        {s.mode !== 'deathmatch' && !s.clear && <Stat label="Escapes" value={s.escapes} sub="bots that peeked & lived" />}
         {s.mode === 'jiggle' && <Stat label="Baited shots" value={s.baitedShots} sub="missed shots at jiggles" />}
       </div>
       {Object.keys(s.perWeapon).length > 0 && (
