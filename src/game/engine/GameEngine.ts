@@ -17,7 +17,7 @@ import type {
   Vec3,
   WeaponId,
 } from '../../types';
-import { AudioEngine } from '../audio/AudioEngine';
+import { AudioEngine, stepSound, type StepSurface } from '../audio/AudioEngine';
 import { encodeWav, renderAllGuns } from '../audio/gunSynth';
 import { Bot, type BotContext } from '../bots/Bot';
 import { BotAssets, BotVisual } from '../bots/BotVisual';
@@ -151,6 +151,8 @@ export class GameEngine {
   private hitmarker = { t: 0, kind: 'body' as 'body' | 'head' | 'kill' };
   /** Seconds left on the "moving" warning under the crosshair. */
   private moveWarn = 0;
+  /** Which foot the player's next step falls on (−1 left, +1 right). */
+  private stepFoot = 1;
   private spikeLamp: StandardMaterial | null = null;
   private spikeState: Spike['state'] = 'armed';
   private spikeBeep = 0;
@@ -342,11 +344,19 @@ export class GameEngine {
     this.player = new PlayerController(this.map.world);
     this.player.events = {
       onFootstep: () => {
-        this.audio.play('step', { bus: 'foot', volume: 0.35, rate: 0.94 + Math.random() * 0.12, group: 'step-player' });
+        // alternate feet a little left and right; the sound follows what is underfoot
+        this.stepFoot = -this.stepFoot;
+        const surface = this.surfaceUnder(this.player.pos.x, this.player.pos.y, this.player.pos.z);
+        this.audio.play(stepSound(surface), { bus: 'foot', volume: 0.85, rate: 0.95 + Math.random() * 0.1, pan: this.stepFoot * 0.14, group: 'step-player' });
         this.director?.hear(this.ctx, this.player.pos.x, this.player.pos.z, 14);
       },
       onJump: () => this.audio.play('jump', { bus: 'foot', volume: 0.5 }),
-      onLand: (impact) => this.audio.play('land', { bus: 'foot', volume: Math.min(1, 0.3 + impact * 0.08) }),
+      onLand: (impact) => {
+        const surface = this.surfaceUnder(this.player.pos.x, this.player.pos.y, this.player.pos.z);
+        const volume = Math.min(1, 0.55 + impact * 0.07);
+        this.audio.play('land', { bus: 'foot', volume });
+        this.audio.play(stepSound(surface), { bus: 'foot', volume: volume * 0.8, rate: 0.82, group: 'step-player' });
+      },
     };
     this.weapons = new WeaponSystem(this.config.primary, this.config.secondary);
     this.weapons.infiniteAmmo = this.config.infiniteAmmo;
@@ -451,7 +461,18 @@ export class GameEngine {
       graceUntil: 0,
       onBotFootstep: (bot) => {
         const occluded = !this.map.world.segmentClear(bot.x, bot.y + 1.5, bot.z, ...this.player.eye());
-        this.audio.play('step', { pos: [bot.x, bot.y + 0.1, bot.z], bus: 'foot', volume: 0.9, occluded, rate: 0.94 + Math.random() * 0.12, group: `step-bot-${bot.id}` });
+        // each bot keeps its own slight pitch, so two sets of steps can be told apart
+        const voice = 0.93 + ((bot.id * 37) % 10) * 0.012;
+        this.audio.play(stepSound(this.surfaceUnder(bot.x, bot.y, bot.z)), {
+          pos: [bot.x, bot.y + 0.1, bot.z],
+          bus: 'foot',
+          volume: 1,
+          occluded,
+          rate: voice * (0.97 + Math.random() * 0.06),
+          refDistance: 5,
+          dry: true,
+          group: `step-bot-${bot.id}`,
+        });
       },
     };
     this.director.start(this.ctx);
@@ -1019,6 +1040,12 @@ export class GameEngine {
     this.spikeBlink -= dt;
     const on = this.spikeBlink > 0;
     this.spikeLamp.emissiveColor.set(on ? 1 : 0.25, on ? 0.3 : 0.04, on ? 0.2 : 0.03);
+  }
+
+  /** What a foot at (x, y, z) is standing on: metal containers, wooden crates, otherwise stone. */
+  private surfaceUnder(x: number, y: number, z: number): StepSurface {
+    const hit = this.map.world.raycast(x, y + 0.4, z, 0, -1, 0, 1.2);
+    return hit ? surfaceKind(hit.box.surface) : 'stone';
   }
 
   private respawnPlayer(x: number, y: number, z: number, yaw: number) {

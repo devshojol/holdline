@@ -60,6 +60,150 @@ export interface PlayOptions {
    * sound like the same gun the player fires.
    */
   clean?: boolean;
+  /** Without `pos`: place the sound a little left (−1) or right (+1). */
+  pan?: number;
+  /** With `pos`: distance (metres) at which the sound starts to fade. Larger carries further. Default 2.5. */
+  refDistance?: number;
+  /** With `pos`: no echo. The sound is still placed, muffled by distance and walls, but has no reverb tail. */
+  dry?: boolean;
+}
+
+/** What a foot lands on. Each has its own set of step sounds. */
+export type StepSurface = 'stone' | 'wood' | 'metal';
+
+/** Buffer name of the step sounds for a surface. */
+export function stepSound(surface: StepSurface): string {
+  return surface === 'stone' ? 'step' : `step-${surface}`;
+}
+
+/**
+ * Give one footstep its weight and its surface: strip the background, boost the step's own low end,
+ * colour it (a hollow knock for wood, a short ring for metal; nothing added on stone) and bring it
+ * up to a full, even level. Works on a mono take; returns a new array, a little longer for the ring's tail.
+ */
+export function weighStep(x: Float32Array, sr: number, surface: StepSurface): Float32Array {
+  x = gateStep(x, sr);
+  const tail = surface === 'metal' ? 0.22 : 0.08;
+  const out = new Float32Array(x.length + Math.floor(tail * sr));
+  let peak = 0;
+  for (let i = 0; i < x.length; i++) peak = Math.max(peak, Math.abs(x[i]));
+  const norm = peak > 0 ? 1 / peak : 1;
+  // the take itself; wood loses its top end
+  const top = surface === 'wood' ? 1 - Math.exp((-2 * Math.PI * 2400) / sr) : 1;
+  const lowA = 1 - Math.exp((-2 * Math.PI * 280) / sr);
+  let y = 0;
+  let low = 0;
+  for (let i = 0; i < x.length; i++) {
+    y += top * (x[i] * norm - y);
+    low += lowA * (y - low);
+    out[i] = y * 0.75 + low * 1.5; // low-end body, taken from the step itself
+  }
+  const add = (f0: number, f1: number, decay: number, gain: number, len: number) => {
+    let ph = 0;
+    const n = Math.min(out.length, Math.floor(len * sr));
+    for (let i = 0; i < n; i++) {
+      const t = i / sr;
+      ph += (2 * Math.PI * (f0 + (f1 - f0) * Math.min(1, t / len))) / sr;
+      // 3 ms attack so the layer doesn't click
+      out[i] += Math.sin(ph) * gain * Math.min(1, t / 0.003) * Math.exp(-t / decay);
+    }
+  };
+  // No synthetic layer on stone: a tone under every step reads as a second sound behind it.
+  if (surface === 'wood') {
+    add(205, 150, 0.055, 0.55, 0.2);
+    add(430, 400, 0.028, 0.2, 0.12);
+  } else if (surface === 'metal') {
+    add(640, 628, 0.11, 0.3, 0.3);
+    add(1490, 1470, 0.08, 0.2, 0.3);
+    add(2350, 2330, 0.045, 0.12, 0.2);
+  }
+  let p2 = 0;
+  for (let i = 0; i < out.length; i++) {
+    out[i] = Math.tanh(out[i] * 1.3);
+    p2 = Math.max(p2, Math.abs(out[i]));
+  }
+  // fade the last 20 ms and level
+  const fade = Math.min(out.length, Math.floor(0.02 * sr));
+  for (let i = 0; i < out.length; i++) out[i] *= (0.95 / (p2 || 1)) * Math.min(1, (out.length - i) / fade);
+  return out;
+}
+
+/**
+ * Strip the background out of a recorded footstep so only the step itself is left: remove rumble
+ * below the step, close a gate on everything near the take's noise floor (room tone, hiss, other
+ * sounds between steps), and let the step die away shortly after its loudest moment instead of
+ * trailing the room behind it. Returns a new, usually shorter, array that starts at the step.
+ */
+export function gateStep(x: Float32Array, sr: number): Float32Array {
+  const y = new Float32Array(x.length);
+  // 70 Hz high-pass: rumble only
+  const a = 1 - Math.exp((-2 * Math.PI * 70) / sr);
+  let low = 0;
+  for (let i = 0; i < x.length; i++) {
+    low += a * (x[i] - low);
+    y[i] = x[i] - low;
+  }
+  // loudness in 4 ms frames
+  const frame = Math.max(1, Math.floor(0.004 * sr));
+  const frames = Math.ceil(y.length / frame);
+  const env = new Float32Array(frames);
+  let top = 0;
+  let at = 0;
+  for (let f = 0; f < frames; f++) {
+    let sum = 0;
+    const end = Math.min(y.length, (f + 1) * frame);
+    for (let i = f * frame; i < end; i++) sum += y[i] * y[i];
+    env[f] = Math.sqrt(sum / Math.max(1, end - f * frame));
+    if (env[f] > top) {
+      top = env[f];
+      at = f;
+    }
+  }
+  if (top <= 0) return y;
+  // noise floor: the quietest fifth of the take
+  const sorted = Array.from(env).sort((p, q) => p - q);
+  const floor = sorted[Math.floor(sorted.length * 0.2)];
+  const open = Math.max(floor * 3, top * 0.1);
+  // the step ends where it last stands clear of the floor (at most 0.22 s after its loudest moment)
+  let last = at;
+  const limit = Math.min(frames - 1, at + Math.floor(0.22 / 0.004));
+  for (let f = at; f <= limit; f++) if (env[f] > open) last = f;
+  // ...and starts just before it first rises clear of the floor, so nothing plays ahead of the step
+  let first = at;
+  for (let f = at; f >= 0 && env[f] > open; f--) first = f;
+  const from = Math.max(0, first * frame - Math.floor(0.003 * sr));
+  const release = 0.03; // seconds for the gate to close after the step ends
+  const endAt = Math.min(y.length, (last + 1) * frame + Math.floor(release * 3 * sr));
+  const out = new Float32Array(endAt - from);
+  let g = 0;
+  for (let i = from; i < endAt; i++) {
+    const f = Math.min(frames - 1, Math.floor(i / frame));
+    // gate: fully open on the step, closing fast (squared) as the level nears the floor
+    const want = f > last ? 0 : Math.min(1, (env[f] / open) ** 2);
+    // fast attack so the onset stays sharp, slower release so the gate doesn't chatter
+    const rate = want > g ? 1 - Math.exp(-1 / (0.001 * sr)) : 1 - Math.exp(-1 / (release * sr));
+    g += rate * (want - g);
+    out[i - from] = y[i] * g;
+  }
+  return out;
+}
+
+const STEP_SURFACES: StepSurface[] = ['stone', 'wood', 'metal'];
+
+/** Mix an AudioBuffer down to one channel. */
+function monoOf(b: AudioBuffer): Float32Array {
+  const out = new Float32Array(b.length);
+  for (let c = 0; c < b.numberOfChannels; c++) {
+    const d = b.getChannelData(c);
+    for (let i = 0; i < d.length; i++) out[i] += d[i] / b.numberOfChannels;
+  }
+  return out;
+}
+
+function bufferOf(ctx: BaseAudioContext, data: Float32Array, sr: number): AudioBuffer {
+  const b = ctx.createBuffer(1, data.length, sr);
+  b.getChannelData(0).set(data);
+  return b;
 }
 
 function rngFrom(seed: number) {
@@ -206,6 +350,8 @@ export class AudioEngine {
   private readonly recorded = new Set<string>();
   /** Sound currently playing in each voice group. */
   private readonly voices = new Map<string, { src: AudioBufferSourceNode; gain: GainNode }>();
+  /** Which take of each sound played last. */
+  private readonly lastPick = new Map<string, number>();
 
   /** Render the layered gunshots and load any recorded takes, in parallel. */
   private async loadGuns() {
@@ -254,6 +400,17 @@ export class AudioEngine {
         if (id === 'step') decoded = decoded.flatMap((b) => (b.duration > 0.8 ? splitSteps(ctx, b) : [fadeOut(ctx, b, 0.5)]));
         if (!decoded.length) return;
         this.recorded.add(id);
+        if (id === 'step') {
+          // every recorded step gets weight and a version for each surface
+          for (const surface of STEP_SURFACES) {
+            this.buffers.set(
+              stepSound(surface),
+              decoded.map((b) => bufferOf(ctx, weighStep(monoOf(b), b.sampleRate, surface), b.sampleRate)),
+            );
+          }
+          this.sampleOverrides.push(key);
+          return;
+        }
         this.buffers.set(id, decoded);
         if (id.startsWith('reload')) {
           // cut at the pause between taking the magazine out and putting the new one in (see playReload)
@@ -369,13 +526,17 @@ export class AudioEngine {
     add('dry', click(21, 3000, 0.05));
 
     // --- Footsteps (4 variants, picked at random)
-    const steps: AudioBuffer[] = [];
-    for (let i = 0; i < 4; i++) {
-      const scuff = S.env(S.lowpass(S.noise(0.12, 30 + i), 900 + i * 220), 0.003, 0.03, 1);
-      const heel = S.tone(0.08, 85 + i * 10, 55, 0.02, 0.8);
-      steps.push(S.buffer(ctx, S.mix(0.14, [scuff], [heel])));
+    // --- Footsteps: six takes per surface (a recording, when there is one, replaces these)
+    for (const surface of STEP_SURFACES) {
+      const steps: AudioBuffer[] = [];
+      for (let i = 0; i < 6; i++) {
+        const scuff = S.env(S.lowpass(S.noise(0.16, 30 + i), 1100 + i * 260), 0.003, 0.04, 1);
+        const grit = S.env(S.highpass(S.noise(0.1, 60 + i), 2200), 0.012, 0.03, 0.25);
+        const heel = S.tone(0.1, 90 + i * 8, 55, 0.025, 0.8);
+        steps.push(bufferOf(ctx, weighStep(S.mix(0.2, [scuff], [grit, 0.02], [heel]), S.sr, surface), S.sr));
+      }
+      this.buffers.set(stepSound(surface), steps);
     }
-    this.buffers.set('step', steps);
     // Jump (original): a shoe pushing off — short grippy scuff over a soft low thud — then a quick
     // rustle of clothes and gear as the body lifts, with two faint strap/buckle ticks.
     add(
@@ -389,7 +550,17 @@ export class AudioEngine {
         [S.tone(0.02, 3400, 3300, 0.005, 0.08), 0.1],
       ),
     );
-    add('land', S.mix(0.2, [S.tone(0.15, 70, 40, 0.05, 1)], [S.env(S.lowpass(S.noise(0.15, 41), 700), 0.002, 0.04, 0.8)]));
+    // Landing: both feet at once — a deep thud, a wider scuff and a second, softer thud just after.
+    add(
+      'land',
+      S.mix(
+        0.34,
+        [S.tone(0.22, 82, 38, 0.07, 1)],
+        [S.env(S.lowpass(S.noise(0.2, 41), 900), 0.002, 0.05, 0.8)],
+        [S.env(S.highpass(S.noise(0.12, 42), 1800), 0.01, 0.035, 0.2), 0.01],
+        [S.tone(0.16, 70, 40, 0.05, 0.5), 0.05],
+      ),
+    );
 
     // --- Feedback
     add('hit', S.mix(0.12, [S.tone(0.1, 1350, 1250, 0.025, 0.8)], [S.env(S.highpass(S.noise(0.03, 50), 3000), 0, 0.004, 0.4)]));
@@ -485,7 +656,11 @@ export class AudioEngine {
     if (!this.ctx || !this.ready || this.ctx.state !== 'running') return;
     const list = this.buffers.get(name);
     if (!list || list.length === 0) return;
-    const buf = list[Math.floor(Math.random() * list.length)];
+    // never the same take twice in a row
+    let pick = Math.floor(Math.random() * list.length);
+    if (list.length > 1 && pick === this.lastPick.get(name)) pick = (pick + 1 + Math.floor(Math.random() * (list.length - 1))) % list.length;
+    this.lastPick.set(name, pick);
+    const buf = list[pick];
     const ctx = this.ctx;
     const src = ctx.createBufferSource();
     src.buffer = buf;
@@ -520,7 +695,7 @@ export class AudioEngine {
       const panner = ctx.createPanner();
       panner.panningModel = 'HRTF';
       panner.distanceModel = 'inverse';
-      panner.refDistance = 2.5;
+      panner.refDistance = opts.refDistance ?? 2.5;
       panner.maxDistance = 150;
       panner.rolloffFactor = 1.1;
       if (panner.positionX) {
@@ -532,12 +707,20 @@ export class AudioEngine {
       lp.connect(panner);
       // Environment send: far-away or walled-off shots are heard mostly through reflections.
       const send = ctx.createGain();
-      const sendLevel = Math.min(0.85, 0.08 + dist / 50 + (opts.occluded ? 0.25 : 0)) * (opts.volume ?? 1);
+      const sendLevel = opts.dry
+        ? 0
+        : Math.min(0.85, 0.08 + dist / 50 + (opts.occluded ? 0.25 : 0)) * (opts.volume ?? 1);
       send.gain.value = sendLevel;
       lp.connect(send);
       send.connect(this.reverbIn);
       src.addEventListener('ended', () => send.disconnect());
       node = panner;
+    }
+    if (!opts.pos && opts.pan && ctx.createStereoPanner) {
+      const pan = ctx.createStereoPanner();
+      pan.pan.value = Math.max(-1, Math.min(1, opts.pan));
+      node.connect(pan);
+      node = pan;
     }
     node.connect(gain);
     gain.connect(this.buses[opts.bus ?? 'effects']);
