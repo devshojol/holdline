@@ -41,6 +41,8 @@ import {
   Camera,
   Color3,
   CreateBox,
+  CreateCylinder,
+  TransformNode,
   Mesh,
   StandardMaterial,
   Color4,
@@ -937,24 +939,56 @@ export class GameEngine {
     ctx.fill();
   }
 
-  /** Retake: the planted spike — a small case with a light that blinks faster as the fuse runs down. */
+  /**
+   * Retake: the planted spike. A round base on three splayed feet, a ribbed core with a glowing
+   * band that blinks faster as the fuse runs down, a tapered head and an antenna.
+   */
   private buildSpike(sp: Spike) {
-    const body = CreateBox('spike', { width: 0.34, height: 0.3, depth: 0.22 }, this.scene);
-    body.position.set(sp.x, sp.y + 0.15, sp.z);
-    const bm = new StandardMaterial('spike-mat', this.scene);
-    bm.diffuseColor = Color3.FromHexString('#23272e');
-    bm.specularColor = new Color3(0.2, 0.2, 0.2);
-    body.material = bm;
-    body.isPickable = false;
-    const lamp = CreateBox('spike-lamp', { width: 0.12, height: 0.5, depth: 0.12 }, this.scene);
-    lamp.position.set(sp.x, sp.y + 0.5, sp.z);
-    const lm = new StandardMaterial('spike-lamp-mat', this.scene);
-    lm.diffuseColor = Color3.Black();
-    lm.specularColor = Color3.Black();
-    lm.emissiveColor = Color3.FromHexString('#ff3b2f');
-    lamp.material = lm;
-    lamp.isPickable = false;
-    this.spikeLamp = lm;
+    const scene = this.scene;
+    const root = new TransformNode('spike', scene);
+    root.position.set(sp.x, sp.y, sp.z);
+    const metal = new StandardMaterial('spike-metal', scene);
+    metal.diffuseColor = Color3.FromHexString('#2a2f37');
+    metal.specularColor = new Color3(0.35, 0.35, 0.38);
+    const dark = new StandardMaterial('spike-dark', scene);
+    dark.diffuseColor = Color3.FromHexString('#15181d');
+    dark.specularColor = new Color3(0.1, 0.1, 0.1);
+    const glow = new StandardMaterial('spike-glow', scene);
+    glow.diffuseColor = Color3.Black();
+    glow.specularColor = Color3.Black();
+    glow.emissiveColor = Color3.FromHexString('#ff3b2f');
+    const add = (mesh: Mesh, mat: StandardMaterial, y: number) => {
+      mesh.parent = root;
+      mesh.position.y = y;
+      mesh.material = mat;
+      mesh.isPickable = false;
+      mesh.receiveShadows = true;
+      this.shadow?.addShadowCaster(mesh);
+      return mesh;
+    };
+    const cyl = (name: string, height: number, bottom: number, top: number, tess = 16) =>
+      CreateCylinder(name, { height, diameterBottom: bottom, diameterTop: top, tessellation: tess }, scene);
+    add(cyl('spike-base', 0.05, 0.46, 0.42), dark, 0.085);
+    add(cyl('spike-collar', 0.07, 0.3, 0.26), metal, 0.145);
+    add(cyl('spike-core', 0.34, 0.22, 0.22, 12), metal, 0.35);
+    for (const y of [0.24, 0.46]) add(cyl('spike-rib', 0.03, 0.25, 0.25, 12), dark, y);
+    add(cyl('spike-band', 0.09, 0.235, 0.235), glow, 0.35);
+    add(cyl('spike-head', 0.13, 0.22, 0.1, 12), metal, 0.585);
+    add(cyl('spike-tip', 0.05, 0.07, 0.07, 10), glow, 0.675);
+    add(cyl('spike-antenna', 0.3, 0.012, 0.012, 6), dark, 0.85).position.x = 0.06;
+    // three feet splayed out from the base
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2 + 0.4;
+      const foot = add(CreateBox('spike-foot', { width: 0.07, height: 0.05, depth: 0.3 }, scene), dark, 0.035);
+      foot.position.x = Math.sin(a) * 0.27;
+      foot.position.z = Math.cos(a) * 0.27;
+      foot.rotation.y = a;
+      foot.rotation.x = 0.18;
+    }
+    // carry handle over the head
+    for (const sx of [-0.09, 0.09]) add(CreateBox('spike-handle', { width: 0.018, height: 0.16, depth: 0.018 }, scene), dark, 0.6).position.x = sx;
+    add(CreateBox('spike-grip', { width: 0.2, height: 0.02, depth: 0.03 }, scene), dark, 0.69);
+    this.spikeLamp = glow;
   }
 
   private updateSpike(dt: number) {

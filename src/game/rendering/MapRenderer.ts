@@ -41,11 +41,13 @@ class GeometryBatch {
   tint: [number, number, number] = [1, 1, 1];
 
   /** `shade` is a per-vertex brightness (1 = unchanged) used for baked contact shading. */
-  quad(p: number[][], n: [number, number, number], uv: number[][], shade?: number[]) {
+  quad(p: number[][], n: [number, number, number], uv: number[][], shade?: number[], vertexNormals?: number[][]) {
     const base = this.positions.length / 3;
     for (let i = 0; i < 4; i++) {
       this.positions.push(p[i][0], p[i][1], p[i][2]);
-      this.normals.push(n[0], n[1], n[2]);
+      // per-vertex normals give round shapes smooth shading; `n` still decides which way the face points
+      const vn = vertexNormals ? vertexNormals[i] : n;
+      this.normals.push(vn[0], vn[1], vn[2]);
       this.uvs.push(uv[i][0], uv[i][1]);
       const k = shade ? shade[i] : 1;
       // darker vertices lean slightly cool, like sky-lit shadow
@@ -65,6 +67,123 @@ class GeometryBatch {
     const dot = cx * n[0] + cy * n[1] + cz * n[2];
     if (dot < 0) this.indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
     else this.indices.push(base, base + 2, base + 1, base, base + 3, base + 2);
+  }
+
+  /**
+   * Round, smooth-shaded section about a vertical axis: radius r0 at y0 and r1 at y1, so one call
+   * makes a cylinder, a taper or (with r1 = 0) a cone.
+   */
+  tube(cx: number, cz: number, y0: number, y1: number, r0: number, r1: number, sides = 24, phase = 0, faceted = false) {
+    // outward normal tilts up when the section narrows towards the top
+    const run = y1 - y0;
+    const lean = r0 - r1;
+    const len = Math.hypot(run, lean) || 1;
+    const nh = run / len;
+    const ny = lean / len;
+    for (let i = 0; i < sides; i++) {
+      const t0 = phase + (i / sides) * Math.PI * 2;
+      const t1 = phase + ((i + 1) / sides) * Math.PI * 2;
+      const c0 = Math.cos(t0);
+      const s0 = Math.sin(t0);
+      const c1 = Math.cos(t1);
+      const s1 = Math.sin(t1);
+      const tm = (t0 + t1) / 2;
+      this.quad(
+        [
+          [cx + c0 * r0, y0, cz + s0 * r0],
+          [cx + c1 * r0, y0, cz + s1 * r0],
+          [cx + c1 * r1, y1, cz + s1 * r1],
+          [cx + c0 * r1, y1, cz + s0 * r1],
+        ],
+        [Math.cos(tm) * nh, ny, Math.sin(tm) * nh],
+        [
+          [i / sides, 0],
+          [(i + 1) / sides, 0],
+          [(i + 1) / sides, 1],
+          [i / sides, 1],
+        ],
+        undefined,
+        faceted
+          ? undefined
+          : [
+              [c0 * nh, ny, s0 * nh],
+              [c1 * nh, ny, s1 * nh],
+              [c1 * nh, ny, s1 * nh],
+              [c0 * nh, ny, s0 * nh],
+            ],
+      );
+    }
+  }
+
+  /** Straight square-section bar between two points (truss members, rods, rails at any angle). */
+  strut(a: number[], b: number[], w: number) {
+    const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    const len = Math.hypot(d[0], d[1], d[2]);
+    if (len < 1e-4) return;
+    d[0] /= len;
+    d[1] /= len;
+    d[2] /= len;
+    // two unit vectors square to the bar
+    const ref = Math.abs(d[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
+    let u = [d[1] * ref[2] - d[2] * ref[1], d[2] * ref[0] - d[0] * ref[2], d[0] * ref[1] - d[1] * ref[0]];
+    const ul = Math.hypot(u[0], u[1], u[2]);
+    u = [u[0] / ul, u[1] / ul, u[2] / ul];
+    const v = [d[1] * u[2] - d[2] * u[1], d[2] * u[0] - d[0] * u[2], d[0] * u[1] - d[1] * u[0]];
+    const h = w / 2;
+    const corner = (p: number[], su: number, sv: number) => [p[0] + (u[0] * su + v[0] * sv) * h, p[1] + (u[1] * su + v[1] * sv) * h, p[2] + (u[2] * su + v[2] * sv) * h];
+    const uvs = [[0, 0], [1, 0], [1, 1], [0, 1]];
+    const faces: [number, number, number, number, number[]][] = [
+      [1, -1, 1, 1, u],
+      [-1, 1, -1, -1, [-u[0], -u[1], -u[2]]],
+      [1, 1, -1, 1, v],
+      [-1, -1, 1, -1, [-v[0], -v[1], -v[2]]],
+    ];
+    for (const [su0, sv0, su1, sv1, n] of faces)
+      this.quad([corner(a, su0, sv0), corner(a, su1, sv1), corner(b, su1, sv1), corner(b, su0, sv0)], n as [number, number, number], uvs);
+  }
+
+  /** Upright ring (or disc with inner = 0) facing along +X/−X or +Z/−Z: clock faces, portholes, fans. */
+  ringV(c: number[], axis: 'x' | 'z', sign: number, outer: number, inner = 0, sides = 24) {
+    const n: [number, number, number] = axis === 'x' ? [sign, 0, 0] : [0, 0, sign];
+    const at = (t: number, r: number) => (axis === 'x' ? [c[0], c[1] + Math.sin(t) * r, c[2] + Math.cos(t) * r] : [c[0] + Math.cos(t) * r, c[1] + Math.sin(t) * r, c[2]]);
+    for (let i = 0; i < sides; i++) {
+      const t0 = (i / sides) * Math.PI * 2;
+      const t1 = ((i + 1) / sides) * Math.PI * 2;
+      this.quad([at(t0, inner), at(t1, inner), at(t1, outer), at(t0, outer)], n, [[0, 0], [1, 0], [1, 1], [0, 1]]);
+    }
+  }
+
+  /** Flat ring (or full disc with inner = 0) facing up or down. */
+  disc(cx: number, cz: number, y: number, outer: number, inner = 0, up = true, sides = 24) {
+    const n: [number, number, number] = [0, up ? 1 : -1, 0];
+    for (let i = 0; i < sides; i++) {
+      const t0 = (i / sides) * Math.PI * 2;
+      const t1 = ((i + 1) / sides) * Math.PI * 2;
+      this.quad(
+        [
+          [cx + Math.cos(t0) * inner, y, cz + Math.sin(t0) * inner],
+          [cx + Math.cos(t1) * inner, y, cz + Math.sin(t1) * inner],
+          [cx + Math.cos(t1) * outer, y, cz + Math.sin(t1) * outer],
+          [cx + Math.cos(t0) * outer, y, cz + Math.sin(t0) * outer],
+        ],
+        n,
+        [
+          [0, 0],
+          [1, 0],
+          [1, 1],
+          [0, 1],
+        ],
+      );
+    }
+  }
+
+  /** Dome: a hemisphere (stretched to `height`) built from smooth rings. */
+  dome(cx: number, cz: number, y: number, radius: number, height: number, rings = 6, sides = 24) {
+    for (let j = 0; j < rings; j++) {
+      const a0 = (j / rings) * (Math.PI / 2);
+      const a1 = ((j + 1) / rings) * (Math.PI / 2);
+      this.tube(cx, cz, y + Math.sin(a0) * height, y + Math.sin(a1) * height, Math.cos(a0) * radius, Math.cos(a1) * radius, sides);
+    }
   }
 
   box(min: number[], max: number[], uv: UvMode, skipBottom = true, topBatch: GeometryBatch | null = null, topTile = 4) {
@@ -509,62 +628,95 @@ function addFacadeDetail(data: MapData, kit: MapKit, batch: (key: string, color:
       const cellC = (k: number) => (alongRows ? line : k);
       const cellR = (k: number) => (alongRows ? k : line);
       const zone = def.palette.zones[def.zoneOf(cellC(k0), cellR(k0))] ?? Object.values(def.palette.zones)[0];
-      const box = (key: string, color: string, k: number, offset: number, width: number, y0: number, y1: number, depth: number, emissive?: string) => {
-        // k: cell index along the run; offset: metres from that cell's centre along the facade
+      /** Facade-local point: `a` metres along the wall from cell k's centre, height y, `d` metres out from the face. */
+      const P = (k: number, a: number, y: number, d: number): number[] => {
         const c = cellC(k);
         const r = cellR(k);
-        const cx = space.x(c) + dc * half;
-        const cz = space.z(r) - dr * half; // row grows towards −Z
-        const nx = dc;
-        const nz = -dr;
-        let min: number[];
-        let max: number[];
-        if (alongRows) {
-          // face normal ±X; facade runs along Z (row direction is −Z)
-          const z = space.z(r) - offset;
-          const x0 = nx > 0 ? cx : cx - depth;
-          const x1 = nx > 0 ? cx + depth : cx;
-          min = [x0, y0, z - width / 2];
-          max = [x1, y1, z + width / 2];
-        } else {
-          const x = space.x(c) + offset;
-          const z0 = nz > 0 ? cz : cz - depth;
-          const z1 = nz > 0 ? cz + depth : cz;
-          min = [x - width / 2, y0, z0];
-          max = [x + width / 2, y1, z1];
-        }
-        batch(key, color, emissive).box(min, max, uv, true, null);
+        return alongRows ? [space.x(c) + dc * (half + d), y, space.z(r) - a] : [space.x(c) + a, y, space.z(r) - dr * (half + d)];
+      };
+      /** Box in facade-local terms: centred at `offset` along the wall, standing off it from d0 to d1. */
+      const boxAt = (key: string, color: string, k: number, offset: number, width: number, y0: number, y1: number, d0: number, d1: number, emissive?: string) => {
+        const p = P(k, offset - width / 2, y0, d0);
+        const q = P(k, offset + width / 2, y1, d1);
+        batch(key, color, emissive).box(
+          [Math.min(p[0], q[0]), y0, Math.min(p[2], q[2])],
+          [Math.max(p[0], q[0]), y1, Math.max(p[2], q[2])],
+          uv,
+          false,
+          null,
+        );
+      };
+      const box = (key: string, color: string, k: number, offset: number, width: number, y0: number, y1: number, depth: number, emissive?: string) =>
+        boxAt(key, color, k, offset, width, y0, y1, 0, depth, emissive);
+      /** Flat panel facing out of the wall (both sides drawn), given as facade-local corner points. */
+      const panel = (color: string, pts: number[][], n: [number, number, number], back = 0.75) => {
+        const quadUv = [[0, 0], [1, 0], [1, 1], [0, 1]];
+        const b = batch('', color);
+        b.quad(pts, n, quadUv);
+        b.quad(pts, [-n[0], -n[1], -n[2]], quadUv, [back, back, back, back]);
+      };
+      const out: [number, number, number] = [dc, 0, -dr];
+      const side: [number, number, number] = alongRows ? [0, 0, -1] : [1, 0, 0];
+      const IRON = '#2b2825';
+      /** Wall lantern: back plate, bracket arm, and a caged lamp with a cap hanging from it. */
+      const lantern = (k: number, a: number, y: number) => {
+        boxAt('', IRON, k, a, 0.16, y + 0.02, y + 0.46, 0, 0.03);
+        boxAt('', IRON, k, a, 0.045, y + 0.38, y + 0.425, 0.03, 0.3);
+        boxAt('', IRON, k, a, 0.03, y + 0.29, y + 0.38, 0.245, 0.275);
+        boxAt('', IRON, k, a, 0.1, y + 0.27, y + 0.3, 0.21, 0.31); // finial under the arm
+        boxAt('', IRON, k, a, 0.27, y + 0.23, y + 0.27, 0.125, 0.395); // cap
+        boxAt('', IRON, k, a, 0.19, y + 0.27, y + 0.29, 0.165, 0.355);
+        boxAt('facade-lamp', '#ffe7b0', k, a, 0.17, y + 0.02, y + 0.23, 0.175, 0.345, '#d9b060'); // glass
+        for (const sa of [-0.095, 0.095])
+          for (const sd of [0.165, 0.355]) boxAt('', IRON, k, a + sa, 0.022, y + 0.02, y + 0.23, sd - 0.011, sd + 0.011);
+        boxAt('', IRON, k, a, 0.23, y - 0.015, y + 0.02, 0.145, 0.375); // base
+        boxAt('', IRON, k, a, 0.07, y - 0.06, y - 0.015, 0.225, 0.295);
       };
       const trim = shade(zone.wall, 0.78);
       const frame = shade(zone.wall, 1.12);
       const paint = shade(zone.accent, 0.8);
       const paintDark = shade(zone.accent, 0.58);
-      /** Cloth awning: a sloped sheet from the wall down to a front valance, seen from above and below. */
-      const awning = (k: number, width: number, yWall: number, yFront: number, out: number) => {
-        const c = cellC(k);
-        const r = cellR(k);
-        const P = (a: number, y: number, d: number): number[] =>
-          alongRows ? [space.x(c) + dc * (half + d), y, space.z(r) - a] : [space.x(c) + a, y, space.z(r) - dr * (half + d)];
+      /** Shop awning: striped canopy on an iron frame with side cheeks, stays to the wall and a scalloped valance. */
+      const awning = (k: number, width: number, yWall: number, yFront: number, reach: number) => {
         const w = width / 2;
-        const len = Math.hypot(out, yWall - yFront);
-        const up: [number, number, number] = [(dc * (yWall - yFront)) / len, out / len, (-dr * (yWall - yFront)) / len];
-        const cloth = batch(`facade-awning-${paint}`, paint);
-        const pts = [P(-w, yWall, 0), P(w, yWall, 0), P(w, yFront, out), P(-w, yFront, out)];
-        const uvs = [[0, 0], [1, 0], [1, 1], [0, 1]];
-        cloth.quad(pts, up, uvs);
-        cloth.quad(pts, [-up[0], -up[1], -up[2]], uvs, [0.7, 0.7, 0.8, 0.8]);
-        // hanging valance along the front edge
-        const fr = [P(-w, yFront - 0.22, out), P(w, yFront - 0.22, out), P(w, yFront, out), P(-w, yFront, out)];
-        const stripe = batch(`facade-awning-${paintDark}`, paintDark);
-        stripe.quad(fr, [dc, 0, -dr], uvs);
-        stripe.quad(fr, [-dc, 0, dr], uvs, [0.7, 0.7, 0.7, 0.7]);
+        const len = Math.hypot(reach, yWall - yFront);
+        const up: [number, number, number] = [(dc * (yWall - yFront)) / len, reach / len, (-dr * (yWall - yFront)) / len];
+        const stripes = 6;
+        const sw = width / stripes;
+        const cream = '#efe6d2';
+        for (let i = 0; i < stripes; i++) {
+          const a0 = -w + i * sw;
+          const a1 = a0 + sw;
+          const color = i % 2 ? cream : paint;
+          panel(color, [P(k, a0, yWall, 0.02), P(k, a1, yWall, 0.02), P(k, a1, yFront, reach), P(k, a0, yFront, reach)], up, 0.72);
+          // valance: a hanging flap per stripe, cut to a point
+          const mid = (a0 + a1) / 2;
+          panel(color, [P(k, a0, yFront, reach), P(k, a1, yFront, reach), P(k, a1, yFront - 0.14, reach), P(k, a0, yFront - 0.14, reach)], out, 0.8);
+          panel(color, [P(k, a0, yFront - 0.14, reach), P(k, a1, yFront - 0.14, reach), P(k, mid, yFront - 0.26, reach), P(k, mid, yFront - 0.26, reach)], out, 0.8);
+        }
+        for (const sa of [-w, w]) {
+          // closed triangular cheek at each end
+          panel(paintDark, [P(k, sa, yFront, 0.02), P(k, sa, yFront, reach), P(k, sa, yWall, 0.02), P(k, sa, yWall, 0.02)], side, 0.9);
+          // iron stay from the wall up to the front rail
+          const inset = sa < 0 ? sa + 0.05 : sa - 0.05;
+          panel(IRON, [P(k, inset, yFront - 0.5, 0.02), P(k, inset, yFront - 0.02, reach - 0.03), P(k, inset, yFront + 0.02, reach - 0.03), P(k, inset, yFront - 0.44, 0.02)], side, 1);
+          boxAt('', IRON, k, inset, 0.07, yFront - 0.58, yFront - 0.38, 0, 0.035); // wall shoe
+        }
+        boxAt('', IRON, k, 0, width + 0.04, yFront - 0.02, yFront + 0.025, reach - 0.035, reach + 0.01); // front rail
+        boxAt('', IRON, k, 0, width + 0.04, yWall - 0.03, yWall + 0.05, 0, 0.05); // head rail on the wall
       };
       // pilasters at the run ends and every 3 cells
       for (let k = k0; k <= k1 + 1; k += 3) {
         const kk = Math.min(k, k1);
         const off = k > k1 ? 1 : -1;
         const top = cellTop[cellR(kk) * cols + cellC(kk)];
-        box(`facade-pilaster-${zone.wall}`, trim, kk, off * (half - 0.02), 0.42, 0, top, 0.1);
+        // pilaster: plinth, shaft and a stepped capital under the eave
+        const pa = off * (half - 0.02);
+        box('', trim, kk, pa, 0.42, 0.5, top - 0.42, 0.09);
+        box('', shade(zone.wall, 0.7), kk, pa, 0.52, 0, 0.5, 0.13);
+        box('', trim, kk, pa, 0.47, 0.5, 0.58, 0.11);
+        box('', trim, kk, pa, 0.5, top - 0.42, top - 0.28, 0.12);
+        box('', shade(zone.wall, 0.88), kk, pa, 0.58, top - 0.28, top - 0.1, 0.16);
         if (k > k1) break;
       }
       // a door on some runs of 3+ cells: a deep surround with the leaf set back inside it
@@ -584,7 +736,7 @@ function addFacadeDetail(data: MapData, kit: MapKit, batch: (key: string, color:
         box('facade-door-step', shade(zone.floor, 0.8), kd, 0, 2.1, 0, 0.12, 0.35);
         const roll = h01(kd, line, seed + 2);
         if (kit.awnings && roll < 0.5) awning(kd, 2.4, 3.6, 3.12, 0.8);
-        else if (roll < 0.8) box('facade-lamp', '#ffe2a8', kd, 0, 0.32, 3.12, 3.32, 0.14, '#c9a560');
+        else if (roll < 0.8) lantern(kd, 0, 3.0);
       }
       // high windows and lamps along the rest
       for (let k = k0; k <= k1; k++) {
@@ -602,8 +754,15 @@ function addFacadeDetail(data: MapData, kit: MapKit, batch: (key: string, color:
           if (kit.bunting && h01(k, line, seed + 13) < 0.5) {
             // flower box on the sill
             box('facade-planter', '#7a5a44', k, 0, 1.2, 3.6, 3.8, 0.24);
-            box('facade-leaves', '#4f7d3c', k, 0, 1.1, 3.8, 3.93, 0.22);
-            for (let f = 0; f < 4; f++) box('facade-flowers', f % 2 ? '#e8c85a' : paint, k, -0.42 + f * 0.28, 0.12, 3.93, 4.02, 0.2);
+            box('', '#5f4534', k, 0, 1.26, 3.77, 3.82, 0.27); // rim
+            // planting: tufts of uneven height and depth, some carrying a bloom
+            for (let f = 0; f < 7; f++) {
+              const fa = -0.48 + f * 0.16;
+              const fh = 0.12 + h01(f, k, seed + 17) * 0.2;
+              const fd = 0.06 + h01(k, f, seed + 19) * 0.06;
+              boxAt('', f % 2 ? '#4f7d3c' : '#3f6b33', k, fa, 0.17, 3.8, 3.8 + fh, fd, fd + 0.15);
+              if (h01(f, line, seed + 23) < 0.6) boxAt('', f % 3 === 0 ? '#e8c85a' : f % 3 === 1 ? paint : '#f2efe6', k, fa, 0.09, 3.8 + fh, 3.8 + fh + 0.07, fd + 0.03, fd + 0.12);
+            }
           }
           if (h01(line, k, seed + 11) < 0.6) {
             // shutters folded back against the wall
@@ -611,12 +770,39 @@ function addFacadeDetail(data: MapData, kit: MapKit, batch: (key: string, color:
             box(`facade-door-${paint}`, paint, k, 0.92, 0.5, 3.6, 4.9, 0.045);
           }
         } else if (roll > 0.86) {
-          box('facade-lamp', '#ffe2a8', k, 0, 0.3, 2.9, 3.1, 0.12, '#c9a560');
+          lantern(k, 0, 2.95);
         } else if (kit.wallUnits && roll > 0.74 && top >= 5.2) {
           // wall-mounted cooling unit with a pipe run up to the roof
-          box('facade-unit', '#c5c9cc', k, 0, 0.95, 3.5, 4.15, 0.34);
-          box('facade-grille', '#5c6468', k, -0.12, 0.5, 3.6, 4.05, 0.35);
-          box('facade-pipe', '#8d9499', k, 0.36, 0.07, 4.15, top, 0.08);
+          // wall-mounted condenser: brackets, casing with a top lip, a round fan behind a guard, louvres and a pipe run
+          for (const sa of [-0.34, 0.34]) {
+            boxAt('', '#4b5257', k, sa, 0.05, 3.42, 3.5, 0, 0.36);
+            panel('#4b5257', [P(k, sa, 3.1, 0.01), P(k, sa, 3.42, 0.3), P(k, sa, 3.46, 0.3), P(k, sa, 3.16, 0.01)], side, 1);
+          }
+          boxAt('', '#c9cdd0', k, 0, 0.95, 3.5, 4.12, 0.02, 0.34);
+          boxAt('', '#aeb3b7', k, 0, 0.99, 4.12, 4.16, 0, 0.36);
+          const fa = -0.17;
+          const fy = 3.81;
+          const ring = (r0: number, r1: number, color: string, d: number) => {
+            for (let i = 0; i < 12; i++) {
+              const t0 = (i / 12) * Math.PI * 2;
+              const t1 = ((i + 1) / 12) * Math.PI * 2;
+              batch('', color).quad(
+                [P(k, fa + Math.cos(t0) * r0, fy + Math.sin(t0) * r0, d), P(k, fa + Math.cos(t1) * r0, fy + Math.sin(t1) * r0, d), P(k, fa + Math.cos(t1) * r1, fy + Math.sin(t1) * r1, d), P(k, fa + Math.cos(t0) * r1, fy + Math.sin(t0) * r1, d)],
+                out,
+                [[0, 0], [1, 0], [1, 1], [0, 1]],
+              );
+            }
+          };
+          ring(0, 0.25, '#23282c', 0.343); // fan well
+          ring(0.25, 0.28, '#8e9499', 0.346); // guard rim
+          ring(0, 0.06, '#8e9499', 0.348); // hub
+          for (let i = 0; i < 4; i++) {
+            const t = (i / 4) * Math.PI;
+            boxAt('', '#8e9499', k, fa, Math.abs(Math.cos(t)) * 0.5 + 0.014, fy - Math.abs(Math.sin(t)) * 0.25 - 0.007, fy + Math.abs(Math.sin(t)) * 0.25 + 0.007, 0.346, 0.352);
+          }
+          for (let i = 0; i < 5; i++) boxAt('', '#8e9499', k, 0.3, 0.24, 3.6 + i * 0.1, 3.64 + i * 0.1, 0.34, 0.352); // louvres
+          boxAt('', '#8d9499', k, 0.4, 0.06, 4.16, top - 0.2, 0.02, 0.08);
+          boxAt('', '#6f767b', k, 0.4, 0.1, 4.6, 4.66, 0, 0.1);
         }
       }
     }
@@ -628,21 +814,32 @@ function addFacadeDetail(data: MapData, kit: MapKit, batch: (key: string, color:
  * Roof on top of a full-height wall mass (visual only, above the 6 m sight-line ceiling):
  * an overhanging eave slab, then either a pitched tiled roof or a flat roof with a parapet lip.
  */
-function addRoof(box: MapBox, style: 'tile' | 'flat', roof: GeometryBatch, eave: GeometryBatch) {
+/** Narrower than this, a wall gets a low coping instead of a full roof with deep eaves (metres). */
+const COPING_WIDTH = 3.2;
+
+function addRoof(box: MapBox, style: 'tile' | 'flat', roof: GeometryBatch, eave: GeometryBatch, allowCoping = true) {
   const y = box.max[1];
   const flatUv = { kind: 'box' as const, tile: 2, vTile: 2 };
   if (style === 'flat') {
-    const o = 0.14;
-    eave.box([box.min[0] - o, y - 0.3, box.min[2] - o], [box.max[0] + o, y + 0.28, box.max[2] + o], flatUv, false, roof, 2);
+    // parapet: a band round the wall head with a capping course on top
+    const o = 0.1;
+    eave.box([box.min[0] - o, y - 0.3, box.min[2] - o], [box.max[0] + o, y + 0.22, box.max[2] + o], flatUv, false, roof, 2);
+    eave.box([box.min[0] - o - 0.06, y - 0.36, box.min[2] - o - 0.06], [box.max[0] + o + 0.06, y - 0.3, box.max[2] + o + 0.06], flatUv, false);
     return;
   }
-  const o = 0.38;
+  const coping = allowCoping && Math.min(box.max[0] - box.min[0], box.max[2] - box.min[2]) < COPING_WIDTH;
+  const o = coping ? 0.13 : 0.38;
   const x0 = box.min[0] - o;
   const x1 = box.max[0] + o;
   const z0 = box.min[2] - o;
   const z1 = box.max[2] + o;
-  const e = y + 0.14;
-  eave.box([x0, y - 0.1, z0], [x1, e, z1], flatUv, false);
+  const e = y + (coping ? 0.07 : 0.14);
+  eave.box([x0, y - (coping ? 0.05 : 0.1), z0], [x1, e, z1], flatUv, false);
+  if (!coping) {
+    // a fascia board under the eave, so the roof edge has depth instead of ending in a thin slab
+    const f = 0.22;
+    eave.box([box.min[0] - f, y - 0.24, box.min[2] - f], [box.max[0] + f, y - 0.1, box.max[2] + f], flatUv, false);
+  }
   const w = x1 - x0;
   const d = z1 - z0;
   const run = Math.min(w, d) / 2;
@@ -835,154 +1032,394 @@ function addLandmarks(
     const wallBlock = (h: number, y0: number, y1: number) =>
       wall(zoneId).box([x - h, y0, z - h], [x + h, y1, z + h], { kind: 'world', tile: 4, vHeight: WALL_HEIGHT });
     const roofOn = (h: number, top: number, style: 'tile' | 'flat' = kit.roof) =>
-      addRoof({ min: [x - h, 0, z - h], max: [x + h, top, z + h], kind: 'wall', zone: zoneId }, style, roof, detail('', trim));
-    const beacon = (top: number) => {
-      detail('', '#5b6166').box([x - 0.07, top, z - 0.07], [x + 0.07, top + 3, z + 0.07], FLAT_UV);
-      detail('landmark-light', '#ff5a4a', '#d8402f').box([x - 0.16, top + 3, z - 0.16], [x + 0.16, top + 3.3, z + 0.16], FLAT_UV);
+      addRoof({ min: [x - h, 0, z - h], max: [x + h, top, z + h], kind: 'wall', zone: zoneId }, style, roof, detail('', trim), false);
+    /** Round section in a flat colour (or glowing, with `emissive`). */
+    const round = (color: string, y0: number, y1: number, r0: number, r1 = r0, emissive?: string, key = '') =>
+      detail(key, color, emissive).tube(x, z, y0, y1, r0, r1);
+    /** Solid round slab: side wall plus top and underside. */
+    const slab = (color: string, y0: number, y1: number, r: number, inner = 0) => {
+      const b = detail('', color);
+      b.tube(x, z, y0, y1, r, r);
+      b.disc(x, z, y1, r, inner, true);
+      b.disc(x, z, y0, r, inner, false);
     };
+    /** Ring of evenly spaced upright posts at radius r. */
+    const posts = (color: string, n: number, r: number, y0: number, y1: number, w: number) => {
+      for (let i = 0; i < n; i++) {
+        const t = (i / n) * Math.PI * 2;
+        const px = x + Math.cos(t) * r;
+        const pz = z + Math.sin(t) * r;
+        detail('', color).box([px - w / 2, y0, pz - w / 2], [px + w / 2, y1, pz + w / 2], FLAT_UV, false);
+      }
+    };
+    const beacon = (top: number, bx = x, bz = z) => {
+      detail('', '#5b6166').tube(bx, bz, top, top + 3, 0.06, 0.035, 10);
+      detail('landmark-light', '#ff5a4a', '#d8402f').dome(bx, bz, top + 3, 0.15, 0.2, 4, 12);
+      detail('landmark-light', '#ff5a4a', '#d8402f').tube(bx, bz, top + 2.92, top + 3, 0.15, 0.15, 12);
+    };
+    const strut = (color: string, a: number[], b: number[], w: number) => detail('', color).strut(a, b, w);
+    const blockAt = (color: string, min: number[], max: number[], emissive?: string, key = '') => detail(key, color, emissive).box(min, max, FLAT_UV, false);
+    /** The four compass directions a square landmark faces. */
+    const FACES: ['x' | 'z', number][] = [['x', 1], ['x', -1], ['z', 1], ['z', -1]];
+    /** Point on a square landmark's face: `out` from the axis, `along` the face, at height yy. */
+    const onFace = (axis: 'x' | 'z', sign: number, out: number, along: number, yy: number) =>
+      axis === 'x' ? [x + sign * out, yy, z + along] : [x + along, yy, z + sign * out];
+    /** Box on a face: from `out0` to `out1` off the axis, `width` wide about `along`. */
+    const faceBox = (color: string, axis: 'x' | 'z', sign: number, out0: number, out1: number, along: number, width: number, y0: number, y1: number, emissive?: string, key = '') => {
+      const p = onFace(axis, sign, out0, along - width / 2, y0);
+      const q = onFace(axis, sign, out1, along + width / 2, y1);
+      blockAt(color, [Math.min(p[0], q[0]), y0, Math.min(p[2], q[2])], [Math.max(p[0], q[0]), y1, Math.max(p[2], q[2])], emissive, key);
+    };
+    // which way the site lies, as a face
+    const toSite: ['x' | 'z', number] = Math.abs(sx - x) >= Math.abs(sz - z) ? ['x', sx >= x ? 1 : -1] : ['z', sz >= z ? 1 : -1];
+    const GOLD = '#d9b25a';
 
     switch (kit.landmark) {
       case 'tower': {
-        // bell tower: shaft with the site's colour band, an open belfry and a roof
+        // bell tower: banded shaft with a clock on every side, an arcaded belfry with a bell, a pyramid roof
         const h = 1.7;
         const shaftTop = y + (tall ? 8.5 : 6.5);
         wallBlock(h, y - 0.5, shaftTop);
-        flatBlock(trim, h + 0.08, y + 2.2, y + 2.5);
-        flatBlock(zone.accent, h + 0.05, shaftTop - 2.9, shaftTop - 2.3);
-        flatBlock(trim, h + 0.22, shaftTop, shaftTop + 0.3);
-        const top = shaftTop + 0.3;
-        flatBlock('#221d1a', h - 0.5, top, top + 2.2);
-        for (const px of [x - h, x + h - 0.7])
-          for (const pz of [z - h, z + h - 0.7]) detail('', light).box([px, top, pz], [px + 0.7, top + 2.2, pz + 0.7], FLAT_UV);
-        flatBlock(trim, h + 0.2, top + 2.2, top + 2.5);
-        roofOn(h, top + 2.5);
-        if (kit.roof === 'flat') beacon(top + 2.5);
+        flatBlock(trim, h + 0.1, y + 2.2, y + 2.4);
+        flatBlock(light, h + 0.16, y + 2.4, y + 2.5);
+        for (const cx of [-1, 1])
+          for (const cz of [-1, 1]) blockAt(light, [x + cx * h - 0.2, y - 0.5, z + cz * h - 0.2], [x + cx * h + 0.2, shaftTop, z + cz * h + 0.2]); // corner quoins
+        const cy = shaftTop - 1.75;
+        for (const [axis, sign] of FACES) {
+          const c = onFace(axis, sign, h + 0.03, 0, cy);
+          detail('', '#f3eee2').ringV(c, axis, sign, 0.8);
+          detail('', '#2b2825').ringV(onFace(axis, sign, h + 0.04, 0, cy), axis, sign, 0.92, 0.8);
+          for (let i = 0; i < 12; i++) {
+            const t = (i / 12) * Math.PI * 2;
+            faceBox('#2b2825', axis, sign, h + 0.03, h + 0.05, Math.cos(t) * 0.68, 0.06, cy + Math.sin(t) * 0.68 - 0.03, cy + Math.sin(t) * 0.68 + 0.03);
+          }
+          faceBox('#2b2825', axis, sign, h + 0.03, h + 0.07, 0, 0.07, cy - 0.05, cy + 0.5); // hour hand
+          faceBox('#2b2825', axis, sign, h + 0.03, h + 0.07, 0.3, 0.68, cy - 0.035, cy + 0.035); // minute hand
+          faceBox(GOLD, axis, sign, h + 0.03, h + 0.09, 0, 0.12, cy - 0.06, cy + 0.06);
+        }
+        flatBlock(zone.accent, h + 0.21, shaftTop - 0.5, shaftTop - 0.25);
+        flatBlock(trim, h + 0.24, shaftTop, shaftTop + 0.15);
+        flatBlock(light, h + 0.36, shaftTop + 0.15, shaftTop + 0.32);
+        const top = shaftTop + 0.32;
+        flatBlock('#1c1815', h - 0.5, top, top + 2.4);
+        for (const cx of [-1, 1])
+          for (const cz of [-1, 1]) blockAt(light, [x + cx * (h - 0.36) - 0.36, top, z + cz * (h - 0.36) - 0.36], [x + cx * (h - 0.36) + 0.36, top + 2.4, z + cz * (h - 0.36) + 0.36]);
+        for (const [axis, sign] of FACES) {
+          faceBox(trim, axis, sign, h - 0.3, h - 0.12, 0, 2 * h - 1.44, top, top + 0.55); // balustrade
+          faceBox(light, axis, sign, h - 0.4, h, 0, 2 * h - 1.44, top + 2.0, top + 2.4); // arch head
+          for (const sgn of [-1, 1]) {
+            faceBox(light, axis, sign, h - 0.4, h, sgn * (h - 0.9), 0.36, top + 1.7, top + 2.0); // arch shoulders
+            faceBox(light, axis, sign, h - 0.4, h, sgn * (h - 1.12), 0.2, top + 1.85, top + 2.0);
+          }
+        }
+        // the bell
+        blockAt('#3a2f26', [x - h + 0.6, top + 1.78, z - 0.07], [x + h - 0.6, top + 1.92, z + 0.07]);
+        round('#3a2f26', top + 1.5, top + 1.8, 0.07);
+        detail('', GOLD).dome(x, z, top + 1.1, 0.5, 0.42);
+        round(GOLD, top + 0.62, top + 1.1, 0.66, 0.5);
+        round(GOLD, top + 0.55, top + 0.62, 0.72, 0.66);
+        detail('', '#8a6f33').disc(x, z, top + 0.56, 0.7, 0, false);
+        round('#2b2825', top + 0.42, top + 0.6, 0.07, 0.07, undefined, '');
+        flatBlock(trim, h + 0.2, top + 2.4, top + 2.52);
+        flatBlock(light, h + 0.3, top + 2.52, top + 2.64);
+        roofOn(h, top + 2.64, 'tile');
+        const apex = top + 2.64 + 0.14 + Math.min(2.4, (h + 0.38) * 0.55);
+        round(GOLD, apex - 0.12, apex + 0.1, 0.12, 0.06);
+        detail('', GOLD).dome(x, z, apex + 0.2, 0.14, 0.14, 4, 12);
+        round(GOLD, apex + 0.06, apex + 0.2, 0.06, 0.14);
+        round(GOLD, apex + 0.34, apex + 1.1, 0.03, 0.012);
         break;
       }
       case 'minaret': {
-        // slim shaft, a balcony, a narrower upper stage and a stepped dome in the site's colour
+        // round shaft on a square plinth, a balcony on a flared corbel, an arcaded upper stage and a dome
         const base = y + (tall ? 9 : 7);
-        wallBlock(1.15, y - 0.5, base);
-        flatBlock(trim, 1.75, base, base + 0.25);
-        flatBlock(light, 1.7, base + 0.25, base + 0.95);
-        flatBlock('#221d1a', 0.95, base + 0.25, base + 3);
-        for (const px of [x - 0.95, x + 0.6])
-          for (const pz of [z - 0.95, z + 0.6]) detail('', light).box([px, base + 0.25, pz], [px + 0.35, base + 3, pz + 0.35], FLAT_UV);
-        flatBlock(trim, 1.2, base + 3, base + 3.3);
-        const dome = [1.05, 0.9, 0.68, 0.4];
-        dome.forEach((h, i) => flatBlock(zone.accent, h, base + 3.3 + i * 0.42, base + 3.3 + (i + 1) * 0.42));
-        flatBlock('#d9b25a', 0.06, base + 3.3 + dome.length * 0.42, base + 6.2);
+        flatBlock(trim, 1.35, y - 0.4, y + 0.9);
+        flatBlock(light, 1.42, y + 0.9, y + 1.05);
+        round(zone.wall, y + 1.05, base - 0.5, 1.12, 0.95);
+        for (const by of [y + 3.2, base - 2.2]) round(trim, by, by + 0.16, 1.1, 1.08);
+        round(zone.accent, base - 1.5, base - 1.1, 1.0, 0.99);
+        round(trim, base - 0.5, base, 0.95, 1.6); // corbel flaring out under the balcony
+        slab(light, base, base + 0.14, 1.68);
+        posts(trim, 14, 1.58, base + 0.14, base + 0.72, 0.07);
+        round(trim, base + 0.72, base + 0.8, 1.62, 1.62);
+        detail('', trim).disc(x, z, base + 0.8, 1.62, 1.54, true);
+        // arcade: dark openings between piers
+        round('#221d1a', base + 0.14, base + 2.6, 0.72);
+        posts(light, 8, 0.78, base + 0.14, base + 2.6, 0.2);
+        slab(trim, base + 2.6, base + 2.85, 0.98);
+        round(light, base + 2.85, base + 3.15, 0.82, 0.86);
+        detail('', zone.accent).dome(x, z, base + 3.15, 0.9, 1.15);
+        round('#d9b25a', base + 4.25, base + 4.45, 0.09, 0.05);
+        round('#d9b25a', base + 4.45, base + 5.5, 0.035, 0.015);
+        detail('', '#d9b25a').dome(x, z, base + 4.7, 0.11, 0.11, 3, 10);
         break;
       }
       case 'pagoda': {
-        // stacked storeys, each smaller than the last, each under its own tiled roof
+        // stacked storeys, each smaller than the last: columns, a railed balcony, bracketed eaves with
+        // upturned corners, and a ringed spire
         let floor = y - 0.3;
         const tiers = tall ? [1.7, 1.35, 1.0, 0.7] : [1.7, 1.3, 0.9];
+        const red = shade(zone.accent, 0.85);
         for (const h of tiers) {
-          wallBlock(h, floor, floor + 2.3);
-          flatBlock(zone.accent, h + 0.04, floor + 1.95, floor + 2.3);
+          flatBlock(trim, h + 0.34, floor - 0.1, floor + 0.04); // balcony deck
+          wallBlock(h - 0.16, floor, floor + 2.3);
+          for (const cx of [-1, 1])
+            for (const cz of [-1, 1]) {
+              detail('', red).tube(x + cx * (h - 0.06), z + cz * (h - 0.06), floor + 0.04, floor + 2.1, 0.1, 0.1, 12);
+              blockAt(red, [x + cx * (h + 0.28) - 0.04, floor + 0.04, z + cz * (h + 0.28) - 0.04], [x + cx * (h + 0.28) + 0.04, floor + 0.6, z + cz * (h + 0.28) + 0.04]);
+            }
+          for (const [axis, sign] of FACES) {
+            faceBox(red, axis, sign, h + 0.25, h + 0.31, 0, 2 * (h + 0.28), floor + 0.5, floor + 0.56); // handrail
+            faceBox(red, axis, sign, h + 0.26, h + 0.3, 0, 2 * (h + 0.28), floor + 0.26, floor + 0.3);
+            faceBox('#2a2420', axis, sign, h - 0.16, h - 0.14, 0, 0.6, floor + 0.04, floor + 1.5); // doorway
+          }
+          flatBlock(red, h + 0.02, floor + 2.02, floor + 2.14); // beam
+          flatBlock(GOLD, h + 0.1, floor + 2.14, floor + 2.3); // bracket course
           roofOn(h, floor + 2.3, 'tile');
+          const e = floor + 2.3 + 0.14;
+          for (const cx of [-1, 1])
+            for (const cz of [-1, 1]) {
+              const ex = x + cx * (h + 0.34);
+              const ez = z + cz * (h + 0.34);
+              strut(GOLD, [ex, e - 0.04, ez], [ex + cx * 0.3, e + 0.24, ez + cz * 0.3], 0.09); // upturned corner
+              if (cx === cz) detail('landmark-lamp', '#fff4c4', '#f0cf6a').tube(ex + cx * 0.24, ez + cz * 0.24, e - 0.34, e - 0.08, 0.07, 0.07, 8);
+            }
           floor += 2.3 + 0.14 + Math.min(2.4, (h + 0.38) * 0.55) * 0.45;
         }
-        flatBlock('#d9b25a', 0.07, floor, floor + 2.6);
+        // spire: a pole carrying a stack of rings and a ball
+        const tip = floor + 0.2;
+        round(GOLD, tip - 0.5, tip + 2.9, 0.06, 0.03);
+        for (let i = 0; i < 6; i++) slab(GOLD, tip + 0.35 + i * 0.34, tip + 0.41 + i * 0.34, 0.34 - i * 0.04);
+        detail('', GOLD).dome(x, z, tip + 2.9, 0.1, 0.12, 4, 12);
         break;
       }
       case 'sign': {
-        // office block with a glowing vertical sign on two sides and a mast
+        // office block: window bands on every floor (some lit), a framed neon sign on each side,
+        // and rooftop plant with a mast
         const h = 1.5;
         const top = y + (tall ? 10 : 8);
         wallBlock(h, y - 0.5, top);
-        flatBlock(trim, h + 0.15, top, top + 0.35);
         const glow = shade(zone.accent, 0.75);
-        detail(`landmark-neon-${zone.accent}`, zone.accent, glow).box([x - 0.5, y + 1.6, z - h - 0.12], [x + 0.5, top - 0.9, z - h], FLAT_UV, false);
-        detail(`landmark-neon-${zone.accent}`, zone.accent, glow).box([x - h - 0.12, y + 1.6, z - 0.5], [x - h, top - 0.9, z + 0.5], FLAT_UV, false);
-        detail(`landmark-neon-${zone.accent}`, zone.accent, glow).box([x + h, y + 1.6, z - 0.5], [x + h + 0.12, top - 0.9, z + 0.5], FLAT_UV, false);
-        detail(`landmark-neon-${zone.accent}`, zone.accent, glow).box([x - 0.5, y + 1.6, z + h], [x + 0.5, top - 0.9, z + h + 0.12], FLAT_UV, false);
-        beacon(top + 0.35);
+        const neon = `landmark-neon-${zone.accent}`;
+        let fi = 0;
+        for (const [axis, sign] of FACES) {
+          for (let fy = y + 0.9; fy + 1.1 < top; fy += 1.6) {
+            for (const side of [-1, 1]) {
+              const lit = h01(Math.round(fy * 10), fi++, index + 5) < 0.3;
+              faceBox(lit ? '#ffe9b0' : '#1f2a36', axis, sign, h, h + 0.02, side * 1.02, 0.72, fy, fy + 1.0, lit ? '#d9b46a' : '#0b121a', lit ? 'landmark-window-lit' : 'landmark-window');
+              faceBox(trim, axis, sign, h, h + 0.05, side * 1.02, 0.84, fy - 0.07, fy); // sill
+              faceBox(trim, axis, sign, h, h + 0.04, side * 1.02, 0.05, fy, fy + 1.0); // mullion
+            }
+          }
+          // sign: dark backing board with a glowing strip and end caps
+          faceBox('#16191d', axis, sign, h, h + 0.1, 0, 0.72, y + 1.3, top - 0.7);
+          faceBox(zone.accent, axis, sign, h + 0.1, h + 0.16, 0, 0.44, y + 1.5, top - 0.9, glow, neon);
+          for (const yy of [y + 1.3, top - 0.78]) faceBox('#3a4046', axis, sign, h, h + 0.2, 0, 0.8, yy, yy + 0.08);
+        }
+        flatBlock(trim, h + 0.14, top - 0.1, top + 0.45); // parapet
+        flatBlock('#3a4046', h + 0.2, top + 0.45, top + 0.53);
+        // rooftop plant: a round tank, a vent stack and a housing
+        detail('', '#aeb3b7').tube(x - 0.6, z - 0.55, top + 0.4, top + 1.45, 0.48, 0.48, 16);
+        detail('', '#8e9499').tube(x - 0.6, z - 0.55, top + 1.45, top + 1.7, 0.48, 0.05, 16);
+        blockAt('#c9cdd0', [x + 0.2, top + 0.4, z - 1.0], [x + 1.0, top + 1.05, z - 0.2]);
+        detail('', '#6f767b').tube(x + 0.75, z + 0.7, top + 0.4, top + 1.6, 0.14, 0.14, 12);
+        detail('', '#4b5257').tube(x + 0.75, z + 0.7, top + 1.6, top + 1.72, 0.2, 0.2, 12);
+        beacon(top + 0.45, x - 0.2, z + 0.5);
+        strut('#5b6166', [x - 0.6, top + 2.2, z + 0.5], [x + 0.2, top + 2.2, z + 0.5], 0.04);
+        strut('#5b6166', [x - 0.45, top + 2.8, z + 0.5], [x + 0.05, top + 2.8, z + 0.5], 0.04);
         break;
       }
       case 'watertank': {
-        // rooftop water tank on four legs with hoops and a pointed lid
+        // rooftop water tank: braced legs, a round deck, a staved barrel with iron hoops and a conical lid
         const legs = y + (tall ? 3.6 : 2.8);
-        for (const px of [x - 1.2, x + 1.02])
-          for (const pz of [z - 1.2, z + 1.02]) detail('', '#4f4a44').box([px, y - 0.2, pz], [px + 0.18, legs, pz + 0.18], FLAT_UV);
-        flatBlock('#4f4a44', 1.45, legs, legs + 0.16);
-        flatBlock('#8a6a4c', 1.3, legs + 0.16, legs + 3.2);
-        for (const hy of [0.7, 1.7, 2.7]) flatBlock('#3d3833', 1.34, legs + hy, legs + hy + 0.1);
-        flatBlock(zone.accent, 1.33, legs + 1.05, legs + 1.45);
-        roofOn(1.3, legs + 3.2, 'tile');
+        const steel = '#4a4641';
+        for (const px of [x - 1.0, x + 0.84])
+          for (const pz of [z - 1.0, z + 0.84]) detail('', steel).box([px, y - 0.2, pz], [px + 0.16, legs, pz + 0.16], FLAT_UV);
+        for (const by of [y + 0.9, legs - 0.6]) {
+          detail('', steel).box([x - 1.0, by, z - 1.0], [x + 1.0, by + 0.08, z - 0.92], FLAT_UV, false);
+          detail('', steel).box([x - 1.0, by, z + 0.92], [x + 1.0, by + 0.08, z + 1.0], FLAT_UV, false);
+          detail('', steel).box([x - 1.0, by, z - 1.0], [x - 0.92, by + 0.08, z + 1.0], FLAT_UV, false);
+          detail('', steel).box([x + 0.92, by, z - 1.0], [x + 1.0, by + 0.08, z + 1.0], FLAT_UV, false);
+        }
+        slab(steel, legs, legs + 0.14, 1.55);
+        // staves: alternate two wood tones round the barrel
+        const wood = ['#8a6a4c', '#7b5d42'];
+        const staves = 24;
+        for (let i = 0; i < staves; i++) {
+          const t0 = (i / staves) * Math.PI * 2;
+          const t1 = ((i + 1) / staves) * Math.PI * 2;
+          const r = 1.32;
+          const n0 = [Math.cos(t0), 0, Math.sin(t0)];
+          const n1 = [Math.cos(t1), 0, Math.sin(t1)];
+          detail('', wood[i % 2]).quad(
+            [
+              [x + n0[0] * r, legs + 0.14, z + n0[2] * r],
+              [x + n1[0] * r, legs + 0.14, z + n1[2] * r],
+              [x + n1[0] * r, legs + 3.1, z + n1[2] * r],
+              [x + n0[0] * r, legs + 3.1, z + n0[2] * r],
+            ],
+            [Math.cos((t0 + t1) / 2), 0, Math.sin((t0 + t1) / 2)],
+            [[0, 0], [1, 0], [1, 1], [0, 1]],
+            undefined,
+            [n0, n1, n1, n0],
+          );
+        }
+        for (const hy of [0.5, 1.5, 2.6]) round('#3a3632', legs + hy, legs + hy + 0.09, 1.345);
+        round(zone.accent, legs + 0.95, legs + 1.3, 1.335);
+        detail('', '#5f4a36').disc(x, z, legs + 3.1, 1.5, 0, false);
+        round(kit.roofColor, legs + 3.1, legs + 4.1, 1.5, 0.06);
+        round(steel, legs + 4.05, legs + 4.45, 0.05, 0.02);
+        // overflow pipe down one leg
+        detail('', '#6f767b').box([x + 1.33, y - 0.2, z - 0.05], [x + 1.41, legs + 1.2, z + 0.05], FLAT_UV, false);
         break;
       }
       case 'ziggurat': {
-        // stepped stone pyramid with a dark shrine on top
-        const steps = tall ? [1.7, 1.4, 1.1, 0.8] : [1.7, 1.3, 0.9];
+        // stepped pyramid with sloping faces, a stair up the side facing the site and a pillared shrine on top
+        const steps = tall ? [1.7, 1.38, 1.06, 0.74] : [1.7, 1.3, 0.9];
+        const stone = zone.wall;
+        const R2 = Math.SQRT2;
+        const tierH = 1.7;
         let floor = y - 0.3;
+        const [axis, sign] = toSite;
         steps.forEach((h, i) => {
-          wallBlock(h, floor, floor + 1.7);
-          if (i === 1) flatBlock(zone.accent, h + 0.04, floor + 1.25, floor + 1.55);
-          flatBlock(trim, h + 0.1, floor + 1.7, floor + 1.88);
-          floor += 1.88;
+          // battered tier: wider at the foot than at the top
+          detail('', i % 2 ? shade(stone, 0.93) : stone).tube(x, z, floor, floor + tierH, h * R2, (h - 0.16) * R2, 4, Math.PI / 4, true);
+          flatBlock(trim, h - 0.1, floor + tierH, floor + tierH + 0.12);
+          if (i === 1) flatBlock(zone.accent, h - 0.02, floor + tierH - 0.5, floor + tierH - 0.3);
+          // stair: treads climbing from this tier's foot to the next tier's foot
+          const inner = (steps[i + 1] ?? h - 0.5) + 0.02;
+          const outer = h + 0.55;
+          const treads = 6;
+          for (let t = 0; t < treads; t++) {
+            const d1 = outer - ((outer - inner) * t) / treads;
+            faceBox(shade(stone, 1.06), axis, sign, inner - 0.05, d1, 0, 0.86, floor, floor + ((tierH + 0.12) * (t + 1)) / treads);
+          }
+          for (const sd of [-1, 1]) faceBox(trim, axis, sign, inner - 0.05, outer + 0.05, sd * 0.53, 0.2, floor, floor + 0.45); // stair cheeks
+          floor += tierH + 0.12;
         });
-        const top = steps[steps.length - 1];
-        flatBlock('#1f211c', top - 0.25, floor, floor + 1.5);
-        for (const px of [x - top + 0.05, x + top - 0.3])
-          for (const pz of [z - top + 0.05, z + top - 0.3]) detail('', light).box([px, floor, pz], [px + 0.25, floor + 1.5, pz + 0.25], FLAT_UV);
-        flatBlock(trim, top, floor + 1.5, floor + 1.8);
+        const top = steps[steps.length - 1] - 0.16;
+        flatBlock('#1b1d18', top - 0.24, floor, floor + 1.45);
+        for (const cx of [-1, 1])
+          for (const cz of [-1, 1]) detail('', light).tube(x + cx * (top - 0.14), z + cz * (top - 0.14), floor, floor + 1.45, 0.11, 0.09, 12);
+        flatBlock(trim, top + 0.06, floor + 1.45, floor + 1.7);
+        flatBlock(zone.accent, top - 0.02, floor + 1.7, floor + 1.82);
+        // roof comb: a tall crest with notches
+        flatBlock(stone, 0.5, floor + 1.82, floor + 2.3);
+        for (const cx of [-0.34, 0, 0.34]) blockAt(shade(stone, 0.9), [x + cx - 0.1, floor + 2.3, z - 0.14], [x + cx + 0.1, floor + 2.75, z + 0.14]);
         break;
       }
       case 'crane': {
-        // tower crane: lattice mast, cab, a long jib over the yard and a short counter-jib
+        // tower crane: braced lattice mast on a concrete base, slewing ring and cab, a trussed jib
+        // towards the site, a counter-jib with weights, tie rods, a trolley and a hook
         const paint = '#e0a12a';
+        const steel = '#39424c';
         const top = y + (tall ? 15 : 12);
-        const m = 0.8;
-        for (const px of [x - m, x + m - 0.16])
-          for (const pz of [z - m, z + m - 0.16]) detail('', paint).box([px, y - 0.2, pz], [px + 0.16, top, pz + 0.16], FLAT_UV);
-        for (let ry = y + 1.5; ry < top; ry += 1.8) {
-          detail('', paint).box([x - m, ry, z - m], [x + m, ry + 0.1, z - m + 0.1], FLAT_UV, false);
-          detail('', paint).box([x - m, ry, z + m - 0.1], [x + m, ry + 0.1, z + m], FLAT_UV, false);
-          detail('', paint).box([x - m, ry, z - m], [x - m + 0.1, ry + 0.1, z + m], FLAT_UV, false);
-          detail('', paint).box([x + m - 0.1, ry, z - m], [x + m, ry + 0.1, z + m], FLAT_UV, false);
+        const m = 0.75;
+        flatBlock('#9a9d9f', 1.35, y - 0.3, y + 0.35);
+        const corners: [number, number][] = [[-m, -m], [m, -m], [m, m], [-m, m]];
+        for (const [cx, cz] of corners) strut(paint, [x + cx, y + 0.35, z + cz], [x + cx, top, z + cz], 0.15);
+        const bay = 1.6;
+        let flip = false;
+        for (let by = y + 0.35; by < top - 0.2; by += bay) {
+          const b1 = Math.min(top, by + bay);
+          for (let i = 0; i < 4; i++) {
+            const [ax, az] = corners[i];
+            const [bx, bz] = corners[(i + 1) % 4];
+            strut(paint, [x + ax, b1, z + az], [x + bx, b1, z + bz], 0.08); // ring
+            strut(paint, flip ? [x + ax, by, z + az] : [x + bx, by, z + bz], flip ? [x + bx, b1, z + bz] : [x + ax, b1, z + az], 0.06); // diagonal
+          }
+          flip = !flip;
         }
-        flatBlock('#39424c', 1.0, top, top + 0.3);
-        detail('', '#d7dade').box([x - 0.9, top + 0.3, z - 0.9], [x + 0.3, top + 1.7, z + 0.3], FLAT_UV, false);
-        // the jib points towards the site it marks
-        const dx = sx - x;
-        const dz = sz - z;
-        const alongX = Math.abs(dx) >= Math.abs(dz);
-        const dir = (alongX ? dx : dz) >= 0 ? 1 : -1;
-        const beam = (from: number, to: number, y0: number, y1: number, w: number) => {
-          const a = Math.min(from, to);
-          const b = Math.max(from, to);
-          if (alongX) detail('', paint).box([x + a, y0, z - w], [x + b, y1, z + w], FLAT_UV, false);
-          else detail('', paint).box([x - w, y0, z + a], [x + w, y1, z + b], FLAT_UV, false);
-        };
-        beam(-4.5 * dir, 13 * dir, top + 1.7, top + 2.05, 0.3);
-        beam(-4.5 * dir, -2.6 * dir, top + 0.9, top + 1.7, 0.5); // counterweight
-        flatBlock(paint, 0.12, top + 2.05, top + 4);
-        // hoist cable and hook block
-        const hx = alongX ? x + 9 * dir : x;
-        const hz = alongX ? z : z + 9 * dir;
-        detail('', '#2b2f33').box([hx - 0.03, top - 3, hz - 0.03], [hx + 0.03, top + 1.7, hz + 0.03], FLAT_UV, false);
-        detail('', '#2b2f33').box([hx - 0.25, top - 3.5, hz - 0.25], [hx + 0.25, top - 3, hz + 0.25], FLAT_UV, false);
-        beacon(top + 4 - 2.7);
+        slab(steel, top, top + 0.3, 1.15);
+        const [axis, sign] = toSite;
+        /** Point in the jib's frame: `a` metres out towards the site, `l` sideways, height yy. */
+        const J = (a: number, l: number, yy: number) => onFace(axis, sign, a, l, yy);
+        const jib = top + 0.3;
+        // cab beside the mast, glazed towards the site
+        faceBox('#d7dade', axis, sign, 0.2, 1.5, -1.25, 1.0, jib, jib + 1.5);
+        faceBox('#1f2a36', axis, sign, 1.5, 1.52, -1.25, 0.8, jib + 0.6, jib + 1.35, '#0b121a', 'landmark-window');
+        // tower head
+        const apex = [x, jib + 4.2, z];
+        for (const [cx, cz] of corners) strut(paint, [x + cx * 0.8, jib, z + cz * 0.8], apex, 0.1);
+        // jib: triangular truss (two bottom chords, one top chord, zig-zag bracing)
+        const L = 14;
+        const jw = 0.38;
+        const jh = 0.95;
+        for (const l of [-jw, jw]) strut(paint, J(-0.6, l, jib + 0.25), J(L, l, jib + 0.25), 0.1);
+        strut(paint, J(-0.6, 0, jib + 0.25 + jh), J(L - 0.6, 0, jib + 0.25 + jh), 0.1);
+        strut(paint, J(L - 0.6, 0, jib + 0.25 + jh), J(L, 0, jib + 0.25), 0.08);
+        const panelLen = 1.3;
+        for (let a = 0; a + panelLen <= L - 0.5; a += panelLen) {
+          for (const l of [-jw, jw]) {
+            strut(paint, J(a, l, jib + 0.25), J(a + panelLen / 2, 0, jib + 0.25 + jh), 0.05);
+            strut(paint, J(a + panelLen / 2, 0, jib + 0.25 + jh), J(a + panelLen, l, jib + 0.25), 0.05);
+          }
+          strut(paint, J(a, -jw, jib + 0.25), J(a, jw, jib + 0.25), 0.05);
+        }
+        // counter-jib with a walkway and concrete weights
+        const C = 5;
+        for (const l of [-jw, jw]) strut(paint, J(-0.6, l, jib + 0.25), J(-C, l, jib + 0.25), 0.1);
+        faceBox(steel, axis, sign, -C, -0.8, 0, 2 * jw, jib + 0.2, jib + 0.26);
+        for (let i = 0; i < 3; i++) faceBox('#9a9d9f', axis, sign, -C + 0.1 + i * 0.5, -C + 0.5 + i * 0.5, 0, 0.9, jib - 0.75, jib + 0.2);
+        // tie rods from the tower head
+        strut(steel, apex, J(L * 0.62, 0, jib + 0.25 + jh), 0.05);
+        strut(steel, apex, J(-C + 0.3, 0, jib + 0.3), 0.05);
+        // trolley, hoist rope and hook block
+        const ta = L * 0.6;
+        faceBox(steel, axis, sign, ta - 0.4, ta + 0.4, 0, 0.9, jib + 0.02, jib + 0.2);
+        const hookY = jib - 5;
+        for (const l of [-0.12, 0.12]) strut('#22262a', J(ta, l, jib + 0.02), J(ta, l, hookY + 0.5), 0.025);
+        faceBox(paint, axis, sign, ta - 0.22, ta + 0.22, 0, 0.36, hookY + 0.1, hookY + 0.5);
+        strut('#22262a', J(ta, 0, hookY + 0.1), J(ta, 0, hookY - 0.2), 0.05);
+        strut('#22262a', J(ta, 0, hookY - 0.2), J(ta + 0.16, 0, hookY - 0.28), 0.05);
+        strut('#22262a', J(ta + 0.16, 0, hookY - 0.28), J(ta + 0.2, 0, hookY - 0.08), 0.05);
+        beacon(jib + 4.2 - 2.4);
         break;
       }
       case 'lighthouse': {
-        // tapering tower in bands of white and the site's colour, a gallery and a lit lamp room
+        // round tapering tower in bands of white and the site's colour, a railed gallery,
+        // a glazed lantern room with a lit lamp, and a conical roof
         const bands = tall ? 6 : 5;
-        let floor = y - 0.4;
+        const bandH = 1.75;
+        const r0 = 1.6;
+        const r1 = 1.02;
+        const foot = y - 0.3;
+        const neck = foot + 0.7 + bands * bandH;
+        const radius = (yy: number) => r0 + ((r1 - r0) * (yy - (foot + 0.7))) / (bands * bandH);
+        const white = '#f1ece0';
+        const iron = '#30363c';
+        round('#8f8a80', foot, foot + 0.7, r0 + 0.22, r0 + 0.12); // stone footing
+        detail('', '#8f8a80').disc(x, z, foot + 0.7, r0 + 0.12, r0 - 0.05, true);
         for (let i = 0; i < bands; i++) {
-          const h = 1.6 - i * 0.14;
-          flatBlock(i % 2 ? zone.accent : '#efe9dc', h, floor, floor + 1.7);
-          floor += 1.7;
+          const a0 = foot + 0.7 + i * bandH;
+          round(i % 2 ? zone.accent : white, a0, a0 + bandH, radius(a0), radius(a0 + bandH));
         }
-        flatBlock('#3a4046', 1.55, floor, floor + 0.2);
-        flatBlock('#3a4046', 1.5, floor + 0.2, floor + 0.75);
-        flatBlock('#fff2b8', 0.62, floor + 0.2, floor + 1.9, '#e6c860', 'landmark-lamp');
-        for (const px of [x - 0.75, x + 0.63])
-          for (const pz of [z - 0.75, z + 0.63]) detail('', '#3a4046').box([px, floor + 0.2, pz], [px + 0.12, floor + 1.9, pz + 0.12], FLAT_UV);
-        flatBlock('#3a4046', 0.95, floor + 1.9, floor + 2.1);
-        roofOn(0.85, floor + 2.1, 'tile');
+        // door at the foot and slit windows up the tower, facing the site
+        const fx = (sx - x) / (best.d || 1);
+        const fz = (sz - z) / (best.d || 1);
+        const opening = (yy: number, w: number, h: number) => {
+          const r = radius(yy) + 0.015;
+          const px = x + fx * r;
+          const pz = z + fz * r;
+          detail('', '#1d2228').box([px - w / 2 - Math.abs(fx) * 0.04, yy, pz - w / 2 - Math.abs(fz) * 0.04], [px + w / 2 + Math.abs(fx) * 0.04, yy + h, pz + w / 2 + Math.abs(fz) * 0.04], FLAT_UV, false);
+        };
+        opening(foot + 0.7, 0.7, 1.5);
+        for (let i = 1; i < bands; i++) opening(foot + 0.7 + i * bandH + 0.5, 0.26, 0.7);
+        // gallery: flared corbel, deck and railing
+        round(white, neck, neck + 0.4, r1, 1.55);
+        slab(iron, neck + 0.4, neck + 0.52, 1.66);
+        posts(iron, 16, 1.58, neck + 0.52, neck + 1.12, 0.05);
+        round(iron, neck + 1.1, neck + 1.16, 1.6);
+        round(iron, neck + 0.8, neck + 0.83, 1.59);
+        // lantern room
+        round(iron, neck + 0.52, neck + 0.9, 0.86);
+        round('#fff4c4', neck + 0.9, neck + 2.05, 0.8, 0.8, '#f0cf6a', 'landmark-lamp');
+        posts(iron, 8, 0.82, neck + 0.9, neck + 2.05, 0.06);
+        round(iron, neck + 1.45, neck + 1.49, 0.83);
+        slab(iron, neck + 2.05, neck + 2.17, 1.02);
+        round(zone.accent, neck + 2.17, neck + 3.05, 1.02, 0.12);
+        detail('', iron).dome(x, z, neck + 3.0, 0.16, 0.16, 3, 10);
+        round(iron, neck + 3.1, neck + 3.75, 0.03, 0.012);
         break;
       }
     }
