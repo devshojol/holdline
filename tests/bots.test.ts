@@ -208,3 +208,47 @@ describe('deathmatch brain', () => {
     expect(shots.length).toBeGreaterThan(0);
   });
 });
+
+describe('site clear', () => {
+  it('posts defenders away from the spawn, ends the round when all are down and starts a new one', async () => {
+    const { PracticeDirector } = await import('../src/game/practice/PracticeDirector');
+    const { SessionTracker } = await import('../src/game/practice/SessionTracker');
+    const { DEFAULT_PRACTICE } = await import('../src/settings/defaults');
+    const def = MAP_DEFINITIONS[0];
+    const map = buildMapData(def);
+    const config = { ...DEFAULT_PRACTICE, mapId: def.id, locationId: def.locations[0].id, side: 'attack' as const, mode: 'site-clear' as const, botCount: 3, playerSpawnId: '', enemySpotIds: [] };
+    const tracker = new SessionTracker(config);
+    const director = new PracticeDirector({ map, location: def.locations[0], config, tracker, createVisual: null, rng: seeded(3) });
+    const player = new PlayerController(map.world);
+    const sp = director.playerSpawn;
+    player.spawn(sp.pos[0], sp.pos[1], sp.pos[2], sp.yaw);
+    const { ctx } = context(map.world, map, player, director.bots, seeded(5));
+    director.start(ctx);
+    expect(director.bots).toHaveLength(3);
+    expect(director.bots.every((b) => b.alive && b.brain!.describe() === 'guard')).toBe(true);
+    for (const b of director.bots) expect(Math.hypot(b.x - sp.pos[0], b.z - sp.pos[2])).toBeGreaterThanOrEqual(9);
+    expect(new Set(director.bots.map((b) => `${b.x},${b.z}`)).size).toBe(3);
+    expect(director.statusLabel).toContain('Round 1');
+
+    // kill everyone: the round is recorded and a new one starts shortly after, with the player back at the spawn
+    ctx.time = 12;
+    for (const b of director.bots) {
+      b.damage(1000);
+      director.onBotKilled(b, ctx);
+    }
+    expect(tracker.stats.clear).toEqual({ rounds: 1, cleared: 1, times: [12] });
+    let respawns = 0;
+    ctx.time = 15;
+    director.update(ctx, 1 / 60, () => respawns++);
+    expect(respawns).toBe(1);
+    expect(director.bots.every((b) => b.alive)).toBe(true);
+    expect(tracker.stats.clear!.rounds).toBe(2);
+
+    // dying restarts the round without counting a clear
+    director.onPlayerDeath(ctx);
+    ctx.time = 20;
+    director.update(ctx, 1 / 60, () => respawns++);
+    expect(respawns).toBe(2);
+    expect(tracker.stats.clear).toMatchObject({ rounds: 3, cleared: 1 });
+  });
+});

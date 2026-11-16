@@ -43,7 +43,7 @@ export function PracticePage() {
   const usable = useMemo(() => usableSpotIds(cfg), [cfg]);
   const selectedSpots = cfg.enemySpotIds.length ? cfg.enemySpotIds : setup.enemySpots.map((s) => s.id);
   const activeSpots = selectedSpots.filter((id) => usable.has(id));
-  const maxBots = cfg.mode === 'deathmatch' ? 10 : Math.max(1, activeSpots.length);
+  const maxBots = cfg.mode === 'deathmatch' ? 10 : cfg.mode === 'site-clear' ? Math.max(1, Math.min(6, setup.enemySpots.length)) : Math.max(1, activeSpots.length);
 
   const update = (patch: Partial<PracticeConfig>) => store.updatePractice(normaliseConfig({ ...cfg, ...patch }));
 
@@ -200,7 +200,7 @@ export function PracticePage() {
           >
             <div className="grid gap-4 md:grid-cols-2">
               <Slider
-                label={cfg.mode === 'deathmatch' ? 'Number of bots' : 'Bots peeking at once'}
+                label={cfg.mode === 'deathmatch' ? 'Number of bots' : cfg.mode === 'site-clear' ? 'Defenders per round' : 'Bots peeking at once'}
                 value={Math.min(cfg.botCount, maxBots)}
                 min={1}
                 max={maxBots}
@@ -269,6 +269,7 @@ export function PracticePage() {
               </Field>
             )}
             {cfg.mode === 'jiggle' && <p className="text-sm text-mute">Jiggle training mixes jiggle peeks, shoulder baits and occasional committed peeks/swings.</p>}
+            {cfg.mode === 'site-clear' && <p className="text-sm text-mute">Defenders start hidden at cover around this location and are placed differently every round. Walk (Shift) to stay quiet: they turn towards footsteps and gunfire.</p>}
             {cfg.mode === 'deathmatch' && <p className="text-sm text-mute">Deathmatch bots navigate the whole map, react to your gunfire and footsteps, and take cover when hurt.</p>}
             {advanced && (
               <div className="mt-3 grid gap-x-6 border-t border-line pt-3 md:grid-cols-2">
@@ -292,8 +293,8 @@ export function PracticePage() {
             <div className="grid gap-x-6 md:grid-cols-2">
               <Toggle
                 label="Bots shoot back"
-                hint={cfg.mode === 'deathmatch' ? 'Always on in deathmatch' : 'Turn off for pure aim reps'}
-                checked={cfg.botsShootBack || cfg.mode === 'deathmatch'}
+                hint={cfg.mode === 'deathmatch' || cfg.mode === 'site-clear' ? 'Always on in this mode' : 'Turn off for pure aim reps'}
+                checked={cfg.botsShootBack || cfg.mode === 'deathmatch' || cfg.mode === 'site-clear'}
                 onChange={(v) => update({ botsShootBack: v })}
               />
               <Toggle label="Infinite reserve ammo" hint="Magazines still need reloading" checked={cfg.infiniteAmmo} onChange={(v) => update({ infiniteAmmo: v })} />

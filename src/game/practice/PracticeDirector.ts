@@ -83,6 +83,7 @@ export interface DirectorDeps {
 export const MODE_LABELS: Record<PracticeConfig['mode'], string> = {
   'angle-hold': 'Angle Holding',
   jiggle: 'Jiggle Peek Training',
+  'site-clear': 'Site Clear',
   deathmatch: 'Deathmatch',
   spray: 'Spray Control',
 };
@@ -95,6 +96,11 @@ export class PracticeDirector {
   private pending: PendingRespawn[] = [];
   private playerRespawnAt = -1;
   private spawnCells: [number, number, number][] = [];
+  /** Site clear: where defenders may be posted, the current round number and its timing. */
+  private posts: EnemySpot[] = [];
+  private round = 0;
+  private roundStart = 0;
+  private nextRoundAt = -1;
 
   constructor(private readonly d: DirectorDeps) {
     const setup = d.location.sides[d.config.side];
@@ -113,6 +119,10 @@ export class PracticeDirector {
     if (spots.length === 0) spots = setup.enemySpots.filter((s) => spotDistance(this.playerSpawn, s) >= MIN_SPOT_DISTANCE);
     if (spots.length === 0) spots = setup.enemySpots;
     this.spots = spots;
+    // Site clear: defenders start hidden at any of the side's cover positions that isn't on top of the
+    // player's spawn. The player comes to them, so a post needn't be visible from the spawn.
+    const far = setup.enemySpots.filter((s) => Math.hypot(s.cover[0] - this.playerSpawn.pos[0], s.cover[2] - this.playerSpawn.pos[2]) >= 9);
+    this.posts = far.length >= 2 ? far : setup.enemySpots;
 
     // Deathmatch spawn cells: walkable ground cells.
     const { nav, space } = d.map;
@@ -234,8 +244,45 @@ export class PracticeDirector {
     bot.visual?.setVisible(true);
   }
 
+  /** Site clear: post a fresh set of defenders. Nobody respawns until the round is over. */
+  private startRound(ctx: BotContext) {
+    const n = Math.max(1, Math.min(this.d.config.botCount, this.posts.length, 6));
+    while (this.bots.length < n) this.makeBot();
+    const pool = [...this.posts];
+    const sp = this.playerSpawn;
+    for (const bot of this.bots) {
+      const post = pool.splice(Math.floor(ctx.rng() * pool.length), 1)[0];
+      const [x, y, z] = post.cover;
+      const yaw = Math.atan2(sp.pos[0] - x, sp.pos[2] - z);
+      bot.reset();
+      bot.setWeapon(WEAPONS[this.pickWeapon(ctx.rng)]);
+      bot.brain = new DeathmatchBehavior({ x, z, yaw });
+      bot.place(x, y, z, yaw);
+      bot.preAimed = true;
+      bot.committed = true;
+      bot.visual?.setVisible(true);
+    }
+    this.pending.length = 0;
+    this.round++;
+    this.roundStart = ctx.time;
+    this.nextRoundAt = -1;
+    ctx.graceUntil = ctx.time + 1;
+    this.d.tracker.roundStarted();
+  }
+
+  /** Short status for the HUD (site clear only). */
+  get statusLabel(): string | null {
+    if (this.mode !== 'site-clear') return null;
+    const left = this.activeBots;
+    return left > 0 ? `Site Clear · Round ${this.round} · ${left} left` : `Site Clear · Round ${this.round} cleared`;
+  }
+
   start(ctx: BotContext) {
     if (this.mode === 'spray') return; // a wall is the only target
+    if (this.mode === 'site-clear') {
+      this.startRound(ctx);
+      return;
+    }
     const n = Math.max(1, Math.min(this.d.config.botCount, this.mode === 'deathmatch' ? 10 : this.spots.length));
     for (let i = 0; i < n; i++) {
       const bot = this.makeBot();
@@ -245,6 +292,13 @@ export class PracticeDirector {
   }
 
   onBotKilled(bot: Bot, ctx: BotContext) {
+    if (this.mode === 'site-clear') {
+      if (!this.bots.some((b) => b !== bot && b.alive) && this.nextRoundAt < 0 && this.playerRespawnAt < 0) {
+        this.d.tracker.roundCleared(ctx.time - this.roundStart);
+        this.nextRoundAt = ctx.time + 2;
+      }
+      return;
+    }
     const delay = this.mode === 'deathmatch' ? 3 : 0.8 + ctx.rng() * 0.8;
     this.pending.push({ bot, at: ctx.time + delay });
   }
@@ -267,6 +321,13 @@ export class PracticeDirector {
   update(ctx: BotContext, dt: number, respawnPlayer: (x: number, y: number, z: number, yawDeg: number) => void) {
     for (const b of this.bots) b.update(ctx, dt);
 
+    // site clear: the round is won, so send the player back and post new defenders
+    if (this.nextRoundAt >= 0 && ctx.time >= this.nextRoundAt) {
+      const s = this.playerSpawn;
+      respawnPlayer(s.pos[0], s.pos[1], s.pos[2], s.yaw);
+      this.startRound(ctx);
+    }
+
     // bot respawns
     for (let i = this.pending.length - 1; i >= 0; i--) {
       const p = this.pending[i];
@@ -283,7 +344,12 @@ export class PracticeDirector {
       this.playerRespawnAt = -1;
       // spawn protection: nobody shoots for a moment after the player is back
       ctx.graceUntil = ctx.time + (this.mode === 'deathmatch' ? 2 : 1.2);
-      if (this.mode === 'deathmatch') {
+      if (this.mode === 'site-clear') {
+        // died mid-clear: the round is lost, start a new one from the spawn
+        const s = this.playerSpawn;
+        respawnPlayer(s.pos[0], s.pos[1], s.pos[2], s.yaw);
+        this.startRound(ctx);
+      } else if (this.mode === 'deathmatch') {
         const [x, y, z] = this.dmSpawnPoint(ctx, ctx.player.eye(), true);
         // face towards map centre
         const yaw = (Math.atan2(-x, -z) * 180) / Math.PI;

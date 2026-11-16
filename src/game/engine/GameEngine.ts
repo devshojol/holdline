@@ -434,7 +434,7 @@ export class GameEngine {
       world: this.map.world,
       map: this.map,
       player: this.player,
-      botsShootBack: this.config.botsShootBack || this.config.mode === 'deathmatch',
+      botsShootBack: this.config.botsShootBack || this.config.mode === 'deathmatch' || this.config.mode === 'site-clear',
       bots: this.director.bots,
       rng: Math.random,
       botFire: (bot, origin, dir) => this.resolveBotShot(bot, origin, dir),
@@ -1242,7 +1242,7 @@ export class GameEngine {
       avgReaction: Math.round(avg(st.reactionTimes)),
       speed: Math.round(this.player.speed * 10) / 10,
       dead: !this.player.alive,
-      modeLabel: MODE_LABELS[this.config.mode],
+      modeLabel: this.director.statusLabel ?? MODE_LABELS[this.config.mode],
     };
     const prev = this.lastHud;
     if (prev && (Object.keys(hud) as (keyof HudState)[]).every((k) => prev[k] === hud[k])) return;

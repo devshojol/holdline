@@ -12,6 +12,7 @@ import { normaliseConfig } from './PracticePage';
 const DAILY: { mode: PracticeMode; title: string; target: string; patch: Partial<PracticeConfig> }[] = [
   { mode: 'angle-hold', title: 'Warm-up: hold A Main', target: '2 min angle hold', patch: { locationId: 'a-main', side: 'defend', behavior: 'mixed', durationSec: 120, botCount: 2 } },
   { mode: 'jiggle', title: "Don't take the bait", target: '2 min jiggle drill', patch: { locationId: 'mid', side: 'attack', durationSec: 120, botCount: 2 } },
+  { mode: 'site-clear', title: 'Take the site', target: '3 min site clear', patch: { locationId: 'a-main', side: 'attack', durationSec: 180, botCount: 3 } },
   { mode: 'deathmatch', title: 'Live fire', target: '5 min deathmatch', patch: { durationSec: 300, botCount: 5 } },
 ];
 

@@ -185,7 +185,7 @@ export interface MapSummary {
 /* Practice                                                            */
 /* ------------------------------------------------------------------ */
 
-export type PracticeMode = 'angle-hold' | 'jiggle' | 'deathmatch' | 'spray';
+export type PracticeMode = 'angle-hold' | 'jiggle' | 'site-clear' | 'deathmatch' | 'spray';
 
 export interface PracticeConfig {
   mapId: string;
@@ -398,6 +398,8 @@ export interface SessionStats {
   /** Shots fired at bots that were only jiggling/shoulder peeking. */
   baitedShots: number;
   perWeapon: Partial<Record<WeaponId, WeaponStatLine>>;
+  /** Site-clear rounds (site-clear mode only): rounds started, rounds won and the time each win took (seconds). */
+  clear?: { rounds: number; cleared: number; times: number[] };
   /** Spray-control results (spray mode only). */
   spray?: SpraySummary;
   score: number;

@@ -118,6 +118,19 @@ export class SessionTracker {
     };
   }
 
+  /** A site-clear round began. */
+  roundStarted() {
+    const c = (this.stats.clear ??= { rounds: 0, cleared: 0, times: [] });
+    c.rounds++;
+  }
+
+  /** Every defender is down: record how long the clear took. */
+  roundCleared(seconds: number) {
+    const c = (this.stats.clear ??= { rounds: 0, cleared: 0, times: [] });
+    c.cleared++;
+    c.times.push(Math.round(seconds * 10) / 10);
+  }
+
   baited() {
     this.stats.baitedShots++;
   }
@@ -131,6 +144,7 @@ export class SessionTracker {
     const reactionBonus = st.reactionTimes.reduce((a, rt) => a + Math.max(0, 700 - rt) / 10, 0);
     let score = st.kills * 100 + this.hsKills * 50 - st.deaths * 120;
     if (st.mode === 'angle-hold') score += reactionBonus - st.escapes * 50;
+    else if (st.mode === 'site-clear' && st.clear) score += st.clear.cleared * 200 + st.clear.times.reduce((a, t) => a + Math.max(0, 40 - t) * 5, 0);
     else if (st.mode === 'jiggle') score += reactionBonus * 0.5 - st.baitedShots * 10 - st.escapes * 40;
     st.score = Math.round(score);
     return st.score;
@@ -140,7 +154,7 @@ export class SessionTracker {
     this.stats.endedAt = Date.now();
     this.stats.durationSec = Math.round(durationSec);
     this.computeScore();
-    return { ...this.stats, spray: this.stats.spray && { ...this.stats.spray }, reactionTimes: [...this.stats.reactionTimes], killTimes: [...this.stats.killTimes] };
+    return { ...this.stats, spray: this.stats.spray && { ...this.stats.spray }, clear: this.stats.clear && { ...this.stats.clear, times: [...this.stats.clear.times] }, reactionTimes: [...this.stats.reactionTimes], killTimes: [...this.stats.killTimes] };
   }
 }
 

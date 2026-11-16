@@ -18,7 +18,7 @@ import { findPath, nearestWalkable, type NavPoint } from '../navigation/GridNavi
 import { BOT_EYE, BOT_HEIGHT, BOT_RADIUS, BOT_SCALE } from '../perception/visibility';
 import { type Bot, type BotBrain, type BotContext, CLOSE_RANGE, lerp } from '../Bot';
 
-type State = 'patrol' | 'engage' | 'hold' | 'chase' | 'search' | 'cover' | 'hold-cover' | 'peek';
+type State = 'guard' | 'patrol' | 'engage' | 'hold' | 'chase' | 'search' | 'cover' | 'hold-cover' | 'peek';
 
 /** Distance each kind of gun likes to fight at (metres). */
 const IDEAL_RANGE = { Rifle: 22, SMG: 11, Sidearm: 13, Sniper: 34 } as const;
@@ -27,9 +27,28 @@ const CALLOUT_RADIUS = 28;
 /** Minimum time between two re-plans caused by noise (the player's footsteps come several a second). */
 const HEAR_REPATH = 0.6;
 
+/** A post a bot defends instead of roaming: it holds there, fights from there and comes back to it. */
+export interface GuardPost {
+  x: number;
+  z: number;
+  /** Direction the bot watches while nothing is happening. */
+  yaw: number;
+}
+
 export class DeathmatchBehavior implements BotBrain {
   readonly kind = 'deathmatch';
   state: State = 'patrol';
+  /** Guarding bots walk back to their post after a fight. */
+  private returning = false;
+  private heardAt = -99;
+  /** Directions a guarding bot watches from its post, the main one first. */
+  private lanes: number[] | null = null;
+  private laneIdx = 0;
+
+  constructor(private readonly post: GuardPost | null = null) {
+    if (post) this.state = 'guard';
+  }
+
   private path: NavPoint[] = [];
   private pathIdx = 0;
   private timer = 0;
@@ -341,7 +360,8 @@ export class DeathmatchBehavior implements BotBrain {
   }
 
   private toPatrol() {
-    this.state = 'patrol';
+    this.state = this.post ? 'guard' : 'patrol';
+    this.returning = !!this.post;
     this.path = [];
   }
 
@@ -405,7 +425,7 @@ export class DeathmatchBehavior implements BotBrain {
     }
 
     if (bot.seesPlayer && this.state !== 'engage' && this.state !== 'cover') {
-      const fresh = this.state === 'patrol' || this.state === 'search';
+      const fresh = this.state === 'patrol' || this.state === 'search' || this.state === 'guard';
       this.state = 'engage';
       this.lostTimer = 0;
       this.coverChecked = false;
@@ -418,6 +438,46 @@ export class DeathmatchBehavior implements BotBrain {
     }
 
     switch (this.state) {
+      case 'guard': {
+        // Hold the post with the gun up; turn towards a recent noise, otherwise watch the approach.
+        const post = this.post!;
+        bot.wantsToShoot = true;
+        bot.preAimed = true;
+        bot.crouchTarget = 0;
+        if (bot.ammo < bot.weapon.magazine * 0.6) bot.reload();
+        if (this.returning) {
+          this.returning = false;
+          if (bot.distTo(post.x, post.z) > 1.2) {
+            this.setPath(bot, ctx, post.x, post.z);
+            this.lanes = null;
+          }
+        }
+        if (this.path.length > 0 && this.pathIdx < this.path.length) {
+          if (this.followPath(bot, run * 0.65)) this.path = [];
+          this.facePath(bot);
+          return;
+        }
+        this.stop(bot);
+        if (bot.lastKnown && ctx.time - this.heardAt < 5) {
+          this.faceLastKnown(bot);
+          return;
+        }
+        // Nothing heard: watch the open approaches to the post in turn, mostly the one the
+        // attackers are expected from (a post's own cover usually blocks the direct line to them).
+        if (!this.lanes) {
+          const lanes = this.openLanes(bot, ctx);
+          const off = (yaw: number) => Math.abs(Math.atan2(Math.sin(yaw - post.yaw), Math.cos(yaw - post.yaw)));
+          this.lanes = lanes.sort((a, b) => off(a) - off(b));
+          this.laneIdx = 0;
+          this.timer = lerp(2.5, 5, ctx.rng());
+        }
+        if (this.timer <= 0) {
+          this.laneIdx = this.laneIdx === 0 && this.lanes.length > 1 ? 1 : 0;
+          this.timer = this.laneIdx === 0 ? lerp(2.5, 5, ctx.rng()) : lerp(1, 2, ctx.rng());
+        }
+        bot.faceYaw = this.lanes[this.laneIdx] ?? post.yaw;
+        return;
+      }
       case 'patrol': {
         bot.wantsToShoot = false;
         bot.preAimed = false;
@@ -538,6 +598,16 @@ export class DeathmatchBehavior implements BotBrain {
 
   hear(bot: Bot, ctx: BotContext, x: number, z: number) {
     if (this.state === 'engage' || this.state === 'cover' || this.state === 'hold-cover' || this.state === 'peek') return;
+    if (this.state === 'guard') {
+      // Defenders mostly stay put and turn to the noise; a bold one nearby leaves its post to push.
+      const near = bot.distTo(x, z);
+      bot.lastKnown = [x + (ctx.rng() - 0.5) * 2, z + (ctx.rng() - 0.5) * 2];
+      bot.lastVel = [0, 0];
+      const first = ctx.time - this.heardAt > 5;
+      this.heardAt = ctx.time;
+      if (first && near < 14 && ctx.rng() < bot.tuning.aggression * 0.35) this.startChase(bot, ctx);
+      return;
+    }
     // The further away the noise, the rougher the guess of where it came from.
     const dist = bot.distTo(x, z);
     const blur = Math.min(6, 1 + dist * 0.12);

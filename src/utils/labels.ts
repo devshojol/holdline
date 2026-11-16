@@ -12,6 +12,11 @@ export const MODE_INFO: Record<PracticeMode, { label: string; short: string; des
     short: 'Jiggle',
     desc: 'Bots jiggle and shoulder-peek to bait your shots, then occasionally commit. Wasted bait shots are tracked.',
   },
+  'site-clear': {
+    label: 'Site Clear',
+    short: 'Site Clear',
+    desc: 'Push in and clear every defender. They hold hidden posts, turn to your footsteps and fight back. Each clear is timed; dying restarts the round.',
+  },
   deathmatch: {
     label: 'Deathmatch',
     short: 'Deathmatch',

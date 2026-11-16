@@ -33,7 +33,15 @@ export function SessionReportBody({ s }: { s: SessionStats }) {
         <Stat label="Spray acc." value={p(s.sprayHits, s.sprayShots)} sub="bullet 4+" />
         <Stat label="Moving-shot acc." value={p(s.movingHits, s.movingShots)} sub={`${s.movingShots} shots while moving`} />
         <Stat label="Damage" value={`${s.damageDealt}`} sub={`taken ${s.damageTaken}`} />
-        {s.mode !== 'deathmatch' && <Stat label="Escapes" value={s.escapes} sub="bots that peeked & lived" />}
+        {s.clear && <Stat label="Rounds cleared" value={`${s.clear.cleared} / ${s.clear.rounds}`} sub="defenders all down" />}
+        {s.clear && (
+          <Stat
+            label="Avg clear time"
+            value={s.clear.times.length ? `${(s.clear.times.reduce((a, t) => a + t, 0) / s.clear.times.length).toFixed(1)} s` : '—'}
+            sub={s.clear.times.length ? `best ${Math.min(...s.clear.times).toFixed(1)} s` : 'no round cleared'}
+          />
+        )}
+        {s.mode !== 'deathmatch' && s.mode !== 'site-clear' && <Stat label="Escapes" value={s.escapes} sub="bots that peeked & lived" />}
         {s.mode === 'jiggle' && <Stat label="Baited shots" value={s.baitedShots} sub="missed shots at jiggles" />}
       </div>
       {Object.keys(s.perWeapon).length > 0 && (
