@@ -138,6 +138,8 @@ export const permafrost: MapDefinition = {
   palette: {
     sky: ['#b8d4ec', '#eef4f8'],
     fog: '#e6edf2',
+    kit: { roof: 'flat', roofColor: '#5d6b78', awnings: false, bunting: false, wallUnits: true, crateColor: '#6f8496' },
+    mood: { sun: '#f6f3ea', sunDir: [-0.6, -0.6, 0.42], sunIntensity: 1.4, ambient: '#bcd3f4', bounce: '#c4d0dc', ambientIntensity: 0.78, exposure: 0.95 },
     zones: {
       a: { wall: '#e3eaf0', floor: '#c9d3dc', accent: '#2f6fb0' },
       b: { wall: '#e6ebee', floor: '#ccd5db', accent: '#d8a23a' },

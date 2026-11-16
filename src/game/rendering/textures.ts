@@ -64,72 +64,94 @@ function speckle(ctx: CanvasRenderingContext2D, s: number, base: string, count: 
   }
 }
 
-/** Plaster wall: v spans the full wall height, so the baseboard sits at the canvas bottom. */
+/**
+ * Painted plaster wall: v spans the full wall height, so the base course sits at the canvas bottom.
+ * Kept deliberately quiet (large soft brush shapes, no speckle) so enemies read clearly against it.
+ */
 export function wallTexture(scene: Scene, base: string, accent: string, seed: number) {
   return makeTexture(scene, `wall-${seed}`, 512, (ctx, s) => {
     const r = rng(seed);
-    ctx.fillStyle = base;
+    // soft vertical wash: a little lighter towards the top
+    const wash = ctx.createLinearGradient(0, 0, 0, s);
+    wash.addColorStop(0, shade(base, 0.07));
+    wash.addColorStop(0.6, base);
+    wash.addColorStop(1, shade(base, -0.06));
+    ctx.fillStyle = wash;
     ctx.fillRect(0, 0, s, s);
-    // soft plaster blotches
-    for (let i = 0; i < 70; i++) {
+    // large, low-contrast brush shapes (drawn wrapped so the texture tiles)
+    for (let i = 0; i < 26; i++) {
       const x = r() * s;
-      const y = r() * s;
-      const rad = 20 + r() * 70;
-      const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
-      g.addColorStop(0, shade(base, (r() - 0.5) * 0.16, 0.45));
-      g.addColorStop(1, shade(base, 0, 0));
-      ctx.fillStyle = g;
-      ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+      const y = r() * s * 0.8;
+      const rad = 60 + r() * 120;
+      const tone = (r() - 0.5) * 0.09;
+      for (const dx of [-s, 0, s]) {
+        const g = ctx.createRadialGradient(x + dx, y, 0, x + dx, y, rad);
+        g.addColorStop(0, shade(base, tone, 0.5));
+        g.addColorStop(1, shade(base, tone, 0));
+        ctx.fillStyle = g;
+        ctx.fillRect(x + dx - rad, y - rad, rad * 2, rad * 2);
+      }
     }
-    speckle(ctx, s, base, 2600, r, 0.1);
-    // block seams
-    ctx.strokeStyle = shade(base, -0.12, 0.35);
-    ctx.lineWidth = 2;
-    for (let y = s * 0.14; y < s * 0.9; y += s * 0.19) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(s, y);
-      ctx.stroke();
-    }
-    // top trim band
-    ctx.fillStyle = shade(base, -0.18);
-    ctx.fillRect(0, 0, s, s * 0.035);
+    // top cornice band with an accent stripe
+    ctx.fillStyle = shade(base, -0.16);
+    ctx.fillRect(0, 0, s, s * 0.04);
+    ctx.fillStyle = shade(base, 0.12, 0.7);
+    ctx.fillRect(0, s * 0.04, s, s * 0.006);
     ctx.fillStyle = shade(accent, -0.05, 0.9);
-    ctx.fillRect(0, s * 0.035, s, s * 0.012);
-    // baseboard
-    ctx.fillStyle = shade(base, -0.32);
-    ctx.fillRect(0, s * 0.94, s, s * 0.06);
-    ctx.fillStyle = shade(base, -0.2);
-    ctx.fillRect(0, s * 0.93, s, s * 0.012);
-    // grime gradient near the floor
-    const gr = ctx.createLinearGradient(0, s * 0.7, 0, s * 0.94);
-    gr.addColorStop(0, 'rgba(0,0,0,0)');
-    gr.addColorStop(1, 'rgba(40,25,10,0.18)');
-    ctx.fillStyle = gr;
-    ctx.fillRect(0, s * 0.7, s, s * 0.24);
+    ctx.fillRect(0, s * 0.05, s, s * 0.012);
+    // stone base course (below ~0.95 m, under head height)
+    const baseTop = s * 0.84;
+    ctx.fillStyle = shade(base, -0.24);
+    ctx.fillRect(0, baseTop, s, s - baseTop);
+    const blocks = 4;
+    for (let i = 0; i < blocks; i++) {
+      ctx.fillStyle = shade(base, -0.24 + (r() - 0.5) * 0.06);
+      ctx.fillRect((i * s) / blocks + 2, baseTop + 4, s / blocks - 4, s - baseTop - 4);
+    }
+    ctx.fillStyle = shade(base, -0.1);
+    ctx.fillRect(0, baseTop - s * 0.008, s, s * 0.012);
+    ctx.fillStyle = shade(base, -0.38, 0.8);
+    ctx.fillRect(0, baseTop + s * 0.004, s, s * 0.004);
   });
 }
 
-/** Paved floor: texture spans 4×4 m with 1 m pavers. */
+/** Paved floor: texture spans 4×4 m with 2 m slabs, thin joints and soft tone variation. */
 export function floorTexture(scene: Scene, base: string, seed: number) {
   return makeTexture(scene, `floor-${seed}`, 512, (ctx, s) => {
     const r = rng(seed);
-    ctx.fillStyle = shade(base, -0.25);
+    ctx.fillStyle = shade(base, -0.2);
     ctx.fillRect(0, 0, s, s);
-    const n = 4;
+    const n = 2;
     const t = s / n;
-    for (let j = 0; j < n; j++)
+    const j = Math.max(1, s / 256);
+    for (let row = 0; row < n; row++)
       for (let i = 0; i < n; i++) {
-        const off = j % 2 === 0 ? 0 : t / 2;
+        const off = row % 2 === 0 ? 0 : t / 2;
+        const tone = (r() - 0.5) * 0.07;
         for (const dx of [0, -s]) {
           const x = i * t + off + dx;
-          ctx.fillStyle = shade(base, (r() - 0.5) * 0.14);
-          ctx.fillRect(x + 3, j * t + 3, t - 6, t - 6);
-          ctx.fillStyle = shade(base, 0.08, 0.4);
-          ctx.fillRect(x + 3, j * t + 3, t - 6, 3);
+          ctx.fillStyle = shade(base, tone);
+          ctx.fillRect(x + j, row * t + j, t - j * 2, t - j * 2);
+          ctx.fillStyle = shade(base, tone + 0.07, 0.5);
+          ctx.fillRect(x + j, row * t + j, t - j * 2, j * 1.5);
         }
       }
-    speckle(ctx, s, base, 3000, r, 0.14);
+    // broad worn patches
+    for (let i = 0; i < 14; i++) {
+      const x = r() * s;
+      const y = r() * s;
+      const rad = 50 + r() * 90;
+      const tone = (r() - 0.5) * 0.08;
+      for (const dx of [-s, 0, s])
+        for (const dy of [-s, 0, s]) {
+          const g = ctx.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, rad);
+          g.addColorStop(0, shade(base, tone, 0.4));
+          g.addColorStop(1, shade(base, tone, 0));
+          ctx.fillStyle = g;
+          ctx.fillRect(x + dx - rad, y + dy - rad, rad * 2, rad * 2);
+        }
+    }
+    speckle(ctx, s, base, 500, r, 0.06);
   });
 }
 
@@ -186,6 +208,33 @@ export function metalTexture(scene: Scene, base: string, seed: number) {
   });
 }
 
+/** Roof tiles: texture spans 2×2 m, courses run along u and overlap down the slope. */
+export function roofTexture(scene: Scene, base: string, seed: number) {
+  return makeTexture(scene, `roof-${seed}`, 256, (ctx, s) => {
+    const r = rng(seed);
+    ctx.fillStyle = shade(base, -0.3);
+    ctx.fillRect(0, 0, s, s);
+    const courses = 5;
+    const h = s / courses;
+    const perRow = 8;
+    const w = s / perRow;
+    for (let j = 0; j < courses; j++) {
+      const off = j % 2 ? w / 2 : 0;
+      for (let i = -1; i <= perRow; i++) {
+        const tone = (r() - 0.5) * 0.16;
+        const g = ctx.createLinearGradient(i * w + off, 0, i * w + off + w, 0);
+        g.addColorStop(0, shade(base, tone - 0.18));
+        g.addColorStop(0.5, shade(base, tone + 0.08));
+        g.addColorStop(1, shade(base, tone - 0.18));
+        ctx.fillStyle = g;
+        ctx.fillRect(i * w + off + 1, j * h, w - 2, h - 3);
+      }
+      ctx.fillStyle = shade(base, -0.45, 0.7);
+      ctx.fillRect(0, (j + 1) * h - 3, s, 3);
+    }
+  });
+}
+
 export function stoneTexture(scene: Scene, base: string, seed: number) {
   return makeTexture(scene, `stone-${seed}`, 256, (ctx, s) => {
     const r = rng(seed);
@@ -205,24 +254,99 @@ export function stoneTexture(scene: Scene, base: string, seed: number) {
   });
 }
 
-export function skyTexture(scene: Scene, top: string, horizon: string) {
-  return makeTexture(
-    scene,
-    'sky',
-    256,
-    (ctx, s) => {
-      // Sphere UVs run top→bottom while canvas rows are uploaded bottom-up, so draw inverted.
-      const g = ctx.createLinearGradient(0, s, 0, 0);
-      g.addColorStop(0, top);
-      g.addColorStop(0.48, horizon);
-      g.addColorStop(0.52, horizon);
-      g.addColorStop(1, shade(horizon, -0.2));
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, s, s);
-    },
-    false,
-    false,
-  );
+/** Sky dome: zenith-to-horizon gradient, a haze band at the horizon and soft painted clouds. */
+export function skyTexture(scene: Scene, top: string, horizon: string, seed = 5) {
+  const w = 1024;
+  const h = 512;
+  const tex = new DynamicTexture('sky', { width: w, height: h }, scene, false);
+  const ctx = tex.getContext() as unknown as CanvasRenderingContext2D;
+  // Sphere UVs run top→bottom while canvas rows are uploaded bottom-up, so draw inverted:
+  // y = h is the zenith, y = h / 2 the horizon.
+  const g = ctx.createLinearGradient(0, h, 0, 0);
+  g.addColorStop(0, shade(top, -0.12));
+  g.addColorStop(0.2, top);
+  g.addColorStop(0.42, shade(horizon, -0.04));
+  g.addColorStop(0.5, shade(horizon, 0.25));
+  g.addColorStop(0.53, horizon);
+  g.addColorStop(1, shade(horizon, -0.25));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  // clouds: clusters of soft puffs between the horizon and ~55° up, lit from above
+  const r = rng(seed);
+  const puff = (x: number, y: number, rad: number, color: string) => {
+    for (const dx of [-w, 0, w]) {
+      const c = ctx.createRadialGradient(x + dx, y, 0, x + dx, y, rad);
+      c.addColorStop(0, color);
+      c.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = c;
+      ctx.fillRect(x + dx - rad, y - rad, rad * 2, rad * 2);
+    }
+  };
+  for (let i = 0; i < 16; i++) {
+    const cx = r() * w;
+    const cy = h * (0.56 + r() * 0.2);
+    const span = 50 + r() * 90;
+    const n = 6 + Math.floor(r() * 6);
+    for (let k = 0; k < n; k++) {
+      const x = cx + (r() - 0.5) * span * 2;
+      const y = cy + (r() - 0.5) * span * 0.25;
+      const rad = 16 + r() * 30;
+      puff(x, y - rad * 0.25, rad, shade(horizon, -0.12, 0.22)); // shaded underside
+      puff(x, y + rad * 0.15, rad * 0.9, 'rgba(255,255,255,0.3)'); // lit top
+    }
+  }
+  tex.update(true);
+  tex.wrapU = Texture.WRAP_ADDRESSMODE;
+  tex.wrapV = Texture.CLAMP_ADDRESSMODE;
+  return tex;
+}
+
+/**
+ * Baked ambient occlusion for horizontal surfaces, one texture per map: each texel darkens with
+ * how close it is to a taller neighbouring cell (wall, crate, step). u runs along columns, v along rows.
+ */
+export function occlusionTexture(scene: Scene, cols: number, rows: number, cellTop: Float32Array, cell: number) {
+  const R = lowQuality ? 4 : 8; // texels per cell
+  const w = cols * R;
+  const h = rows * R;
+  const tex = new DynamicTexture('map-ao', { width: w, height: h }, scene, false);
+  const ctx = tex.getContext() as unknown as CanvasRenderingContext2D;
+  const img = ctx.createImageData(w, h);
+  const reach = 1.1; // metres
+  const top = (c: number, r: number) => (c < 0 || r < 0 || c >= cols || r >= rows ? 99 : cellTop[r * cols + c]);
+  for (let py = 0; py < h; py++) {
+    const r = Math.floor(py / R);
+    const fy = ((py % R) + 0.5) / R; // 0..1 inside the cell
+    for (let px = 0; px < w; px++) {
+      const c = Math.floor(px / R);
+      const fx = ((px % R) + 0.5) / R;
+      const own = top(c, r);
+      let light = 1;
+      for (let dr = -1; dr <= 1; dr++)
+        for (let dc = -1; dc <= 1; dc++) {
+          if (!dc && !dr) continue;
+          const rise = top(c + dc, r + dr) - own;
+          if (rise < 0.3) continue;
+          const ex = dc < 0 ? fx : dc > 0 ? 1 - fx : 0;
+          const ey = dr < 0 ? fy : dr > 0 ? 1 - fy : 0;
+          const d = Math.hypot(ex, ey) * cell;
+          if (d >= reach) continue;
+          const k = 1 - d / reach;
+          light *= 1 - 0.5 * k * k * Math.min(1, rise / 1.5);
+        }
+      const v = Math.round(255 * Math.max(0.42, light));
+      const o = (py * w + px) * 4;
+      img.data[o] = v;
+      img.data[o + 1] = Math.min(255, v + 4); // shadowed corners lean slightly cool
+      img.data[o + 2] = Math.min(255, v + 10);
+      img.data[o + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  tex.update(false);
+  tex.wrapU = Texture.CLAMP_ADDRESSMODE;
+  tex.wrapV = Texture.CLAMP_ADDRESSMODE;
+  return tex;
 }
 
 export function radialTexture(scene: Scene, name: string, inner: string, outer: string, size = 64) {

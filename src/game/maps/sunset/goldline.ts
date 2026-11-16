@@ -138,6 +138,8 @@ export const goldline: MapDefinition = {
   palette: {
     sky: ['#e7a46a', '#f6d3a4'],
     fog: '#efc99f',
+    kit: { vista: 'city' },
+    mood: { sun: '#ffc27e', sunDir: [-0.72, -0.46, 0.4], sunIntensity: 1.65, ambient: '#c3b4dc', bounce: '#c79a6c' },
     zones: {
       a: { wall: '#e2b48a', floor: '#a9927e', accent: '#7a4fb0' },
       b: { wall: '#d9a07a', floor: '#a38b78', accent: '#2f8fa0' },

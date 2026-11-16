@@ -8,9 +8,65 @@ export interface Callout {
   r: number;
 }
 
+/** Lighting mood of a map. Every field is optional on a palette; `mapMood` fills in the defaults. */
+export interface MapMood {
+  /** Sun colour. */
+  sun: string;
+  /** Direction the sunlight travels (points down, away from the sun). */
+  sunDir: [number, number, number];
+  sunIntensity: number;
+  /** Sky light that fills the shadows. */
+  ambient: string;
+  /** Light bounced up from the ground. */
+  bounce: string;
+  ambientIntensity: number;
+  exposure: number;
+  /** Colour boost applied after tone mapping (0 = none). */
+  saturation: number;
+}
+
+const DEFAULT_MOOD: MapMood = {
+  sun: '#ffe9c4',
+  sunDir: [-0.52, -0.78, 0.42],
+  sunIntensity: 1.5,
+  ambient: '#c6d8ff',
+  bounce: '#b39c84',
+  ambientIntensity: 0.95,
+  exposure: 1.05,
+  saturation: 35,
+};
+
+export function mapMood(def: MapDefinition): MapMood {
+  return { ...DEFAULT_MOOD, ...def.palette.mood };
+}
+
+/** Building style of a map: how the visual layer finishes the tops of its walls. */
+export interface MapKit {
+  /** 'tile' = pitched tiled roofs with eaves; 'flat' = flat roofs with a parapet lip. */
+  roof: 'tile' | 'flat';
+  roofColor: string;
+  /** Cloth awnings over some doors. */
+  awnings: boolean;
+  /** Strings of flags across narrow streets, flower boxes on window sills. */
+  bunting: boolean;
+  /** What stands beyond the walls. */
+  vista: 'hills' | 'city';
+  /** Wall-mounted cooling units and pipe runs (modern settings only). */
+  wallUnits: boolean;
+  crateColor: string;
+}
+
+const DEFAULT_KIT: MapKit = { roof: 'tile', roofColor: '#a8644a', awnings: true, bunting: true, vista: 'hills', wallUnits: false, crateColor: '#a5794b' };
+
+export function mapKit(def: MapDefinition): MapKit {
+  return { ...DEFAULT_KIT, ...def.palette.kit };
+}
+
 export interface MapPalette {
   sky: [string, string];
   fog: string;
+  mood?: Partial<MapMood>;
+  kit?: Partial<MapKit>;
   zones: Record<string, { wall: string; floor: string; accent: string }>;
 }
 

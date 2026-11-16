@@ -138,6 +138,7 @@ export const coralis: MapDefinition = {
   palette: {
     sky: ['#5fb6e8', '#d7eef7'],
     fog: '#cfe6ee',
+    kit: { roofColor: '#b06f4e' },
     zones: {
       a: { wall: '#e3d3b0', floor: '#d2c29e', accent: '#2bb7b0' },
       b: { wall: '#dccaa4', floor: '#c9b893', accent: '#e07a3a' },

@@ -29,7 +29,7 @@ import { BOT_SCALE, visibleSampleCount } from '../bots/perception/visibility';
 import { Input } from '../core/Input';
 import { drawCrosshair } from '../hud/crosshairRenderer';
 import { Minimap } from '../hud/Minimap';
-import { buildMapData, findLocation, type MapData } from '../maps/MapData';
+import { buildMapData, findLocation, mapMood, type MapData } from '../maps/MapData';
 import { getMapDefinition } from '../maps/registry';
 import { COL_BULLET, humanoidHitboxes, rayHumanoid, type HitZone } from '../physics/CollisionWorld';
 import { PlayerController } from '../player/PlayerController';
@@ -44,6 +44,7 @@ import {
   Mesh,
   StandardMaterial,
   Color4,
+  ColorCurves,
   DirectionalLight,
   FreeCamera,
   FxaaPostProcess,
@@ -236,17 +237,23 @@ export class GameEngine {
     scene.skipPointerMovePicking = true;
     scene.constantlyUpdateMeshUnderPointer = false;
     const def = getMapDefinition(this.config.mapId);
+    const mood = mapMood(def);
     scene.clearColor = Color4.FromHexString(def.palette.sky[1] + 'ff');
     scene.fogMode = Scene.FOGMODE_EXP2;
     scene.fogDensity = 0.0045;
     scene.fogColor = Color3.FromHexString(def.palette.fog);
     if (this.settings.graphics.postFx) {
-      scene.imageProcessingConfiguration.contrast = 1.18;
-      scene.imageProcessingConfiguration.exposure = 1.05;
+      scene.imageProcessingConfiguration.contrast = 1.22;
+      scene.imageProcessingConfiguration.exposure = mood.exposure;
       scene.imageProcessingConfiguration.toneMappingEnabled = true;
       scene.imageProcessingConfiguration.toneMappingType = 1; // ACES
+      // a touch more colour than the tone mapper leaves, for the painted look
+      const curves = new ColorCurves();
+      curves.globalSaturation = mood.saturation;
+      scene.imageProcessingConfiguration.colorCurves = curves;
+      scene.imageProcessingConfiguration.colorCurvesEnabled = true;
       scene.imageProcessingConfiguration.vignetteEnabled = true;
-      scene.imageProcessingConfiguration.vignetteWeight = 0.6;
+      scene.imageProcessingConfiguration.vignetteWeight = 0.45;
     } else {
       // low-end: skip the per-pixel grading maths in every material
       scene.imageProcessingConfiguration.isEnabled = false;
@@ -263,21 +270,24 @@ export class GameEngine {
     this.camera = cam;
 
     // lights (created before materials compile/freeze)
-    // Bright, even stylised lighting: sky/ground hemisphere + warm sun (shadows) + cool fill.
+    // Stylised daylight: a strong warm sun, cool sky light filling the shadows, warm ground bounce.
     const hemi = new HemisphericLight('hemi', new Vector3(0.2, 1, -0.1), scene);
     const simpleLight = this.settings.graphics.lighting === 'simple';
-    hemi.intensity = simpleLight ? 1.0 : 0.85;
-    hemi.diffuse = Color3.FromHexString('#dfeaff');
-    hemi.groundColor = Color3.FromHexString('#8f7d6a');
+    // Without shadows the sun reaches everywhere, so lean on the sky light to keep the picture even.
+    const lit = this.settings.graphics.shadows === 'off' ? 0.8 : 1;
+    hemi.intensity = mood.ambientIntensity * (simpleLight ? 1.25 : 1) * (2 - lit);
+    hemi.diffuse = Color3.FromHexString(mood.ambient);
+    hemi.groundColor = Color3.FromHexString(mood.bounce);
     hemi.specular = Color3.Black();
-    const sun = new DirectionalLight('sun', new Vector3(-0.45, -1, 0.38).normalize(), scene);
-    sun.position = new Vector3(60, 90, -50);
-    sun.intensity = 1.25;
-    sun.diffuse = Color3.FromHexString('#fff1d8');
+    const sun = new DirectionalLight('sun', new Vector3(...mood.sunDir).normalize(), scene);
+    sun.position = new Vector3(...mood.sunDir).normalize().scale(-120);
+    sun.intensity = mood.sunIntensity * lit;
+    sun.diffuse = Color3.FromHexString(mood.sun);
     if (!simpleLight) {
-      const fill = new DirectionalLight('fill', new Vector3(0.5, -0.6, -0.6).normalize(), scene);
-      fill.intensity = 0.38;
-      fill.diffuse = Color3.FromHexString('#c9dcff');
+      // faint bounce from the sunlit side so faces turned away from the sun keep their shape
+      const fill = new DirectionalLight('fill', new Vector3(-mood.sunDir[0], -0.35, -mood.sunDir[2]).normalize(), scene);
+      fill.intensity = 0.22;
+      fill.diffuse = Color3.FromHexString(mood.bounce);
       fill.specular = Color3.Black();
       fill.shadowEnabled = false;
     }
@@ -295,10 +305,10 @@ export class GameEngine {
       const size = shadows === 'high' ? 4096 : 2048;
       const sg = new ShadowGenerator(size, sun);
       sg.usePercentageCloserFiltering = true;
-      sg.filteringQuality = shadows === 'high' ? ShadowGenerator.QUALITY_HIGH : ShadowGenerator.QUALITY_LOW;
+      sg.filteringQuality = shadows === 'high' ? ShadowGenerator.QUALITY_HIGH : ShadowGenerator.QUALITY_MEDIUM;
       sg.bias = 0.0015;
       sg.normalBias = 0.02;
-      sg.darkness = 0.45;
+      sg.darkness = 0.12;
       this.shadow = sg;
     }
 

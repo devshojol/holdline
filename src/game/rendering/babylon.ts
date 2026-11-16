@@ -31,6 +31,7 @@ export { CreateDisc } from '@babylonjs/core/Meshes/Builders/discBuilder';
 export { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 export { InstancedMesh } from '@babylonjs/core/Meshes/instancedMesh';
 export { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+export { ColorCurves } from '@babylonjs/core/Materials/colorCurves';
 export { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture';
 export { Texture } from '@babylonjs/core/Materials/Textures/texture';
 export { RenderTargetTexture } from '@babylonjs/core/Materials/Textures/renderTargetTexture';
