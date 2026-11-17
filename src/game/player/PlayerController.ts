@@ -1,6 +1,6 @@
 import type { SensitivitySettings } from '../../types';
 import type { CollisionWorld } from '../physics/CollisionWorld';
-import type { Input } from '../core/Input';
+import type { ActionSource } from '../core/actions';
 import { YAW_DEG_PER_COUNT } from '../../settings/defaults';
 
 const PLAYER_RADIUS = 0.3;
@@ -26,6 +26,18 @@ export interface PlayerEvents {
   onFootstep?: (speed: number) => void;
   onJump?: () => void;
   onLand?: (impact: number) => void;
+}
+
+export interface MotionState {
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  crouch: number;
+  crouching: boolean;
+  grounded: boolean;
 }
 
 export class PlayerController {
@@ -107,7 +119,7 @@ export class PlayerController {
     return s;
   }
 
-  update(dt: number, input: Input | null) {
+  update(dt: number, input: ActionSource | null) {
     if (!this.alive) {
       this.vel.x = this.vel.z = 0;
       return;
@@ -209,6 +221,26 @@ export class PlayerController {
         this.events.onFootstep?.(sp);
       }
     } else this.stepTimer = Math.min(this.stepTimer, 0.12);
+  }
+
+  /**
+   * Everything the next `update` depends on. Multiplayer saves it after each predicted step and
+   * restores it from the server's answer before replaying the steps the server hasn't seen.
+   */
+  motionState(): MotionState {
+    return { x: this.pos.x, y: this.pos.y, z: this.pos.z, vx: this.vel.x, vy: this.vel.y, vz: this.vel.z, crouch: this.crouch, crouching: this.crouching, grounded: this.grounded };
+  }
+
+  setMotionState(s: MotionState) {
+    this.pos.x = s.x;
+    this.pos.y = s.y;
+    this.pos.z = s.z;
+    this.vel.x = s.vx;
+    this.vel.y = s.vy;
+    this.vel.z = s.vz;
+    this.crouch = s.crouch;
+    this.crouching = s.crouching;
+    this.grounded = s.grounded;
   }
 
   /** Apply damage; armor soaks damage first. Returns true when this kills the player. */

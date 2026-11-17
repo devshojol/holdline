@@ -5,7 +5,7 @@ import { WeaponSystem } from '../src/game/weapons/WeaponSystem';
 import { PlayerController, RUN_SPEED } from '../src/game/player/PlayerController';
 import { cmPer360, edpi, DEFAULT_SETTINGS, DEFAULT_CROSSHAIR } from '../src/settings/defaults';
 import { exportCrosshairCode, importCrosshairCode } from '../src/game/hud/crosshairRenderer';
-import type { Input, Action } from '../src/game/core/Input';
+import type { Action, ActionSource } from '../src/game/core/actions';
 
 function world() {
   const w = new CollisionWorld();
@@ -19,7 +19,7 @@ function world() {
   return w;
 }
 
-class FakeInput {
+class FakeInput implements ActionSource {
   held = new Set<Action>();
   pressed = new Set<Action>();
   isDown(a: Action) {
@@ -95,7 +95,7 @@ describe('weapons', () => {
       inp.held.add('fire');
       let shots = 0;
       ws.events.onShot = () => shots++;
-      for (let t = 0; t < 1; t += step) ws.update(step, inp as unknown as Input, p);
+      for (let t = 0; t < 1; t += step) ws.update(step, inp, p);
       expect(shots).toBeGreaterThanOrEqual(9);
       expect(shots).toBeLessThanOrEqual(11);
     }
@@ -111,11 +111,11 @@ describe('weapons', () => {
     const dirs: number[][] = [];
     ws.events.onShot = (s) => dirs.push(s.dir);
     inp.held.add('fire');
-    for (let i = 0; i < 120; i++) ws.update(1 / 120, inp as unknown as Input, p);
+    for (let i = 0; i < 120; i++) ws.update(1 / 120, inp, p);
     inp.held.delete('fire');
     expect(dirs[0][1]).toBeCloseTo(0, 3); // first shot straight (rng 0.5 = centre)
     expect(dirs[dirs.length - 1][1]).toBeGreaterThan(0.05); // climbed
-    for (let i = 0; i < 120; i++) ws.update(1 / 120, inp as unknown as Input, p);
+    for (let i = 0; i < 120; i++) ws.update(1 / 120, inp, p);
     expect(ws.recoilIndex).toBe(0);
   });
 
@@ -124,7 +124,7 @@ describe('weapons', () => {
     p.spawn(0, 0, -20, 90);
     const inp = new FakeInput();
     inp.held.add('right');
-    for (let i = 0; i < 60; i++) p.update(1 / 120, inp as unknown as Input);
+    for (let i = 0; i < 60; i++) p.update(1 / 120, inp);
     expect(p.speed).toBeCloseTo(RUN_SPEED, 1);
     const ws = new WeaponSystem('vandal', 'classic');
     expect(ws.spread(p).movement).toBeGreaterThan(5);
@@ -132,7 +132,7 @@ describe('weapons', () => {
     inp.held.add('left');
     let t = 0;
     while (p.speed > RUN_SPEED * WEAPONS.vandal.spread.accurateSpeedFraction && t < 1) {
-      p.update(1 / 120, inp as unknown as Input);
+      p.update(1 / 120, inp);
       t += 1 / 120;
     }
     expect(t).toBeLessThan(0.08);
@@ -192,7 +192,7 @@ describe('spray trainer', () => {
       const [ry, rp] = recoilAt(WEAPONS.vandal, ws.recoilIndex);
       player.yaw = yaw0 - ry * DEG * control;
       player.pitch = pitch0 - rp * DEG * control;
-      ws.update(1 / 120, input as unknown as Input, player);
+      ws.update(1 / 120, input, player);
       time += 1 / 120;
     }
     const r = trainer.update(time + 1);
@@ -256,7 +256,7 @@ describe('weapon roster', () => {
     ws.equipTimer = 0;
     const input = new FakeInput();
     const run = (sec: number) => {
-      for (let t = 0; t < sec; t += 1 / 120) ws.update(1 / 120, input as unknown as Input, player);
+      for (let t = 0; t < sec; t += 1 / 120) ws.update(1 / 120, input, player);
     };
     const click = (a: Action) => {
       input.pressed.add(a);

@@ -11,6 +11,9 @@ import { MODE_INFO, locationName, mapName } from '../utils/labels';
 import { WEAPONS } from '../game/weapons/weaponConfigs';
 import { cmPer360 } from '../settings/defaults';
 import { exitGameFullscreen } from '../utils/fullscreen';
+import type { NetLink } from '../game/net/NetLink';
+import { multiplayer, useMultiplayer } from '../multiplayer/client';
+import { Scoreboard } from '../components/Scoreboard';
 
 declare global {
   interface Window {
@@ -28,7 +31,8 @@ const PAUSE_TEXT: Record<PauseInfo['reason'], string> = {
   loadout: 'Weapon menu',
 };
 
-export function GamePage({ config }: { config: PracticeConfig }) {
+/** `net`: the session is a multiplayer match on this connection (no restart, no report, the world never pauses). */
+export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLink }) {
   const settings = useAppStore((s) => s.settings);
   const routine = useAppStore((s) => s.routine);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -56,7 +60,7 @@ export function GamePage({ config }: { config: PracticeConfig }) {
     setLoadout({ primary: config.primary, secondary: config.secondary });
     // One engine per mount. It can be disposed while still loading (React StrictMode mounts
     // effects twice in dev, and Quit/Restart can happen mid-load) — dispose() cancels the build.
-    const engine = GameEngine.create({ container: hostRef.current!, overlay: overlayRef.current!, config, settings: store.get().settings });
+    const engine = GameEngine.create({ container: hostRef.current!, overlay: overlayRef.current!, config, settings: store.get().settings, net });
     engineRef.current = engine;
     window.__TAL__ = engine;
     engine.on((ev) => {
@@ -76,6 +80,7 @@ export function GamePage({ config }: { config: PracticeConfig }) {
           setNotice(ev.message);
           break;
         case 'ended':
+          if (net) break; // a match's results come from the server, not from this session's tracker
           if (ev.stats.shots > 0 || ev.stats.durationSec >= 10) store.addSession(ev.stats);
           store.recordRoutineScore(ev.stats.score);
           setReport(ev.stats);
@@ -102,8 +107,9 @@ export function GamePage({ config }: { config: PracticeConfig }) {
       engine.dispose();
       if (engineRef.current === engine) engineRef.current = null;
       if (window.__TAL__ === engine) window.__TAL__ = undefined;
+      if (net) exitGameFullscreen(); // the match ended or was left: the room's page is not a fullscreen one
     };
-  }, [config]);
+  }, [config, net]);
 
   useEffect(() => {
     engineRef.current?.updateSettings(settings);
@@ -129,6 +135,7 @@ export function GamePage({ config }: { config: PracticeConfig }) {
     setLoadout(e.loadout);
     // remembered as the default loadout for the next session
     store.updatePractice(slot === 0 ? { primary: id } : { secondary: id });
+    if (net) multiplayer.setLoadout(e.loadout);
   };
   const inLoadout = status === 'paused' && pause?.reason === 'loadout' && !report;
 
@@ -144,6 +151,12 @@ export function GamePage({ config }: { config: PracticeConfig }) {
 
   const endSession = () => engineRef.current?.end();
   const quit = () => {
+    if (net) {
+      // the match goes on without this view: back to the room, from where it can be rejoined
+      exitGameFullscreen();
+      multiplayer.showLobby();
+      return;
+    }
     const e = engineRef.current;
     if (e && e.status !== 'ended' && e.status !== 'loading') e.end();
     exitGameFullscreen();
@@ -157,6 +170,29 @@ export function GamePage({ config }: { config: PracticeConfig }) {
 
   const sens = settings.sensitivity;
 
+  // Multiplayer: Tab holds the scoreboard open
+  const scores = useMultiplayer((s) => s.scores);
+  const matchSettings = useMultiplayer((s) => s.match?.settings ?? null);
+  const [showScores, setShowScores] = useState(false);
+  const reconnecting = useMultiplayer((s) => s.status === 'reconnecting');
+  useEffect(() => {
+    if (!net) return;
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.code !== 'Tab') return;
+      ev.preventDefault();
+      setShowScores(ev.type === 'keydown');
+    };
+    const hide = () => setShowScores(false);
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('keyup', onKey);
+    window.addEventListener('blur', hide);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keyup', onKey);
+      window.removeEventListener('blur', hide);
+    };
+  }, [net]);
+
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">
       {/* the shared 3D canvas is mounted in here by the engine */}
@@ -164,6 +200,20 @@ export function GamePage({ config }: { config: PracticeConfig }) {
       <canvas ref={overlayRef} className="pointer-events-none absolute inset-0 h-full w-full" />
 
       {hud && status !== 'loading' && !report && <Hud hud={hud} flags={settings.hud} feed={feed} renderer={renderer} />}
+
+      {net && matchSettings && showScores && status !== 'loading' && (
+        <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/35">
+          <div className="w-[min(760px,94vw)] border border-line bg-panel/95 p-5">
+            <Scoreboard scores={scores} settings={matchSettings} me={net.playerId} />
+          </div>
+        </div>
+      )}
+
+      {net && reconnecting && (
+        <div role="status" className="pointer-events-none absolute left-1/2 top-20 -translate-x-1/2 border border-warn/50 bg-black/75 px-4 py-2 text-sm text-warn">
+          Connection lost. Reconnecting — your place and score are kept for 30 seconds.
+        </div>
+      )}
 
       {notice && status === 'running' && (
         <div className="pointer-events-none absolute bottom-28 left-1/2 max-w-xl -translate-x-1/2 border border-warn/40 bg-black/70 px-4 py-2 text-center text-sm text-warn">
@@ -203,13 +253,14 @@ export function GamePage({ config }: { config: PracticeConfig }) {
         <div className="absolute inset-0 grid place-items-center bg-black/55 backdrop-blur-[2px]">
           <div className="tal-card w-[min(560px,92vw)] border border-line bg-panel/95 p-7">
             <div className="font-display text-sm font-semibold uppercase tracking-[0.25em] text-accent">
-              {status === 'ready' ? 'Ready' : PAUSE_TEXT[pause?.reason ?? 'user']}
+              {net ? (status === 'ready' ? 'Match in progress' : 'Menu — the match goes on') : status === 'ready' ? 'Ready' : PAUSE_TEXT[pause?.reason ?? 'user']}
             </div>
             <div className="font-display text-3xl font-bold uppercase">
               {MODE_INFO[config.mode].label}
             </div>
             <div className="mt-1 text-sm text-mute">
-              {mapName(config.mapId)} · {locationName(config.mapId, config.locationId)} · {config.side === 'attack' ? 'Attacking' : 'Defending'} ·{' '}
+              {mapName(config.mapId)} ·{' '}
+              {net ? 'Multiplayer' : `${locationName(config.mapId, config.locationId)} · ${config.side === 'attack' ? 'Attacking' : 'Defending'}`} ·{' '}
               {WEAPONS[loadout.primary].name}
             </div>
             <button
@@ -217,7 +268,7 @@ export function GamePage({ config }: { config: PracticeConfig }) {
               className="tal-primary clip-angle mt-6 flex w-full items-center justify-center gap-3 bg-accent py-5 font-display text-2xl font-bold uppercase tracking-widest text-white hover:bg-[#ff5d6a]"
             >
               {status === 'ready' ? <Play size={24} /> : <MousePointer2 size={22} />}
-              {status === 'ready' ? 'Click to start' : 'Click to resume'}
+              {status === 'ready' ? (net ? 'Click to play' : 'Click to start') : 'Click to resume'}
             </button>
             {startIssue === 'cooldown' && <p className="mt-2 text-xs text-warn">The browser needs a moment after Esc before it can re-capture the mouse — click again.</p>}
             {startIssue === 'blocked' && (
@@ -254,24 +305,32 @@ export function GamePage({ config }: { config: PracticeConfig }) {
               </div>
             )}
 
-            <div className="mt-5 grid grid-cols-3 gap-2">
-              <Button variant="outline" size="sm" onClick={restart}>
-                <RotateCcw size={14} /> Restart
-              </Button>
-              <Button variant="outline" size="sm" onClick={endSession} disabled={status === 'ready'}>
-                <Square size={14} /> End session
-              </Button>
-              <Button variant="danger" size="sm" onClick={quit}>
-                <LogOut size={14} /> Quit
-              </Button>
-            </div>
+            {net ? (
+              <div className="mt-5">
+                <Button variant="outline" size="sm" onClick={quit}>
+                  <LogOut size={14} /> Back to the room
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-5 grid grid-cols-3 gap-2">
+                <Button variant="outline" size="sm" onClick={restart}>
+                  <RotateCcw size={14} /> Restart
+                </Button>
+                <Button variant="outline" size="sm" onClick={endSession} disabled={status === 'ready'}>
+                  <Square size={14} /> End session
+                </Button>
+                <Button variant="danger" size="sm" onClick={quit}>
+                  <LogOut size={14} /> Quit
+                </Button>
+              </div>
+            )}
             <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-dim">
               <span>WASD move · Shift walk</span>
               <span>Ctrl / C crouch · Space jump</span>
               <span>LMB fire · RMB aim / burst</span>
               <span>R reload · 1 / 2 or wheel weapons{config.mode === 'retake' ? ' · E defuse' : ''}</span>
               <span>B weapon menu</span>
-              <span>Esc pause</span>
+              <span>{net ? 'Esc menu · Tab scoreboard' : 'Esc pause'}</span>
             </div>
           </div>
         </div>

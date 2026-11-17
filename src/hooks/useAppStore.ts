@@ -4,8 +4,9 @@ import { DEFAULT_PRACTICE, DEFAULT_SETTINGS, DIFFICULTY_PRESETS, GRAPHICS_PRESET
 import { detectDevice } from '../settings/deviceProfile';
 import { load, mergeDefaults, save } from '../services/storage';
 import { enterGameFullscreen } from '../utils/fullscreen';
+import { readResume } from '../multiplayer/resume';
 
-export type Page = 'home' | 'practice' | 'maps' | 'weapons' | 'crosshair' | 'sensitivity' | 'statistics' | 'settings';
+export type Page = 'home' | 'practice' | 'multiplayer' | 'maps' | 'weapons' | 'crosshair' | 'sensitivity' | 'statistics' | 'settings';
 
 export interface AppState {
   page: Page;
@@ -67,10 +68,16 @@ function loadPractice(): PracticeConfig {
   return p.difficulty === 'custom' ? p : { ...p, tuning: DIFFICULTY_PRESETS[p.difficulty] ?? p.tuning };
 }
 
+/** An invite link (`?room=CODE`), or a reload while in a room, opens the Multiplayer page, which takes it from there. */
+function opensMultiplayer(): boolean {
+  if (typeof location === 'undefined') return false;
+  return new URLSearchParams(location.search).has('room') || readResume() !== undefined;
+}
+
 function initialState(): AppState {
   const stored = load<GameSettings | null>('settings', null);
   return {
-    page: 'home',
+    page: opensMultiplayer() ? 'multiplayer' : 'home',
     settings: stored ? migrateSettings(mergeDefaults(DEFAULT_SETTINGS, stored)) : firstRunSettings(),
     practice: loadPractice(),
     sessions: load<SessionStats[]>('sessions', []),

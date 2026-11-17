@@ -31,6 +31,8 @@ npm run build:single # one self-contained HTML file in dist-single/ (no models o
 npm run preview      # serve the production build
 npm run typecheck    # tsc --noEmit
 npm test             # unit and map tests (vitest)
+npm run server       # multiplayer game server on port 8787 (see docs/multiplayer.md)
+npm run server:build # bundle the game server into dist-server/index.cjs for deployment
 ```
 
 Headless gameplay smoke tests (Chromium with SwiftShader; Playwright installed globally):
@@ -82,6 +84,8 @@ src/
   services/storage.ts         versioned localStorage with defaults merging
   settings/defaults.ts        default settings, difficulty presets, graphics presets, eDPI / cm-per-360 maths
   types/                      shared interfaces (weapon, bot, map, practice, crosshair, sensitivity, stats, HUD)
+  net/                        code shared with the game server: messages, room settings, commands, room codes
+  multiplayer/                the browser's connection to the game server and the lobby state
   game/
     engine/GameEngine.ts      the only React↔game boundary: create/start/pause/end/updateSettings + events
     engine/RenderHost.ts      one Babylon engine + canvas reused by every session
@@ -95,12 +99,14 @@ src/
     rendering/                MapRenderer, procedural textures, pooled effects, glTF helpers
     audio/                    AudioEngine (playback, 3D, recordings) and gunSynth (synthesised gunshots)
     hud/                      crosshair renderer (shared with the editor) and minimap
+server/                       multiplayer game server (Node): rooms, matches (movement, combat, scores), test bots
 public/
   favicon.svg                 crosshair icon (inlined as a data URI in the single-file build)
   models/                     agent, arms and weapon-skin GLBs with their credits (README.md)
   sounds/                     recordings that replace synthesised sounds (README.md lists the slots)
 docs/screenshots/             images used in this README
 docs/map-visuals-plan.md      the plan for the next piece of work: realistic map visuals
+docs/multiplayer.md           design for multiplayer: custom rooms and quick match, and what is built so far
 scripts/                      single-file build, Playwright smoke tests, asset preparation
 tests/                        unit and map tests; tests/tools/gen-spots.test.ts regenerates enemy spots
 ```

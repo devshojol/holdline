@@ -67,6 +67,12 @@ import { damageAt, recoilAt, WEAPONS } from '../weapons/weaponConfigs';
 import { BOLT_CYCLE, WeaponSystem, type ShotInfo } from '../weapons/WeaponSystem';
 import { enterGameFullscreen } from '../../utils/fullscreen';
 import { acquireRenderHost, releaseRenderHost, webglAvailable } from './RenderHost';
+import type { BotView } from '../bots/BotVisual';
+import { RemoteTrack, ServerClock } from '../net/Interpolation';
+import type { NetLink } from '../net/NetLink';
+import { Prediction } from '../net/Prediction';
+import { actionMask, captureMasks, type Command } from '../../net/command';
+import { INPUT_RATE, INTERP_DELAY_MS, PF_ALIVE, type MatchEvent, type ServerMessage } from '../../net/protocol';
 
 const DEG = Math.PI / 180;
 const BASE_HFOV = 103 * DEG;
@@ -95,7 +101,24 @@ export interface EngineOptions {
   overlay: HTMLCanvasElement;
   config: PracticeConfig;
   settings: GameSettings;
+  /** Multiplayer: the connection to the match. The session then has no bots and never pauses the world. */
+  net?: NetLink;
 }
+
+/** Another player in a multiplayer match, as drawn here. */
+interface RemotePlayer {
+  track: RemoteTrack;
+  visual: BotView;
+  stepTimer: number;
+  /** For the footstep voice, so two players' steps can be told apart. */
+  voice: number;
+}
+
+/** The keys that move the player: the only ones a command carries. */
+const MOVE_MASK = actionMask(['forward', 'back', 'left', 'right', 'walk', 'crouch']);
+const JUMP_MASK = actionMask(['jump']);
+/** A correction further than this is a teleport (a respawn), not an error to ease across. */
+const SNAP_DISTANCE = 3;
 
 interface DamageIndicator {
   yaw: number;
@@ -131,6 +154,18 @@ export class GameEngine {
   /** Kills since the player's last death (drives the 1–5 kill sounds). */
   private killStreak = 0;
   private ctx!: BotContext;
+  /** Multiplayer only (null in practice). */
+  private readonly net: NetLink | null;
+  private readonly prediction = new Prediction();
+  private readonly serverClock = new ServerClock();
+  private readonly remotes = new Map<string, RemotePlayer>();
+  private netOutbox: Command[] = [];
+  private netSendTimer = 0;
+  /** What is left of the last correction, eased out of the camera so the view doesn't jump. */
+  private netOffset: Vec3 = [0, 0, 0];
+  private netSnapshots = 0;
+  /** Shots sent and not yet answered, by the command they were fired on (for the statistics of a confirmed hit). */
+  private readonly netShots = new Map<number, ShotInfo>();
 
   status: EngineStatus = 'loading';
   private listeners = new Set<(e: EngineEvent) => void>();
@@ -143,7 +178,7 @@ export class GameEngine {
   private frameMs = 16;
   /** Debug only: game-time multiplier (0 freezes the simulation; see debug.timeScale). */
   private debugTimeScale = 1;
-  private debugSpectate: { index: number; angle: number; dist: number } | null = null;
+  private debugSpectate: { index: number; angle: number; dist: number; remote?: boolean } | null = null;
   private boltAge = -1;
   private hudTimer = 0;
   private visTimer = 0;
@@ -199,6 +234,7 @@ export class GameEngine {
     this.overlay = opts.overlay;
     this.settings = opts.settings;
     this.config = { ...opts.config }; // own copy: the weapon menu changes primary/secondary mid-session
+    this.net = opts.net ?? null;
     const octx = this.overlay.getContext('2d');
     if (!octx) throw new Error('2D canvas unavailable');
     this.overlayCtx = octx;
@@ -445,7 +481,7 @@ export class GameEngine {
       rng: Math.random,
     });
 
-    const sp = this.director.playerSpawn;
+    const sp = this.net ? { pos: this.net.spawn.pos, yaw: this.net.spawn.yaw } : this.director.playerSpawn;
     this.player.spawn(sp.pos[0], sp.pos[1], sp.pos[2], sp.yaw);
 
     this.ctx = {
@@ -475,7 +511,9 @@ export class GameEngine {
         });
       },
     };
-    this.director.start(this.ctx);
+    // multiplayer has no bots: the other bodies are players, placed by the server's snapshots
+    if (this.net) this.net.onMessage = (msg) => this.onNetMessage(msg);
+    else this.director.start(this.ctx);
     if (this.director.spike) this.buildSpike(this.director.spike);
     mark('director');
     if (this.director.unusableSpots.length) {
@@ -681,6 +719,9 @@ export class GameEngine {
     window.removeEventListener('resize', this.onResize);
     this.engine?.stopRenderLoop(this.frameFn);
     for (const o of this.ctxObservers) o.remove();
+    if (this.net) this.net.onMessage = null;
+    for (const r of this.remotes.values()) r.visual.dispose();
+    this.remotes.clear();
     this.input?.dispose();
     this.director?.dispose();
     this.viewModel?.dispose();
@@ -802,11 +843,16 @@ export class GameEngine {
       [mdx, mdy] = this.input.takeMouse();
       if (this.player.alive)
         this.player.applyLook(mdx, mdy, this.settings.sensitivity, this.weapons.isAds, !!this.weapons.weapon.ads.scope, this.weapons.zoom);
+    }
+    // A multiplayer match goes on whatever this player is doing: paused or not yet started, their body
+    // still stands in the world and the others still move.
+    if (running || (this.net && (this.status === 'paused' || this.status === 'ready'))) {
       const steps = Math.ceil(dt / SIM_STEP);
       const sdt = steps > 0 ? dt / steps : 0;
       for (let i = 0; i < steps; i++) this.simulate(sdt);
       this.elapsed += dt;
       if (this.config.durationSec > 0 && this.elapsed >= this.config.durationSec) this.end();
+      if (this.net) this.updateNet(dt);
     }
 
     this.updateCamera();
@@ -835,7 +881,12 @@ export class GameEngine {
   private simulate(dt: number) {
     this.time += dt;
     this.ctx.time = this.time;
-    this.player.update(dt, this.input);
+    if (this.net) {
+      // the step becomes a command: applied here now (prediction) and sent to the server, which runs the same code
+      const { held, pressed } = captureMasks(this.input);
+      this.input.consume('jump');
+      this.netOutbox.push(this.prediction.step(this.player, dt, held & MOVE_MASK, pressed & JUMP_MASK));
+    } else this.player.update(dt, this.input);
     this.weapons.update(dt, this.input, this.player);
     this.reloadSounds();
     this.boltSounds();
@@ -900,15 +951,231 @@ export class GameEngine {
     this.boltAge = age;
   }
 
+  /* ------------------------------------------------------------------ */
+  /* Multiplayer                                                         */
+  /* ------------------------------------------------------------------ */
+
+  /** Count a kill towards the streak and play its sound (1–5; 5 repeats after the fifth). */
+  private playKillSound(weaponId: WeaponId, headshot: boolean) {
+    this.killStreak++;
+    if (!this.audio.hitSounds) return;
+    // a weapon's own set wins if recorded
+    const n = Math.min(5, this.killStreak);
+    const own = `${weaponId}-kill${n}`;
+    const killSound = this.audio.isRecorded(own) ? own : `kill${n}`;
+    // A recorded kill sound already carries its own cue, so the synthesized headshot ping would
+    // clash with it; keep the ping only when it's recorded too or the kill sound is synthesized.
+    if (headshot && (!this.audio.isRecorded(killSound) || this.audio.isRecorded('headshot'))) this.audio.play('headshot', { volume: 0.7 });
+    // one kill sound at a time: a quick second kill cuts the first instead of stacking on it
+    this.audio.play(killSound, { volume: 0.55, delay: 0.03, group: 'kill' });
+  }
+
+  /**
+   * A shot in a multiplayer match. Everything the shooter sees and hears happens now, against the
+   * world as it is drawn here; whether it hurt anyone is the server's decision, which arrives as a
+   * 'hit' event (docs/multiplayer.md, section 6.4).
+   */
+  private resolveNetShot(shot: ShotInfo) {
+    const { origin: o, dir: d, weapon } = shot;
+    const viewTime = this.serverClock.time(performance.now()) - INTERP_DELAY_MS;
+    const wall = this.map.world.raycast(o[0], o[1], o[2], d[0], d[1], d[2], 250, COL_BULLET);
+    let reach = wall ? wall.t : 250;
+    let flesh: HitZone | null = null;
+    for (const r of this.remotes.values()) {
+      const s = r.track.at(viewTime);
+      if (!s || !s.alive) continue;
+      const h = rayHumanoid(o[0], o[1], o[2], d[0], d[1], d[2], s.x, s.y, s.z, s.yaw, s.crouch, reach);
+      if (h) {
+        reach = h.t;
+        flesh = h.zone;
+      }
+    }
+    const end: Vec3 = [o[0] + d[0] * reach, o[1] + d[1] * reach, o[2] + d[2] * reach];
+    if (flesh) this.effects.fleshImpact(end[0], end[1], end[2], flesh === 'head');
+    else if (wall) {
+      this.effects.wallImpact(wall.x, wall.y, wall.z, wall.nx, wall.ny, wall.nz, wall.box.surface);
+      const kind = surfaceKind(wall.box.surface);
+      this.audio.play('impact', { pos: end, volume: kind === 'metal' ? 0.45 : 0.35, rate: (kind === 'metal' ? 1.7 : kind === 'wood' ? 0.7 : 1) * (0.94 + Math.random() * 0.12) });
+    }
+    if (weapon.tracer) this.effects.tracer(this.viewModel.muzzleWorld(), end);
+
+    // the commands go first, so the server has the view this bullet left along
+    this.sendCommands();
+    const seq = this.prediction.lastSeq;
+    this.netShots.set(seq, shot);
+    if (this.netShots.size > 64) this.netShots.delete(this.netShots.keys().next().value!);
+    this.net!.send({ t: 'shot', shot: { seq, weapon: weapon.id, origin: o, dir: d, viewTime } });
+  }
+
+  private onNetEvent(ev: MatchEvent) {
+    const net = this.net!;
+    const p = this.player;
+    switch (ev.type) {
+      case 'hit': {
+        // the server confirms one of our bullets
+        const shot = this.netShots.get(ev.seq);
+        if (shot) this.tracker.hit(shot, ev.zone, ev.damage);
+        if (ev.killed) {
+          this.tracker.kill(shot?.weapon.id ?? this.weapons.weapon.id, ev.zone === 'head', null);
+          this.hitmarker = { t: 0.35, kind: 'kill' };
+          this.playKillSound(shot?.weapon.id ?? this.weapons.weapon.id, ev.zone === 'head');
+        } else {
+          this.hitmarker = { t: 0.2, kind: ev.zone === 'head' ? 'head' : 'body' };
+          if (this.audio.hitSounds) this.audio.play(ev.zone === 'head' ? 'headshot' : 'hit', { volume: ev.zone === 'head' ? 0.55 : 0.5 });
+        }
+        this.remotes.get(ev.victim)?.visual.hit();
+        return;
+      }
+      case 'damage':
+        this.tracker.damageTaken(ev.damage);
+        this.audio.play('hurt', { volume: 0.6 });
+        this.damageIndicators.push({ yaw: Math.atan2(ev.from[0] - p.pos.x, ev.from[2] - p.pos.z), t: 1.2 });
+        return;
+      case 'shot': {
+        // someone else fired: their gun flashes and is heard from where they stand
+        const r = this.remotes.get(ev.by);
+        const weapon = WEAPONS[ev.weapon];
+        r?.visual.muzzleFlash();
+        const muzzle = r ? r.visual.muzzleWorld() : ev.origin;
+        this.audio.play(weapon.sound, { pos: muzzle, clean: true, bus: 'weapons', volume: weapon.suppressed ? 0.65 : 0.8, rate: 0.97 + Math.random() * 0.06 });
+        if (weapon.tracer) this.effects.tracer(muzzle, ev.end, 260);
+        return;
+      }
+      case 'kill': {
+        const mine = ev.killer === net.playerId;
+        const me = ev.victim === net.playerId;
+        const weapon = WEAPONS[ev.weapon].name;
+        this.emit({
+          type: 'killfeed',
+          entry: {
+            id: this.killFeedId++,
+            victim: me ? 'You' : net.nameOf(ev.victim),
+            weapon: mine ? weapon : `${net.nameOf(ev.killer)} · ${weapon}`,
+            headshot: ev.headshot,
+            byPlayer: mine,
+            time: Date.now(),
+          },
+        });
+        if (me) {
+          p.alive = false;
+          p.health = 0;
+          this.tracker.death();
+          this.killStreak = 0;
+          this.deathFlash = 1;
+        } else this.remotes.get(ev.victim)?.visual.die();
+        return;
+      }
+      case 'respawn': {
+        if (ev.id === net.playerId) {
+          // the commands in flight were made at the old place: they no longer mean anything
+          this.respawnPlayer(ev.pos[0], ev.pos[1], ev.pos[2], ev.yaw);
+          this.prediction.reset();
+          this.netOffset = [0, 0, 0];
+          return;
+        }
+        const r = this.remotes.get(ev.id);
+        r?.track.clear();
+        r?.visual.revive();
+        return;
+      }
+    }
+  }
+
+  private onNetMessage(msg: ServerMessage) {
+    if (this.disposed) return;
+    if (msg.t === 'event') {
+      this.onNetEvent(msg.event);
+      return;
+    }
+    if (msg.t !== 'snapshot') return;
+    this.netSnapshots++;
+    this.serverClock.observe(msg.time, performance.now());
+    if (msg.self) {
+      const moved = this.prediction.reconcile(this.player, msg.self);
+      if (moved) {
+        // keep the camera where it was and ease it over to the corrected position; a teleport just cuts
+        if (Math.hypot(moved[0], moved[1], moved[2]) > SNAP_DISTANCE) this.netOffset = [0, 0, 0];
+        else for (let i = 0; i < 3; i++) this.netOffset[i] += moved[i];
+      }
+      // health and life are the server's to say
+      this.player.health = msg.self.health;
+      this.player.armor = msg.self.armor;
+      this.player.alive = (msg.self.flags & PF_ALIVE) !== 0;
+    }
+    for (const p of msg.players) {
+      let r = this.remotes.get(p.id);
+      if (!r) {
+        const n = this.remotes.size + 1;
+        const visual = this.agentAssets ? this.agentAssets.create(1000 + n) : new BotVisual(this.botAssets, 1000 + n);
+        r = { track: new RemoteTrack(), visual, stepTimer: 0, voice: 0.93 + ((n * 37) % 10) * 0.012 };
+        this.remotes.set(p.id, r);
+      }
+      r.track.push(msg.time, p);
+    }
+    // a player missing from the snapshot has left or dropped
+    for (const [id, r] of this.remotes) {
+      if (r.track.newest < msg.time) {
+        r.visual.dispose();
+        this.remotes.delete(id);
+      }
+    }
+  }
+
+  private sendCommands() {
+    if (this.netOutbox.length === 0) return;
+    this.netSendTimer = 1 / INPUT_RATE;
+    this.net!.send({ t: 'input', cmds: this.netOutbox });
+    this.netOutbox = [];
+  }
+
+  /** Once per frame: send the commands gathered since the last packet and move the other players. */
+  private updateNet(dt: number) {
+    this.netSendTimer -= dt;
+    if (this.netSendTimer <= 0) this.sendCommands();
+    const ease = Math.exp(-dt * 12);
+    for (let i = 0; i < 3; i++) this.netOffset[i] = Math.abs(this.netOffset[i]) < 1e-4 ? 0 : this.netOffset[i] * ease;
+
+    // other players are drawn a moment in the past, between two snapshots
+    const t = this.serverClock.time(performance.now()) - INTERP_DELAY_MS;
+    const eye = this.player.eye();
+    for (const r of this.remotes.values()) {
+      const s = r.track.at(t);
+      if (!s) continue;
+      // a dead player's body stays where it fell until they respawn (the 'kill' and 'respawn' events pose it)
+      r.visual.update(dt, s.x, s.y, s.z, s.yaw, s.alive ? s.pitch : 0, s.crouch, s.alive ? s.speed : 0, s.y);
+      // running footsteps are audible, as a bot's are
+      if (s.alive && s.grounded && !s.walking && s.speed > 3.6) {
+        r.stepTimer -= dt * (s.speed / 5.85);
+        if (r.stepTimer <= 0) {
+          r.stepTimer = 0.36;
+          this.audio.play(stepSound(this.surfaceUnder(s.x, s.y, s.z)), {
+            pos: [s.x, s.y + 0.1, s.z],
+            bus: 'foot',
+            volume: 1,
+            occluded: !this.map.world.segmentClear(s.x, s.y + 1.5, s.z, eye[0], eye[1], eye[2]),
+            rate: r.voice * (0.97 + Math.random() * 0.06),
+            refDistance: 5,
+            dry: true,
+            group: `step-remote-${r.voice}`,
+          });
+        }
+      } else r.stepTimer = Math.min(r.stepTimer, 0.12);
+    }
+  }
+
   private updateCamera() {
     const [x, y, z] = this.player.eye();
-    this.camera.position.set(x, y, z);
+    this.camera.position.set(x + this.netOffset[0], y + this.netOffset[1], z + this.netOffset[2]);
     const [py, pp] = this.weapons.viewPunch();
     this.camera.rotation.y = this.player.yaw + py * DEG;
     this.camera.rotation.x = -(this.player.pitch + pp * DEG);
     this.camera.fov = 2 * Math.atan(Math.tan(BASE_HFOV / 2) / this.weapons.zoom);
     const sp = this.debugSpectate;
-    const b = sp ? this.director.bots[sp.index] : null;
+    const b = !sp
+      ? null
+      : sp.remote
+        ? ([...this.remotes.values()][sp.index]?.track.at(this.serverClock.time(performance.now()) - INTERP_DELAY_MS) ?? null)
+        : this.director.bots[sp.index];
     if (sp && b) {
       // debug: watch a bot from outside (animation checks)
       const a = b.yaw + sp.angle;
@@ -1073,6 +1340,10 @@ export class GameEngine {
       this.muzzleLight.position.set(m[0], m[1], m[2]);
       this.muzzleLight.intensity = 2.2;
     }
+    if (this.net) {
+      this.resolveNetShot(shot);
+      return;
+    }
 
     const wall = this.map.world.raycast(o[0], o[1], o[2], d[0], d[1], d[2], 250, COL_BULLET);
     const maxT = wall ? wall.t : 250;
@@ -1102,18 +1373,7 @@ export class GameEngine {
         const killMs = exposureStart >= 0 ? (this.time - exposureStart) * 1000 : null;
         this.tracker.kill(weapon.id, zone === 'head', killMs);
         this.hitmarker = { t: 0.35, kind: 'kill' };
-        this.killStreak++;
-        if (this.audio.hitSounds) {
-          // kill-streak sound 1–5 (5 repeats after the fifth); a weapon's own set wins if recorded
-          const n = Math.min(5, this.killStreak);
-          const own = `${weapon.id}-kill${n}`;
-          const killSound = this.audio.isRecorded(own) ? own : `kill${n}`;
-          // A recorded kill sound already carries its own cue, so the synthesized headshot ping would
-          // clash with it; keep the ping only when it's recorded too or the kill sound is synthesized.
-          if (zone === 'head' && (!this.audio.isRecorded(killSound) || this.audio.isRecorded('headshot'))) this.audio.play('headshot', { volume: 0.7 });
-          // one kill sound at a time: a quick second kill cuts the first instead of stacking on it
-          this.audio.play(killSound, { volume: 0.55, delay: 0.03, group: 'kill' });
-        }
+        this.playKillSound(weapon.id, zone === 'head');
         this.emit({
           type: 'killfeed',
           entry: { id: this.killFeedId++, victim: bot.name, weapon: weapon.name, headshot: zone === 'head', byPlayer: true, time: Date.now() },
@@ -1391,7 +1651,13 @@ export class GameEngine {
       deaths: st.deaths,
       score: this.tracker.computeScore(),
       escapes: st.escapes,
-      timeLeft: this.config.durationSec > 0 ? Math.max(0, Math.ceil(this.config.durationSec - this.elapsed)) : -1,
+      timeLeft: this.net
+        ? this.netSnapshots > 0
+          ? Math.max(0, Math.ceil((this.net.endsAt - this.serverClock.time(performance.now())) / 1000))
+          : -1
+        : this.config.durationSec > 0
+          ? Math.max(0, Math.ceil(this.config.durationSec - this.elapsed))
+          : -1,
       elapsed: Math.floor(this.elapsed),
       fps: Math.round(this.fps),
       frameMs: Math.round(this.frameMs * 10) / 10,
@@ -1509,6 +1775,37 @@ export class GameEngine {
     spectate: (index: number | null, angle = 0.8, dist = 3.2) => {
       this.debugSpectate = index === null ? null : { index, angle, dist };
     },
+    /** Multiplayer: connection and prediction figures, and where the other players are drawn. */
+    net: () => {
+      const t = this.serverClock.time(performance.now()) - INTERP_DELAY_MS;
+      return {
+        snapshots: this.netSnapshots,
+        unacked: this.prediction.unacked,
+        corrections: this.prediction.corrections,
+        lastError: this.prediction.lastError,
+        pos: [this.player.pos.x, this.player.pos.y, this.player.pos.z],
+        remotes: [...this.remotes].map(([id, r]) => ({ id, ...r.track.at(t) })),
+      };
+    },
+    /** Multiplayer: point the camera at another player's head or chest, as drawn here. False if they aren't there or alive. */
+    aimAtRemote: (index: number, zone: 'head' | 'body' = 'head') => {
+      const s = [...this.remotes.values()][index]?.track.at(this.serverClock.time(performance.now()) - INTERP_DELAY_MS);
+      if (!s || !s.alive) return false;
+      const [ex, ey, ez] = this.player.eye();
+      const legH = 0.86 - 0.55 * s.crouch;
+      const ty = s.y + (zone === 'head' ? legH + 0.75 : legH + 0.3);
+      this.player.yaw = Math.atan2(s.x - ex, s.z - ez);
+      this.player.pitch = Math.atan2(ty - ey, Math.hypot(s.x - ex, s.z - ez));
+      return true;
+    },
+    /** Multiplayer: watch another player from outside, as `spectate` does for bots (null = back to first person). */
+    spectateRemote: (index: number | null, angle = 0.8, dist = 3.2) => {
+      this.debugSpectate = index === null ? null : { index, angle, dist, remote: true };
+    },
+    /** Multiplayer: cut the connection, as a network failure would (it reconnects by itself). */
+    netDrop: () => this.net?.drop(),
+    /** Multiplayer: add `ms` of round-trip delay (± jitter) to the connection, to feel a real one. */
+    netLag: (ms: number, jitter = 0) => this.net?.setLag(ms, jitter),
     godMode: (on: boolean) => {
       this.ctx.botsShootBack = !on;
     },

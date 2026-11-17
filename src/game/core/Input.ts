@@ -5,25 +5,9 @@
  * so look speed is independent of frame rate (no smoothing, no acceleration).
  */
 
-export type Action =
-  | 'forward'
-  | 'back'
-  | 'left'
-  | 'right'
-  | 'walk'
-  | 'crouch'
-  | 'jump'
-  | 'reload'
-  /** Hold to defuse the spike (retake mode). */
-  | 'use'
-  | 'primary'
-  | 'secondary'
-  /** Swap to the other weapon (mouse wheel). */
-  | 'swap'
-  | 'fire'
-  | 'alt'
-  /** Open the weapon menu. */
-  | 'loadout';
+import type { Action, ActionSource } from './actions';
+
+export type { Action } from './actions';
 
 /** Minimum time between two wheel-driven weapon swaps. */
 const WHEEL_COOLDOWN_MS = 180;
@@ -51,7 +35,7 @@ const KEYMAP: Record<string, Action> = {
   KeyB: 'loadout',
 };
 
-export class Input {
+export class Input implements ActionSource {
   private held = new Set<Action>();
   private pressed = new Set<Action>();
   private mouseDX = 0;
@@ -187,6 +171,11 @@ export class Input {
 
   isDown(a: Action) {
     return this.held.has(a);
+  }
+
+  /** Whether the action has a press waiting to be consumed (does not clear it). */
+  isPressed(a: Action) {
+    return this.pressed.has(a);
   }
 
   /** True once per key press. */

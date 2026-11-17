@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-single
+dist-server
+.git
+.vercel
+.claude
+public
+docs
+tests
+scripts
+e2e-shots
+*.log

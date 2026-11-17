@@ -1,5 +1,5 @@
 import type { WeaponConfig, WeaponId } from '../../types';
-import type { Input } from '../core/Input';
+import type { ActionSource } from '../core/actions';
 import type { PlayerController } from '../player/PlayerController';
 import { RUN_SPEED } from '../player/PlayerController';
 import { WEAPONS, recoilAt } from './weaponConfigs';
@@ -194,7 +194,7 @@ export class WeaponSystem {
     return { total: base + movement + firing, movement, firing, base };
   }
 
-  update(dt: number, input: Input | null, player: PlayerController) {
+  update(dt: number, input: ActionSource | null, player: PlayerController) {
     const w = this.weapon;
     this.cooldown -= dt;
     this.sinceShot += dt;

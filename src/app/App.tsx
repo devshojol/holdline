@@ -1,9 +1,11 @@
-import { ChartColumn, Crosshair, House, Map as MapIcon, MousePointer2, Settings, Swords, Target } from 'lucide-react';
+import { ChartColumn, Crosshair, House, Map as MapIcon, MousePointer2, Settings, Swords, Target, Users } from 'lucide-react';
 import { lazy, Suspense, useEffect, type ComponentType } from 'react';
 import { store, useAppStore, type Page } from '../hooks/useAppStore';
 import { cx } from '../components/ui';
+import { useMultiplayer } from '../multiplayer/client';
 import { HomePage } from '../pages/HomePage';
 import { PracticePage } from '../pages/PracticePage';
+import { MultiplayerPage } from '../pages/MultiplayerPage';
 import { MapsPage } from '../pages/MapsPage';
 import { WeaponsPage } from '../pages/WeaponsPage';
 import { CrosshairPage } from '../pages/CrosshairPage';
@@ -19,6 +21,7 @@ const GamePage = lazy(loadGamePage);
 const NAV: { id: Page; label: string; icon: ComponentType<{ size?: number; className?: string }> }[] = [
   { id: 'home', label: 'Home', icon: House },
   { id: 'practice', label: 'Practice', icon: Target },
+  { id: 'multiplayer', label: 'Multiplayer', icon: Users },
   { id: 'maps', label: 'Maps', icon: MapIcon },
   { id: 'weapons', label: 'Weapons', icon: Swords },
   { id: 'crosshair', label: 'Crosshair', icon: Crosshair },
@@ -50,7 +53,10 @@ export function App() {
     idle(() => void loadGamePage().catch(() => {}));
   }, []);
 
-  if (playing)
+  const match = useMultiplayer((s) => (s.inGame ? s.match : null));
+  const session = match ? match.config : playing;
+
+  if (session)
     return (
       <Suspense
         fallback={
@@ -62,7 +68,7 @@ export function App() {
           </div>
         }
       >
-        <GamePage config={playing} />
+        <GamePage config={session} net={match?.link} />
       </Suspense>
     );
 
@@ -103,6 +109,7 @@ export function App() {
         <div key={page} className="animate-in mx-auto max-w-[1280px] px-4 py-6 md:px-8 md:py-8">
           {page === 'home' && <HomePage />}
           {page === 'practice' && <PracticePage />}
+          {page === 'multiplayer' && <MultiplayerPage />}
           {page === 'maps' && <MapsPage />}
           {page === 'weapons' && <WeaponsPage />}
           {page === 'crosshair' && <CrosshairPage />}
