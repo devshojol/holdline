@@ -1,12 +1,13 @@
-import { Check, ChevronRight, Crosshair, Flame, Play, RotateCcw, Target, Trophy } from 'lucide-react';
+import { ChartColumn, Check, ChevronRight, Crosshair, Flame, Play, SlidersHorizontal, Swords, Users, type LucideIcon } from 'lucide-react';
+import type { CSSProperties } from 'react';
 import type { PracticeConfig, PracticeMode } from '../types';
 import { store, useAppStore } from '../hooks/useAppStore';
-import { Badge, Button, Card, Stat, cx } from '../components/ui';
+import { Badge, Button, cx } from '../components/ui';
 import { MapPreview } from '../components/MapPreview';
-import { LineChart, SprayPattern } from '../components/Charts';
+import { WeaponIcon } from '../components/WeaponIcon';
 import { WEAPONS } from '../game/weapons/weaponConfigs';
 import { getMapDefinition } from '../game/maps/registry';
-import { DIFFICULTY_LABEL, MODE_INFO, accuracy, avgMs, dayKey, fmtDate, hsPct, locationName } from '../utils/labels';
+import { DIFFICULTY_LABEL, MODE_INFO, accuracy, dayKey, fmtDate, hsPct, locationName } from '../utils/labels';
 import { normaliseConfig } from './PracticePage';
 
 const DAILY: { mode: PracticeMode; title: string; target: string; patch: Partial<PracticeConfig> }[] = [
@@ -16,190 +17,200 @@ const DAILY: { mode: PracticeMode; title: string; target: string; patch: Partial
   { mode: 'retake', title: 'Defuse under pressure', target: '3 min retake', patch: { locationId: 'a-main', side: 'attack', durationSec: 180, botCount: 3 } },
   { mode: 'deathmatch', title: 'Live fire', target: '5 min deathmatch', patch: { durationSec: 300, botCount: 5 } },
 ];
+const ROUTINE_MINUTES = Math.round(DAILY.reduce((a, d) => a + (d.patch.durationSec ?? 0), 0) / 60);
+
+/** One line of the main menu. */
+function MenuItem({ index, label, hint, icon: Icon, primary, onClick }: { index: number; label: string; hint: string; icon: LucideIcon; primary?: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick} data-primary={primary} className="tal-menu-item tal-rise" style={{ '--i': index } as CSSProperties}>
+      <span className={cx('font-display tabular w-7 text-sm font-bold', primary ? 'text-white/70' : 'text-dim')}>{String(index + 1).padStart(2, '0')}</span>
+      <span className="min-w-0 flex-1">
+        <span className={cx('block font-display font-bold uppercase leading-none tracking-[0.08em]', primary ? 'text-3xl' : 'text-2xl')}>{label}</span>
+        <span className={cx('mt-1 block truncate text-xs', primary ? 'text-white/80' : 'text-mute')}>{hint}</span>
+      </span>
+      <Icon size={primary ? 26 : 20} className={primary ? 'text-white' : 'text-dim'} />
+    </button>
+  );
+}
+
+/** A titled block in the right-hand column. */
+function Panel({ title, right, children, index }: { title: string; right?: React.ReactNode; children: React.ReactNode; index: number }) {
+  return (
+    <section className="tal-card tal-panel tal-rise border p-4" style={{ '--i': index } as CSSProperties}>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="tal-card-title font-display text-base font-semibold uppercase tracking-[0.14em] text-ink">{title}</h2>
+        {right}
+      </div>
+      {children}
+    </section>
+  );
+}
 
 export function HomePage() {
   const practice = useAppStore((s) => s.practice);
   const sessions = useAppStore((s) => s.sessions);
   const routineHistory = useAppStore((s) => s.routineHistory);
+  const cfg = normaliseConfig(practice);
   const last = sessions[0];
   const today = dayKey(Date.now());
   const todays = sessions.filter((s) => dayKey(s.startedAt) === today);
-  const recent = sessions.slice(0, 10).reverse();
-  const weaponId = last?.primary ?? practice.primary;
-  const weapon = WEAPONS[weaponId];
-  const def = getMapDefinition(practice.mapId);
+  const def = getMapDefinition(cfg.mapId);
+  const primary = WEAPONS[cfg.primary];
+  const secondary = WEAPONS[cfg.secondary];
+  const routineToday = routineHistory.find((r) => r.day === today)?.total;
 
-  const quick = () => store.play(normaliseConfig(practice));
+  const quick = () => store.play(cfg);
+  const drill = (d: (typeof DAILY)[number]) => normaliseConfig({ ...practice, ...d.patch, mode: d.mode, playerSpawnId: '', enemySpotIds: [] });
+  const routine = () =>
+    store.startRoutine(
+      DAILY.map(drill),
+      DAILY.map((d) => d.title),
+    );
 
   return (
-    <div className="space-y-6">
-      <section className="relative overflow-hidden border border-line bg-gradient-to-br from-[#1a0f14] via-panel to-panel p-8">
-        <div className="absolute -right-10 -top-10 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
-        <div className="relative grid items-center gap-8 lg:grid-cols-[1fr_340px]">
+    <div className="grid gap-6 lg:h-full lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)_minmax(300px,360px)] lg:gap-8">
+      {/* ---- left: title and main menu ---- */}
+      <div className="flex min-h-0 flex-col justify-center">
+        <div className="mb-6">
+          <div className="font-display text-xs font-semibold uppercase tracking-[0.4em] text-accent">Tactical shooter training</div>
+          <h1 className="tal-title-in mt-1 font-display text-6xl font-extrabold uppercase leading-[0.86] tracking-[0.04em] text-ink xl:text-7xl">
+            Tactical
+            <br />
+            <span className="text-accent">Aim Lab</span>
+          </h1>
+          <p className="mt-3 max-w-xs text-sm text-mute">Win the gunfight before the round.</p>
+        </div>
+        <nav aria-label="Main menu" className="space-y-2">
+          <MenuItem index={0} primary label="Quick practice" hint={`${MODE_INFO[cfg.mode].label} · ${def.name} · ${locationName(cfg.mapId, cfg.locationId)}`} icon={Play} onClick={quick} />
+          <MenuItem index={1} label="Custom setup" hint="Map, location, bots, difficulty, weapons" icon={SlidersHorizontal} onClick={() => store.go('practice')} />
+          <MenuItem index={2} label="Multiplayer" hint="A room with friends, or a quick match" icon={Users} onClick={() => store.go('multiplayer')} />
+          <MenuItem index={3} label="Daily routine" hint={`${DAILY.length} drills back to back · ${ROUTINE_MINUTES} min`} icon={Flame} onClick={routine} />
+          <MenuItem index={4} label="Armory" hint="Every weapon, its damage and recoil" icon={Swords} onClick={() => store.go('weapons')} />
+          <MenuItem index={5} label="Career" hint={sessions.length ? `${sessions.length} sessions recorded` : 'Your results and progress'} icon={ChartColumn} onClick={() => store.go('statistics')} />
+        </nav>
+      </div>
+
+      {/* ---- centre: the next drill on the map table ---- */}
+      <div className="flex min-h-0 min-w-0 flex-col">
+        <div className="tal-rise flex flex-wrap items-end justify-between gap-x-6 gap-y-2" style={{ '--i': 1 } as CSSProperties}>
           <div>
-            <Badge tone="accent">Valorant-inspired · Browser · No install</Badge>
-            <h1 className="mt-3 font-display text-5xl font-bold uppercase leading-[0.95] md:text-6xl">
-              Win the gunfight
-              <br />
-              <span className="text-accent">before the round.</span>
-            </h1>
-            <p className="mt-4 max-w-xl text-mute">
-              Hold real angles against bots that jiggle, shoulder-peek, wide-swing, counter-strafe and crouch-spray, on eight original maps
-              inspired by Ascent, Bind, Haven, Split, Lotus, Icebox, Breeze and Sunset. You use your own sensitivity and crosshair.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Button size="lg" onClick={quick}>
-                <Play size={20} /> Quick practice
-              </Button>
-              <Button size="lg" variant="outline" onClick={() => store.go('practice')}>
-                <Target size={20} /> Custom setup
-              </Button>
+            <div className="font-display text-xs font-semibold uppercase tracking-[0.3em] text-info">Next drill</div>
+            <div className="font-display text-4xl font-bold uppercase leading-none tracking-[0.05em]">{def.name}</div>
+            <div className="mt-1 text-sm text-mute">
+              {MODE_INFO[cfg.mode].label} · {cfg.side === 'attack' ? 'Attacking' : 'Defending'} · {primary.name}
             </div>
           </div>
-          <div className="border border-line bg-bg/60 p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="font-display text-sm font-semibold uppercase tracking-widest text-mute">Next drill</span>
-              <Badge>{DIFFICULTY_LABEL[practice.difficulty]}</Badge>
-            </div>
-            <div className="font-display text-2xl font-bold uppercase">{MODE_INFO[practice.mode].label}</div>
-            <div className="text-sm text-mute">
-              {def.name} · {locationName(practice.mapId, practice.locationId)} · {practice.side === 'attack' ? 'Attacking' : 'Defending'} · {WEAPONS[practice.primary].name}
-            </div>
-            <div className="mt-3 aspect-[4/3] border border-line">
-              <MapPreview
-                mapId={practice.mapId}
-                locationId={practice.locationId}
-                side={practice.side}
-                spawnId={practice.playerSpawnId}
-                spotIds={practice.enemySpotIds}
-                className="h-full w-full"
-              />
+          <Badge tone="accent">{DIFFICULTY_LABEL[cfg.difficulty]}</Badge>
+        </div>
+
+        <div className="tal-holo relative my-2 min-h-[220px] flex-1">
+          <div className="absolute inset-0 grid place-items-center">
+            <div className="tal-holo-plate aspect-square h-[88%] max-h-[600px] max-w-[88%]">
+              <MapPreview mapId={cfg.mapId} locationId={cfg.locationId} side={cfg.side} spawnId={cfg.playerSpawnId} spotIds={cfg.enemySpotIds} focus={false} className="h-full w-full" />
+              <div className="tal-holo-scan" />
             </div>
           </div>
         </div>
-      </section>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card title="Continue" right={<RotateCcw size={16} className="text-dim" />}>
-          {last ? (
+        <div className="tal-rise" style={{ '--i': 3 } as CSSProperties}>
+          <div className="mb-2 text-xs uppercase tracking-widest text-dim">Location</div>
+          <div className="flex flex-wrap gap-1.5">
+            {def.locations.map((l) => (
+              <button
+                key={l.id}
+                title={l.description}
+                aria-pressed={l.id === cfg.locationId}
+                onClick={() => store.updatePractice(normaliseConfig({ ...practice, locationId: l.id, playerSpawnId: '', enemySpotIds: [] }))}
+                className={cx(
+                  'border px-3 py-1.5 font-display text-sm font-semibold uppercase tracking-wider transition-colors',
+                  l.id === cfg.locationId ? 'border-accent bg-accent/20 text-ink' : 'border-white/10 bg-black/30 text-mute hover:border-mute hover:text-ink',
+                )}
+              >
+                {l.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ---- right: loadout, daily drills, last session ---- */}
+      <div className="flex min-h-0 flex-col justify-center gap-4 lg:overflow-y-auto lg:pr-1">
+        <Panel index={2} title="Loadout" right={<Badge>{primary.category}</Badge>}>
+          <WeaponIcon id={primary.id} className="h-14 w-full" color={primary.color} />
+          <div className="mt-2 flex items-end justify-between gap-3">
             <div>
-              <div className="font-display text-xl font-bold uppercase">{MODE_INFO[last.mode].label}</div>
-              <div className="text-sm text-mute">
-                {locationName(last.mapId, last.locationId)} · {fmtDate(last.startedAt)}
+              <div className="font-display text-3xl font-bold uppercase leading-none" style={{ color: primary.color }}>
+                {primary.name}
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                <Stat label="Score" value={last.score} />
-                <Stat label="Acc" value={`${accuracy(last)}%`} />
-                <Stat label="HS" value={`${hsPct(last)}%`} />
+              <div className="mt-1 text-xs text-mute">
+                {primary.fireRate} rounds/s · {primary.magazine} in the magazine · {primary.damage[0].head} to the head
               </div>
-              <Button className="mt-4 w-full" variant="outline" onClick={quick}>
-                <Play size={16} /> Continue previous drill
-              </Button>
             </div>
-          ) : (
-            <div className="text-sm text-mute">
-              No sessions yet. Start with <span className="text-ink">Quick practice</span> — your history and improvement charts build up automatically.
+            <div className="shrink-0 text-right">
+              <WeaponIcon id={secondary.id} className="ml-auto h-6 w-16" color="#8a96a5" />
+              <div className="font-display text-sm font-semibold uppercase tracking-wider text-mute">{secondary.name}</div>
             </div>
-          )}
-        </Card>
+          </div>
+        </Panel>
 
-        <Card title="Daily training" right={<Flame size={16} className="text-accent" />}>
-          <div className="space-y-2">
+        <Panel
+          index={3}
+          title="Daily training"
+          right={
+            <span className="text-xs text-dim">
+              {todays.length} today{routineToday !== undefined && ` · routine ${routineToday}`}
+            </span>
+          }
+        >
+          <div className="space-y-1">
             {DAILY.map((d) => {
               const done = todays.some((s) => s.mode === d.mode);
               return (
                 <button
                   key={d.mode}
-                  onClick={() => store.play(normaliseConfig({ ...practice, ...d.patch, mode: d.mode, playerSpawnId: '', enemySpotIds: [] }))}
-                  className={cx('flex w-full items-center gap-3 border px-3 py-2.5 text-left transition-colors', done ? 'border-ok/30 bg-ok/5' : 'border-line hover:border-mute')}
+                  onClick={() => store.play(drill(d))}
+                  className={cx('flex w-full items-center gap-2.5 border px-2.5 py-1.5 text-left transition-colors', done ? 'border-ok/30 bg-ok/5' : 'border-white/10 bg-black/20 hover:border-mute')}
                 >
-                  <span className={cx('grid h-6 w-6 shrink-0 place-items-center border', done ? 'border-ok text-ok' : 'border-line text-dim')}>
-                    {done ? <Check size={14} /> : <Crosshair size={13} />}
-                  </span>
-                  <span className="flex-1">
-                    <span className="block text-sm font-semibold">{d.title}</span>
-                    <span className="block text-xs text-mute">{d.target}</span>
-                  </span>
-                  <ChevronRight size={16} className="text-dim" />
+                  <span className={cx('grid h-5 w-5 shrink-0 place-items-center border', done ? 'border-ok text-ok' : 'border-line text-dim')}>{done ? <Check size={12} /> : <Crosshair size={11} />}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">{d.title}</span>
+                  <span className="shrink-0 text-xs text-mute">{d.target}</span>
+                  <ChevronRight size={14} className="shrink-0 text-dim" />
                 </button>
               );
             })}
           </div>
-          <Button
-            className="mt-3 w-full"
-            onClick={() =>
-              store.startRoutine(
-                DAILY.map((d) => normaliseConfig({ ...practice, ...d.patch, mode: d.mode, playerSpawnId: '', enemySpotIds: [] })),
-                DAILY.map((d) => d.title),
-              )
-            }
-          >
-            <Play size={16} /> Run the full routine · {Math.round(DAILY.reduce((a, d) => a + (d.patch.durationSec ?? 0), 0) / 60)} min
-          </Button>
-          <div className="mt-3 text-xs text-dim">
-            {todays.length} session{todays.length === 1 ? '' : 's'} today
-            {routineHistory.length > 0 && (
-              <>
-                {' · '}routine today {routineHistory.find((r) => r.day === today)?.total ?? '—'} · best {Math.max(...routineHistory.map((r) => r.total))}
-              </>
-            )}
-          </div>
-        </Card>
+        </Panel>
 
-        <Card title="Last used weapon" right={<Badge>{weapon.category}</Badge>}>
-          <div className="flex gap-4">
-            <SprayPattern pattern={weapon.recoil.pattern} color={weapon.color} className="h-40 w-28 shrink-0" />
-            <div>
-              <div className="font-display text-3xl font-bold uppercase" style={{ color: weapon.color }}>
-                {weapon.name}
+        <Panel index={4} title="Last session" right={last ? <span className="text-xs text-dim">{fmtDate(last.startedAt)}</span> : undefined}>
+          {last ? (
+            <>
+              <div className="font-display text-lg font-bold uppercase leading-tight">
+                {MODE_INFO[last.mode].label} <span className="text-mute">· {locationName(last.mapId, last.locationId)}</span>
               </div>
-              <div className="mt-1 text-sm text-mute">{weapon.description}</div>
-              <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                <span className="text-dim">Fire rate</span>
-                <span className="tabular">{weapon.fireRate} /s</span>
-                <span className="text-dim">Magazine</span>
-                <span className="tabular">{weapon.magazine}</span>
-                <span className="text-dim">Head dmg</span>
-                <span className="tabular">{weapon.damage[0].head}</span>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                {(
+                  [
+                    ['Score', last.score],
+                    ['Accuracy', `${accuracy(last)}%`],
+                    ['Headshots', `${hsPct(last)}%`],
+                  ] as const
+                ).map(([label, value]) => (
+                  <div key={label} className="border border-white/10 bg-black/25 py-1.5">
+                    <div className="font-display tabular text-2xl font-bold leading-none text-ink">{value}</div>
+                    <div className="mt-0.5 text-[10px] uppercase tracking-widest text-dim">{label}</div>
+                  </div>
+                ))}
               </div>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-        <Card title="Recent performance" right={<Trophy size={16} className="text-warn" />}>
-          <LineChart
-            labels={recent.map((_, i) => `#${sessions.length - recent.length + i + 1}`)}
-            series={[
-              { name: 'Accuracy %', color: '#ff4655', values: recent.map((s) => accuracy(s)) },
-              { name: 'Headshot %', color: '#f2c14e', values: recent.map((s) => hsPct(s)) },
-            ]}
-            yMax={100}
-            unit="%"
-          />
-        </Card>
-        <Card title="Map selection" right={<Badge>{def.name}</Badge>}>
-          <div className="space-y-2">
-            {def.locations.map((l) => (
-              <button
-                key={l.id}
-                onClick={() => {
-                  store.updatePractice(normaliseConfig({ ...practice, locationId: l.id, playerSpawnId: '', enemySpotIds: [] }));
-                  store.go('practice');
-                }}
-                className="flex w-full items-center justify-between border border-line px-3 py-2.5 text-left hover:border-mute"
-              >
-                <span>
-                  <span className="block font-display text-lg font-bold uppercase">{l.name}</span>
-                  <span className="block text-xs text-mute">{l.description}</span>
-                </span>
-                <ChevronRight size={16} className="shrink-0 text-dim" />
-              </button>
-            ))}
-          </div>
-          {sessions.length > 0 && <div className="mt-3 text-xs text-dim">Avg reaction (last 10): {avgMs(recent.flatMap((s) => s.reactionTimes)) || '—'} ms</div>}
-        </Card>
+              <Button className="mt-3 w-full" variant="outline" size="sm" onClick={quick}>
+                <Play size={14} /> Continue previous drill
+              </Button>
+            </>
+          ) : (
+            <p className="text-sm text-mute">
+              No sessions yet. Start with <span className="text-ink">Quick practice</span>: your history and progress build up from there.
+            </p>
+          )}
+        </Panel>
       </div>
     </div>
   );

@@ -216,7 +216,8 @@ Deathmatch against other people, up to 10 in a match. Full detail, including how
 
 ### 3.12 UI, settings and storage
 
-- Pages: Home, Practice (map, location, side, spawn, mode, behaviour, bot count, difficulty, weapons), Maps, Weapons, Crosshair (full editor with presets and import/export codes), Sensitivity, Statistics, Settings (graphics, audio, HUD, controls, data), Multiplayer (rooms, quick match) and Game.
+- The menus are built as a game's, not a website's: a full-screen shell with a top bar of screens, an animated backdrop, a footer of key hints and tips, and a main menu (Home) with the next drill's map laid out as a tactical table. Menu controls make a soft sound on hover and click (`utils/uiSound.ts`, following the master volume), and Esc returns to the main menu.
+- Screens: Home, Practice (map, location, side, spawn, mode, behaviour, bot count, difficulty, weapons), Maps, Weapons, Crosshair (full editor with presets and import/export codes), Sensitivity, Statistics, Settings (graphics, audio, HUD, controls, data), Multiplayer (rooms, quick match) and Game.
 - Settings live in a small external store (`useAppStore`) saved to versioned localStorage keys; stored values are merged with the defaults so new settings appear without wiping old ones.
 - Robustness: the game pauses on Esc, pointer-lock loss, window blur or a hidden tab; pointer lock is requested before fullscreen; WebGL context loss and missing WebGL show a clear message; audio starts on the first click; fullscreen uses Keyboard Lock so Ctrl+W doesn't close the tab while crouch-walking.
 

@@ -6,14 +6,13 @@ export function cx(...c: (string | false | null | undefined)[]) {
 
 export function PageHeader({ kicker, title, children }: { kicker: string; title: string; children?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <div className="font-display text-sm font-semibold uppercase tracking-[0.25em] text-accent">{kicker}</div>
-        <h1 className="font-display text-4xl font-bold uppercase leading-none text-ink md:text-5xl">{title}</h1>
-        <div className="mt-3 flex items-center gap-1.5" aria-hidden="true">
-          <span className="h-[3px] w-12 bg-accent" />
-          <span className="h-[3px] w-3 bg-accent/50" />
-          <span className="h-[3px] w-1.5 bg-accent/25" />
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-white/[0.07] pb-4">
+      <div className="flex items-stretch gap-4">
+        {/* a slanted accent bar: every screen's title carries the same mark */}
+        <span aria-hidden="true" className="w-2 shrink-0 -skew-x-12 bg-accent shadow-[0_0_18px_rgba(255,70,85,0.6)]" />
+        <div>
+          <div className="font-display text-sm font-semibold uppercase tracking-[0.3em] text-accent">{kicker}</div>
+          <h1 className="font-display text-4xl font-extrabold uppercase leading-none tracking-[0.04em] text-ink md:text-5xl">{title}</h1>
         </div>
       </div>
       {children}
@@ -23,10 +22,10 @@ export function PageHeader({ kicker, title, children }: { kicker: string; title:
 
 export function Card({ children, className, title, right }: { children: ReactNode; className?: string; title?: string; right?: ReactNode }) {
   return (
-    <section className={cx('tal-card border border-line bg-panel/90 p-5', className)}>
+    <section className={cx('tal-card tal-panel border p-5', className)}>
       {(title || right) && (
-        <div className="mb-4 flex items-center justify-between gap-3">
-          {title && <h2 className="tal-card-title font-display text-lg font-semibold uppercase tracking-wider text-ink">{title}</h2>}
+        <div className="tal-panel-head flex items-center justify-between gap-3">
+          {title && <h2 className="tal-card-title font-display text-lg font-semibold uppercase tracking-[0.12em] text-ink">{title}</h2>}
           {right}
         </div>
       )}
@@ -68,7 +67,7 @@ export function Button({
       disabled={disabled}
       onClick={onClick}
       className={cx(
-        'clip-angle-sm inline-flex items-center justify-center gap-2 font-display font-semibold uppercase tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+        'tal-btn clip-angle-sm inline-flex items-center justify-center gap-2 font-display font-bold uppercase tracking-[0.12em] transition-colors disabled:cursor-not-allowed disabled:opacity-40',
         sizes[size],
         variants[variant],
         className,
