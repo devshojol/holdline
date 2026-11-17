@@ -69,8 +69,8 @@ export function HomePage() {
 
   return (
     <div className="grid gap-6 lg:h-full lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)_minmax(300px,360px)] lg:gap-8">
-      {/* ---- left: title and main menu ---- */}
-      <div className="flex min-h-0 flex-col justify-center">
+      {/* ---- left: title and main menu (above the tilted map, whose corners reach over the column edges) ---- */}
+      <div className="relative z-10 flex min-h-0 flex-col justify-center">
         <div className="mb-6">
           <div className="font-display text-xs font-semibold uppercase tracking-[0.4em] text-accent">Tactical shooter training</div>
           <h1 className="tal-title-in mt-1 font-display text-6xl font-extrabold uppercase leading-[0.86] tracking-[0.04em] text-ink xl:text-7xl">
@@ -134,7 +134,7 @@ export function HomePage() {
       </div>
 
       {/* ---- right: loadout, daily drills, last session ---- */}
-      <div className="flex min-h-0 flex-col justify-center gap-4 lg:overflow-y-auto lg:pr-1">
+      <div className="relative z-10 flex min-h-0 flex-col justify-center gap-4 lg:overflow-y-auto lg:pr-1">
         <Panel index={2} title="Loadout" right={<Badge>{primary.category}</Badge>}>
           <WeaponIcon id={primary.id} className="h-14 w-full" color={primary.color} />
           <div className="mt-2 flex items-end justify-between gap-3">
