@@ -1,6 +1,6 @@
 # Tactical Aim Lab
 
-A browser-based 3D aim-practice lab inspired by Valorant. Open it in Chrome, pick a map and a spot to hold, set your sensitivity and crosshair, choose a weapon and fight AI bots that peek, swing, spray and reposition the way real players do. No install, no account: everything runs in the page.
+A browser-based 3D aim-practice lab inspired by Valorant. Open it in Chrome, pick a map and a spot to hold, set your sensitivity and crosshair, choose a weapon and fight AI bots that peek, swing, spray and reposition the way real players do. Or play Deathmatch against other people, in a private room with friends or a quick match. No install, no account: practice runs entirely in the page, and multiplayer adds one small game server.
 
 ![Holding A Main on Vellora with the Vandal](docs/screenshots/gameplay.png)
 
@@ -57,7 +57,8 @@ MAPS='[{"id":"vellora","locations":["a-main","mid","b-main"]}]' \
 | Reload                                                      | R                                 |
 | Primary / sidearm                                           | 1 / 2, or the mouse wheel to swap |
 | Weapon menu (change primary and sidearm mid-session)        | B                                 |
-| Pause                                                       | Esc                               |
+| Pause (in a multiplayer match: menu, the match goes on)     | Esc                               |
+| Scoreboard (multiplayer)                                    | Hold Tab                          |
 
 ## 3. How it's built
 
@@ -71,7 +72,7 @@ MAPS='[{"id":"vellora","locations":["a-main","mid","b-main"]}]' \
 - **localStorage** for settings, crosshair presets and session history.
 - **Vitest** for unit and map tests, **Playwright** scripts for in-browser smoke tests.
 
-There are no other runtime dependencies: physics, AI, navigation, audio synthesis and the map builder are all written for this project.
+There are no other runtime dependencies in the browser: physics, AI, navigation, audio synthesis and the map builder are all written for this project. The multiplayer game server is a Node process that uses `ws` for WebSockets and shares the simulation code with the client.
 
 ### 3.2 Project layout
 
@@ -85,7 +86,7 @@ src/
   settings/defaults.ts        default settings, difficulty presets, graphics presets, eDPI / cm-per-360 maths
   types/                      shared interfaces (weapon, bot, map, practice, crosshair, sensitivity, stats, HUD)
   net/                        code shared with the game server: messages, room settings, commands, room codes
-  multiplayer/                the browser's connection to the game server and the lobby state
+  multiplayer/                the browser's connection to the game server, and the lobby and match state
   game/
     engine/GameEngine.ts      the only React↔game boundary: create/start/pause/end/updateSettings + events
     engine/RenderHost.ts      one Babylon engine + canvas reused by every session
@@ -99,14 +100,16 @@ src/
     rendering/                MapRenderer, procedural textures, pooled effects, glTF helpers
     audio/                    AudioEngine (playback, 3D, recordings) and gunSynth (synthesised gunshots)
     hud/                      crosshair renderer (shared with the editor) and minimap
-server/                       multiplayer game server (Node): rooms, matches (movement, combat, scores), test bots
+    net/                      multiplayer in the engine: movement prediction, interpolation of other players
+server/                       multiplayer game server (Node): rooms, quick-match queue, matches, test bots
 public/
   favicon.svg                 crosshair icon (inlined as a data URI in the single-file build)
   models/                     agent, arms and weapon-skin GLBs with their credits (README.md)
   sounds/                     recordings that replace synthesised sounds (README.md lists the slots)
 docs/screenshots/             images used in this README
 docs/map-visuals-plan.md      the plan for the next piece of work: realistic map visuals
-docs/multiplayer.md           design for multiplayer: custom rooms and quick match, and what is built so far
+docs/multiplayer.md           multiplayer: status, running and deploying it, and the design
+Dockerfile, render.yaml       the game server's image and its Render service (fly.toml: an unused Fly.io setup)
 scripts/                      single-file build, Playwright smoke tests, asset preparation
 tests/                        unit and map tests; tests/tools/gen-spots.test.ts regenerates enemy spots
 ```
@@ -123,7 +126,7 @@ React only receives throttled HUD snapshots (about 12 per second) and discrete e
 
 ### 3.4 Player movement and aiming
 
-- `PlayerController` models acceleration and friction rather than instant velocity. Running speed is 5.85 m/s; walking and crouching scale from it. Releasing a key applies a strong counter-strafe friction, so stopping from full speed to "accurate" speed takes under 80 ms (unit test).
+- `PlayerController` models acceleration and friction rather than instant velocity. Running speed is 5.4 m/s; walking and crouching scale from it. Releasing a key applies a strong counter-strafe friction, so stopping from full speed to "accurate" speed takes under 80 ms (unit test).
 - The player is an upright box moved kinematically against the map's merged boxes (`CollisionWorld`): wall sliding, 0.4 m step-up, ground snapping on stairs, and a ceiling check before standing up from a crouch.
 - Look uses Valorant's scale (sensitivity × 0.07° per count), with separate horizontal, vertical and ADS multipliers and invert Y. The Sensitivity page converts from other games and shows eDPI and cm/360°.
 
@@ -184,7 +187,19 @@ A bot is one `Bot` entity (state, perception, aim, shooting, movement) plus a _b
 
 `PracticeDirector` owns the bots, assigns spots (never one whose peek line passes within 6 m of your spawn), handles deaths and respawns. `SessionTracker` records shots, hits by zone, reaction time (bot visible → your first hit), time to kill, first-shot / spray / moving accuracy, kills, deaths, damage, escapes, bait shots and a per-weapon breakdown, and computes a score. Each session ends with a report; history (up to 300 sessions) feeds the Statistics page's daily and weekly charts.
 
-### 3.9 Rendering
+### 3.9 Multiplayer
+
+Deathmatch against other people, up to 10 in a match. Full detail, including how to run and deploy it, is in [`docs/multiplayer.md`](docs/multiplayer.md).
+
+- **Custom rooms**: create a room, invite friends with a 6-character code or a link, and set the map, time limit, kill limit, allowed weapons, respawn delay and more. The host starts the match; afterwards everyone returns to the room with the final score.
+- **Quick match**: pick the maps you accept and search. A match starts 15 seconds after a second player arrives (at once with 10), and later arrivals join it while it has time left. Idle players are removed.
+- **The server decides.** A Node game server (`server/`) owns every room and match. It runs the same `PlayerController`, `CollisionWorld` and hitbox code as the client (the files are shared, and a test fails if any of them touches the browser or Babylon), so a client can't teleport, deal extra damage or score for itself.
+- **Movement** is predicted on the client and corrected by the server: each simulation step is sent as a command and replayed there. Other players are drawn 100 ms in the past, blended between snapshots that arrive 30 times a second.
+- **Shots** play their effects at once on the shooter's screen. The server checks the gun, fire rate, origin and direction, rewinds the other players to where the shooter saw them (lag compensation), and reports the hit.
+- **In a match**: the kill feed, a Tab scoreboard, a match clock, spawn protection, and the minimap shows a player for a moment after they fire an unsuppressed gun. The world never pauses.
+- **Try it locally** with `npm run server` and `npm run dev`; `npm run mp:bot -- <room code> 3 shoot` adds test players.
+
+### 3.10 Rendering
 
 - `MapRenderer` batches the merged boxes into a few meshes with world-space UVs, so textures tile evenly at any box size. Wall, floor, crate, metal and stone textures and the sky are drawn procedurally on canvases (`rendering/textures.ts`), seeded per map.
 - Graphics presets (Potato / Low / Medium / High) set shadows, resolution scale, anti-aliasing, effects, post-processing, lighting, texture size and which bot, gun and arm models load. Potato is for machines without a dedicated GPU. On first run `settings/deviceProfile.ts` reads the GPU name and picks a preset; Settings shows what it found.
@@ -193,32 +208,33 @@ A bot is one `Bot` entity (state, perception, aim, shooting, movement) plus a _b
 - WebGPU can be chosen in Settings and falls back to WebGL 2.
 - The minimap is pre-rendered from the grid and rotated so your facing is up; nearby enemies are shown as a training aid (range adjustable).
 
-### 3.10 Audio
+### 3.11 Audio
 
 - `gunSynth.ts` builds each gunshot from layers (supersonic crack, muzzle blast, body punch, sub thump, mechanical action, early reflections, convolution reverb) and renders 4 variations per weapon with an `OfflineAudioContext`.
 - `AudioEngine.ts` plays everything: footsteps, jumps, landings, reload cues, hit and headshot sounds, kill-streak chimes, bullet whizz. Enemy sounds are positioned in 3D (HRTF), muffled with distance and behind walls, and sent to a reverb; enemy gunshots use the same clean sound as your own gun, only panned and slightly quieter with distance.
 - Any slot can be replaced by recordings listed in `public/sounds/manifest.json` (see `public/sounds/README.md`). Recordings are trimmed of silence on load, long footstep takes are cut into single steps, and footsteps, reloads and kill sounds play one voice at a time. In this repository all eight guns' shots, footsteps, the reload and kill-streak sounds 1–5 use the owner's recordings. Everything else is synthesised.
 
-### 3.11 UI, settings and storage
+### 3.12 UI, settings and storage
 
-- Pages: Home, Practice (map, location, side, spawn, mode, behaviour, bot count, difficulty, weapons), Maps, Weapons, Crosshair (full editor with presets and import/export codes), Sensitivity, Statistics, Settings (graphics, audio, HUD, controls, data) and Game.
+- Pages: Home, Practice (map, location, side, spawn, mode, behaviour, bot count, difficulty, weapons), Maps, Weapons, Crosshair (full editor with presets and import/export codes), Sensitivity, Statistics, Settings (graphics, audio, HUD, controls, data), Multiplayer (rooms, quick match) and Game.
 - Settings live in a small external store (`useAppStore`) saved to versioned localStorage keys; stored values are merged with the defaults so new settings appear without wiping old ones.
 - Robustness: the game pauses on Esc, pointer-lock loss, window blur or a hidden tab; pointer lock is requested before fullscreen; WebGL context loss and missing WebGL show a clear message; audio starts on the first click; fullscreen uses Keyboard Lock so Ctrl+W doesn't close the tab while crouch-walking.
 
-### 3.12 Builds and assets
+### 3.13 Builds and assets
 
-- `npm run build` produces `dist/` for any static host (the project deploys to Vercel).
+- `npm run build` produces `dist/` for any static host (the project deploys to Vercel). Built with `VITE_MP_SERVER` set to the game server's address, the site has multiplayer; without it the Multiplayer page says the mode is unavailable.
+- `npm run server:build` bundles the game server into `dist-server/index.cjs`; the `Dockerfile` builds the same into an image. It runs on Render (`render.yaml`).
 - `npm run build:single` builds with `vite.single.config.ts` and inlines all JS, CSS and the favicon into one HTML file. That build sets `__LOCAL_MODELS__` to false, so it never loads GLB models or recordings: bots are training dummies, arms are built from shapes and all sounds are synthesised.
 - `scripts/compress-models.mjs` shrinks every GLB in a folder (welding, quantized vertex data, trimmed animation keyframes). It simplifies the Phantom on every run, so point it at a folder holding only the new files rather than at all of `public/models`.
 - Model preparation is scripted with glTF-Transform: `scripts/prepare-agent-model.mjs` (bot model), `scripts/prepare-weapon-skin.mjs` (gun skins), `scripts/prepare-fp-arms.mjs` and `scripts/prepare-fp-arms-pistol.mjs` (first-person arms). `scripts/extract-gun-samples.py` and `extract-gun-samples-2.py` cut single shots out of longer recordings. The scripts run from a scratch folder that has the tools installed (see each file's header).
 
-### 3.13 Testing and debugging
+### 3.14 Testing and debugging
 
-- `npm test` checks the collision world, hitboxes, weapons (fire rate at any step size, first-shot accuracy, spray climb, recoil recovery, running inaccuracy and counter-strafe recovery), the Operator's scope and bolt cycle, sensitivity maths, crosshair codes, the spray trainer, audio clean-up, device detection, bots (magazine and reload, range discipline, aiming at the visible part, a full deathmatch simulation, turning on a shooter) and every map: closed border, spawns in free space on the ground, at least 3 peekable enemy positions per spawn, every callout reachable.
+- `npm test` checks the collision world, hitboxes, weapons (fire rate at any step size, first-shot accuracy, spray climb, recoil recovery, running inaccuracy and counter-strafe recovery), the Operator's scope and bolt cycle, sensitivity maths, crosshair codes, the spray trainer, audio clean-up, device detection, bots (magazine and reload, range discipline, aiming at the visible part, a full deathmatch simulation, turning on a shooter) and every map: closed border, spawns in free space on the ground, at least 3 peekable enemy positions per spawn, every callout reachable. Multiplayer is covered too: the message codec, room and queue rules, client prediction against the real server match at several latencies, lag compensation, damage and scoring.
 - `scripts/e2e.mjs` and `scripts/e2e-maps.mjs` drive a real browser session.
 - In a running game, `window.__TAL__.debug` exposes helpers such as `state()`, `teleport()`, `setView()`, `aimAtBot()`, `hitboxes(true)`, `timeScale()`, `godMode()` and `spectate(botIndex)` (watch a bot from outside to check its animation).
 
-### 3.14 Extending it
+### 3.15 Extending it
 
 - **New map**: add a grid file under `src/game/maps/`, register it in `maps/registry.ts`, declare its locations and spawns, run the spot generator, then `npm test`.
 - **New weapon**: add its id to `WeaponId` in `src/types`, a config with stats and a recoil pattern in `weaponConfigs.ts`, and optionally a skin entry in `WeaponSkins.ts` and sound slots in the manifest.
@@ -231,7 +247,8 @@ A bot is one `Bot` entity (state, perception, aim, shooting, movement) plus a _b
 - Navigation is grid A\*, not a Recast navmesh.
 - The minimap doesn't show height.
 - The Operator's scope is click-to-cycle only (no hold-to-scope option).
-- Statistics are kept in localStorage (300 sessions), not IndexedDB.
+- Statistics are kept in localStorage (300 sessions), not IndexedDB. Multiplayer matches aren't recorded in them.
+- Multiplayer: other players always appear holding the Vandal; a weapon picked mid-match is in hand at once; the free game server sleeps when nobody is playing. Two people on two machines haven't been tried yet (testing used bots).
 - WebGPU and real-GPU frame rates haven't been measured; automated runs use software rendering. Use the Potato or Low preset on weak machines.
 - In a sandboxed iframe Pointer Lock may be blocked; the game falls back to free-mouse aiming. Firefox has no raw pointer input, so OS acceleration may apply.
 
@@ -261,7 +278,13 @@ A bot is one `Bot` entity (state, perception, aim, shooting, movement) plus a _b
 
 - Profile on real GPUs, test WebGPU, and tune the presets.
 - Load Babylon in smaller chunks for a faster first start; make the app an installable PWA that works offline.
-- Recast navmesh for smoother bot movement; and, much later, a 1v1 duel mode over WebRTC.
+- Recast navmesh for smoother bot movement.
+
+**Multiplayer** (see `docs/multiplayer.md`)
+
+- Team Deathmatch on the client (team colours, teammates on the minimap) and locking the guns a room doesn't allow.
+- Bots that fill a room, which needs bots that fight several players and each other.
+- A game server that doesn't sleep: the free one takes about a minute to wake after a quiet spell.
 
 ## 6. Credits
 

@@ -170,7 +170,7 @@ function open() {
   set({ status: retries > 0 ? 'reconnecting' : 'connecting' });
   const ws = new WebSocket(serverUrl());
   socket = ws;
-  ws.onopen = () => raw({ t: 'hello', version: PROTOCOL_VERSION, playerId: state.playerId ?? '', name: state.name, resume: readResume() });
+  ws.onopen = () => raw({ t: 'hello', version: PROTOCOL_VERSION, name: state.name, resume: readResume() });
   ws.onmessage = (e) => {
     const msg = decodeServer(e.data);
     if (!msg || socket !== ws) return;

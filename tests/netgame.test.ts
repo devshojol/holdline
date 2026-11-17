@@ -4,7 +4,7 @@ import { buildMapData } from '../src/game/maps/MapData';
 import { getMapDefinition } from '../src/game/maps/registry';
 import { RemoteTrack, ServerClock } from '../src/game/net/Interpolation';
 import { Prediction } from '../src/game/net/Prediction';
-import { PlayerController } from '../src/game/player/PlayerController';
+import { PlayerController, RUN_SPEED } from '../src/game/player/PlayerController';
 import { actionBit, actionMask, type Command } from '../src/net/command';
 import { INTERP_DELAY_MS, MAX_REWIND_MS, PF_ALIVE, PF_GROUNDED, PF_PROTECTED, type PlayerSnapshot, type SelfSnapshot, type ServerMessage, type ShotMessage } from '../src/net/protocol';
 import { DEFAULT_ROOM_SETTINGS, type RoomSettings } from '../src/net/settings';
@@ -135,7 +135,7 @@ describe('server match', () => {
     for (let i = 0; i < flood.length; i += 60) match.input('me', flood.slice(i, i + 60), 10);
     const end = match.snapshot('me').self!;
     const moved = Math.hypot(end.pos[0] - start.pos[0], end.pos[2] - start.pos[2]);
-    expect(moved).toBeLessThan(5.85 * 0.5 + 0.1); // at most half a second at full speed
+    expect(moved).toBeLessThan(RUN_SPEED * 1.04 * 0.5 + 0.1); // at most half a second at full speed
     expect(end.ackSeq).toBe(601);
     match.input('nobody', [cmd(0)], 10); // unknown player: no effect, no error
   });

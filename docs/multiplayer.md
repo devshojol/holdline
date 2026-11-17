@@ -1,36 +1,48 @@
-# Multiplayer: how it works
+# Multiplayer
 
-A design for playing against other people, in two ways:
+Players can fight each other in Deathmatch, two ways:
 
-- **Custom**: create a room, invite up to 9 friends (10 players in all), pick the map, the time and the
-  rules, and start when you like.
-- **Quick match**: pick a map, wait for other players, and the match starts by itself.
+- **Custom**: create a room, invite up to 9 friends (10 players in all) by code or link, pick the map,
+  the time and the rules, and start when you like.
+- **Quick match**: pick the maps you are happy to play, wait, and a match forms by itself or you join
+  one already under way.
 
-This document describes the player's experience, the rules, the architecture and the order to build it
-in. Decisions that are still open are collected in [section 11](#11-open-decisions).
+It is live: the website at https://valorantaimlab.vercel.app talks to a game server at
+`wss://tactical-aim-lab-server.onrender.com`.
 
-**Status.** Phases 0 to 5 of the [build order](#10-build-order) are done, and multiplayer is live: the
-website at https://valorantaimlab.vercel.app talks to the game server on Render's free plan
-([Deploying](#deploying)). Both modes can be played from start to finish. Custom: create a room, invite by code or link,
-set it up, start, fight, and return to the room with the final score. Quick match: pick maps, wait, and a
-match forms by itself or you join one already under way; when it ends its room closes and Play again
-searches anew. Combat is decided by the server with lag compensation. Still to come: the client side of
-Team Deathmatch and weapon restrictions (6), and bots that fill a room (7).
+This document has three parts: where things stand, how to run and deploy it, and then the design
+(sections 1 to 11), which was written before the build and is kept as the explanation of how it works.
 
-Where the build differs from the design below, for now:
+## Status
 
-- A weapon picked in the B menu is in your hands at once, not at the next respawn.
-- The server checks a shot's gun, fire rate, origin and direction, but does not count the magazine.
-- The run-speed multiplier (weapon in hand, aiming) is sent by the client and clamped by the server.
-- Team Deathmatch and the weapon rule are enforced by the server (teammates aren't hurt, a banned gun's
-  shots do nothing), but the client doesn't yet show team colours or lock the banned guns.
-- Other players always appear holding the Vandal, and don't show on the minimap.
-- Quick match picks a random map among equals; it doesn't yet avoid the map the players last played.
-- Names are trimmed and made unique in a room, but there is no word filter.
-- Enemies' positions are sent to every player whether or not they could be seen (no wall-hack reduction).
-- A player whose connection drops mid-match comes back at a fresh spawn, with their score.
+Phases 0 to 5 of the [build order](#10-build-order) are built. Both modes can be played from start to
+finish, with combat decided by the server.
 
-### Trying it
+Not built yet:
+
+- **Team Deathmatch on the client** (phase 6). The server already keeps teams, spares teammates and adds
+  up team kills, but the game shows no team colours.
+- **Weapon rules on the client** (phase 6). The server ignores shots from a gun the room doesn't allow,
+  but the weapon menu doesn't lock those guns.
+- **Bots that fill a room** (phase 7, [section 9](#9-bots-in-multiplayer)).
+
+Where the build differs from the design:
+
+| Design                                                        | Built                                                                                         |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| A weapon change applies at the next respawn                   | It is in your hands at once                                                                   |
+| The server validates ammo                                     | It checks the gun, fire rate, origin and direction, but does not count the magazine           |
+| The server works out run speed from the weapon state          | The client sends the multiplier; the server holds it to what the player's two guns allow      |
+| Enemies show on the minimap while a teammate can see them     | Any player shows for 2.5 seconds after firing an unsuppressed gun, and not otherwise          |
+| Quick match avoids the map last played                        | It picks at random among the maps most players accept                                         |
+| Names are filtered against a word list                        | Names are trimmed, length-limited and made unique in a room                                   |
+| Enemies out of sight could be withheld from clients           | Every player's position is sent to every player                                               |
+| The first input format repeats recent commands                | Nothing is repeated: a WebSocket delivers everything in order                                 |
+
+Not yet tried: two people playing each other from two machines (every opponent in testing was a bot),
+the first connection after the server has slept, and more than one match at a time on the free server.
+
+## Running it locally
 
 ```bash
 npm run server       # the game server, on port 8787 (PORT=… to change)
@@ -39,91 +51,102 @@ npm run dev          # the app; in development it connects to port 8787 on the s
 
 Open the app in two tabs (each tab is its own player), go to Multiplayer, create a room in one and open
 its invite link in the other. A browser only runs the game in the tab you are looking at, so to see
-other players move without a second person, add headless bot players to the room:
+other players move without a second person, add headless bot players:
 
 ```bash
 npm run mp:bot -- K7M2QX 3         # three bots join room K7M2QX and run around once the match starts
 npm run mp:bot -- K7M2QX 6 shoot   # six that also stop and shoot at anyone they see (poor shots, on purpose)
 npm run mp:bot -- quick 3 shoot    # three that search for a quick match instead, and again after each one
+npm run mp:bot -- quick 50 shoot   # a load test: fifty bots fill five matches
 ```
 
-In a match, `window.__TAL__.debug` has `net()` (snapshot count, commands in flight, prediction
-corrections, where the other players are drawn), `netLag(ms, jitter)` to add delay to the connection,
-`spectateRemote(index)` to watch another player from outside and `aimAtRemote(index)` to point at one. A production build talks to the server named in `VITE_MP_SERVER`
-(for example `wss://play.example.com`); without it the Multiplayer page says the mode is unavailable.
-The server accepts browsers from any site unless `ALLOWED_ORIGINS` lists the allowed ones.
+In a match, `window.__TAL__.debug` has:
 
-### Deploying
+| Helper                    | What it does                                                                              |
+| ------------------------- | ----------------------------------------------------------------------------------------- |
+| `net()`                   | Snapshot count, commands in flight, prediction corrections, where other players are drawn |
+| `netLag(ms, jitter)`      | Adds delay to the connection                                                              |
+| `netDrop()`               | Cuts the connection, which then reconnects by itself                                      |
+| `spectateRemote(index)`   | Watches another player from outside (`null` to return)                                    |
+| `aimAtRemote(index)`      | Points the camera at another player                                                       |
 
-The website and the game server are deployed separately.
+## Deploying
 
-**The game server** is one Node process. `npm run server:build` bundles it and everything it shares with
-the client into a single file, `dist-server/index.cjs`, which runs with nothing else installed
-(`npm run server:start`, Node 20 or newer). The `Dockerfile` in the repository root builds an image that
-does the same: bun installs the dependencies from `bun.lock`, and the 67 MB result runs on Node.
+The website and the game server are deployed separately. Both redeploy on every push to `main`.
 
-| Setting           | Meaning                                                                                 |
-| ----------------- | --------------------------------------------------------------------------------------- |
-| `PORT`            | Port to listen on (default 8787). Most hosts set this for you.                           |
-| `ALLOWED_ORIGINS` | Comma-separated sites whose pages may connect, e.g. `https://your-site.example`. Unset = any site. Set it in production. |
-| `MAX_PER_ADDRESS` | Connections allowed from one address (default 20).                                      |
-| `CLIENT_IP_HEADER` | Behind a host's proxy: the request header carrying the visitor's address (Fly.io: `fly-client-ip`); several may be listed, most trusted first. Without it every player counts as the proxy's one address. Only set it when a trusted proxy fills the header. |
+### The game server
 
-What the host must provide:
+One Node process. `npm run server:build` bundles it and everything it shares with the client into a
+single file, `dist-server/index.cjs`, which runs with nothing else installed (`npm run server:start`,
+Node 20 or newer). The `Dockerfile` builds an image that does the same: bun installs the dependencies
+from `bun.lock`, and the 67 MB result runs on Node.
+
+| Setting            | Meaning                                                                                              |
+| ------------------ | ---------------------------------------------------------------------------------------------------- |
+| `PORT`             | Port to listen on (default 8787).                                                                     |
+| `ALLOWED_ORIGINS`  | Comma-separated sites whose pages may connect. Unset = any site. Set it in production.                |
+| `MAX_PER_ADDRESS`  | Connections allowed from one address (default 20).                                                    |
+| `CLIENT_IP_HEADER` | Behind a host's proxy: the request headers carrying the visitor's address, most trusted first. Without it every player counts as the proxy's one address. Only set it when a trusted proxy fills the header. |
+
+What a host must provide:
 
 - **A long-lived process with WebSockets.** Not a serverless function.
 - **Exactly one instance.** Rooms live in the process's memory, so two instances would be two separate
-  worlds with players unable to find each other's rooms. Turn off autoscaling and scale-to-zero.
-- **TLS.** A page served over `https` may only open `wss://` connections, so the server needs a
-  certificate; hosts that give the app an `https` address provide this.
+  worlds whose players could not find each other's rooms.
+- **TLS.** A page served over `https` may only open `wss://` connections.
 - **A health check.** Any plain HTTP request to the server answers with JSON: rooms, players, players
   searching, memory, and the last five seconds' tick time, traffic and message rate.
 
-A restart or a deploy ends every match in progress (clients are told at once and return to the
-Multiplayer page), so deploy when it is quiet.
+A restart or a deploy ends every match in progress: clients are told at once and return to the
+Multiplayer page.
 
-**On Render.** The server runs on Render's free plan at `wss://tactical-aim-lab-server.onrender.com`,
-and the live site is built with that address. `render.yaml` in the repository root defines the service:
-built from the `Dockerfile`, free plan, Singapore, redeployed on every push to `main`, restricted to the
-live site's addresses. It was created in Render with New → Blueprint → this repository. Its health page
-is https://tactical-aim-lab-server.onrender.com/. What the free plan means:
+### On Render (in use)
 
-- It sleeps after 15 minutes with no traffic and takes about a minute to wake. An open game connection
-  counts as traffic, so it sleeps only when nobody is playing; the first player afterwards waits, and the
-  client keeps trying for about a minute and a half before giving up.
-- Render may restart a free service at any time, which ends a match in progress.
-- It is small (reported as 512 MB and 0.1 CPU): expect one or two matches at once.
-- 750 instance hours a month, which covers one service.
+`render.yaml` defines the service: built from the `Dockerfile`, free plan, Singapore, restricted to the
+live site's three Vercel addresses. It was created in Render with New → Blueprint → this repository.
+Its health page is https://tactical-aim-lab-server.onrender.com/.
+
+What the free plan means:
+
+- **It sleeps after 15 minutes with no traffic** and takes about a minute to wake. An open game
+  connection counts as traffic, so it sleeps only when nobody is playing. The first player afterwards
+  waits; the client keeps trying for about a minute and a half before giving up.
+- **Render may restart a free service at any time**, which ends a match in progress.
+- **It is small** (reported as 512 MB and 0.1 CPU). One six-player match ran at 0.3 ms a tick in 68 MB.
+- **750 instance hours a month**, which covers one service.
 
 Render's proxy hides visitors' addresses, so `CLIENT_IP_HEADER` lists the headers that carry them. The
-health page's `addressSource` shows which one the latest connection used (on Render it is
-`cf-connecting-ip`); `none` after a player has connected would mean every player is being counted as one
-address.
+health page's `addressSource` shows which one the latest connection used (on Render, `cf-connecting-ip`);
+`none` after a player has connected would mean every player is being counted as one address.
 
-To send test bots at it:
+A page on `localhost` is refused by the deployed server, so local development uses a local server. To
+send test bots at the deployed one:
 
 ```bash
 MP_SERVER=wss://tactical-aim-lab-server.onrender.com MP_ORIGIN=https://valorantaimlab.vercel.app npm run mp:bot -- quick 3 shoot
 ```
 
-**On Fly.io (to be removed).** The server was first deployed as the app `tactical-aim-lab-server` in Singapore (`sin`), at
-`wss://tactical-aim-lab-server.fly.dev`. `fly.toml` in the repository root holds its settings: one
-always-on machine that is never stopped or doubled, HTTPS, the health check, and `CLIENT_IP_HEADER`.
-Only pages on the live site's three Vercel addresses may connect (the `ALLOWED_ORIGINS` secret); a page
-on `localhost` is refused, so local development uses a local server.
+### The website
+
+The site is built with `VITE_MP_SERVER` set to the server's address; on Vercel this is the project's
+production environment variable. Without it the Multiplayer page says the mode is unavailable. After
+changing it, the site has to be rebuilt for the new address to take effect.
+
+### On Fly.io (not in use)
+
+The server was first deployed to Fly.io as the app `tactical-aim-lab-server` in Singapore. It worked,
+but **a Fly account on its trial stops every machine after 5 minutes** until a card is added
+(https://fly.io/trial), so the server moved to Render. The app still exists, stopped, and `fly.toml`
+holds its settings: one always-on machine that is never stopped or doubled, HTTPS, the health check and
+`CLIENT_IP_HEADER`. With a card on the account it can be brought back:
 
 ```bash
-fly deploy --ha=false                                  # deploy a new version (ends matches in progress)
+fly deploy --ha=false                                  # deploy the current code
 fly status                                             # one machine, "1 total, 1 passing"
-curl https://tactical-aim-lab-server.fly.dev/          # the health check: {"ok":true,...}
 fly logs                                               # the server's output
-fly secrets set ALLOWED_ORIGINS=https://a.example,https://b.example   # change which sites may connect
+fly secrets set ALLOWED_ORIGINS=https://a.example,https://b.example   # which sites may connect
+fly apps destroy tactical-aim-lab-server               # or remove the app for good
 ```
-
-**A Fly account on its trial stops every machine after 5 minutes** (the machine's log says "Trial machine
-stopping" and points to https://fly.io/trial). Until a card is added there, the server has to be
-restarted by hand with `fly machine start` and stops again five minutes later, and the website's
-Multiplayer page reports that it can't reach the game server.
 
 Setting it up from nothing, on another account or under another name:
 
@@ -132,22 +155,9 @@ fly auth login
 fly launch --copy-config --no-deploy --ha=false --name YOUR-APP --region sin
 fly secrets set --stage ALLOWED_ORIGINS=https://your-site.example
 fly deploy --ha=false
-fly ips allocate-v4 --shared && fly ips allocate-v6    # if the first deploy reports it could not provision addresses
+fly ips allocate-v4 --shared && fly ips allocate-v6    # if the first deploy could not provision addresses
 fly scale count 1                                      # make sure there is exactly one machine
 ```
-
-Checked on the deployed server: the health check answers, a connection from the live site's address is
-accepted and one from any other site (or none) is refused, the round trip from the development machine
-is about 83 ms, and a full ten-bot match ran at under 0.5 ms a tick in 69 MB. To send test bots at it:
-
-```bash
-MP_SERVER=wss://tactical-aim-lab-server.fly.dev MP_ORIGIN=https://valorantaimlab.vercel.app npm run mp:bot -- quick 10 shoot
-```
-
-**The website**: set `VITE_MP_SERVER` to the server's address (for example `wss://play.your-site.example`)
-(`wss://tactical-aim-lab-server.onrender.com`) in the site's build environment and rebuild. On Vercel
-this is the project's `VITE_MP_SERVER` production variable. Without it the Multiplayer page says the mode is
-unavailable.
 
 ### Load
 
@@ -159,14 +169,19 @@ the same machine:
 | 5 × 10            | 2.0 ms / 6 ms               | 14% of one core | 135 MB | 22 KB/s         |
 | 10 × 10           | 3.6 ms / 12 ms              | 37% of one core | 150 MB | 22 KB/s         |
 
-A tick has 33 ms to finish, so one small instance has room for well over ten full matches. Bandwidth is
-the cost to watch: 100 players is about 2.2 MB/s out. These are bots on one machine with no real network
-between them; the same test should be repeated against the real host once there is one.
+A tick has 33 ms to finish. Bandwidth is the cost to watch: 100 players is about 2.2 MB/s out. These are
+bots on one machine with no real network between them, on hardware much faster than the free server.
 
-## 1. Where we are
+---
 
-The game today is a static site with no server (it deploys to Vercel, and can even be one HTML file).
-Everything is single-player:
+# Design
+
+Written before the build. Where the build went another way, the table under [Status](#status) says so.
+
+## 1. Where we started
+
+Before multiplayer, the game was a static site with no server (it deploys to Vercel, and can even be one
+HTML file), and everything was single-player:
 
 - `GameEngine` runs one local player against bots owned by `PracticeDirector`. It takes a
   `PracticeConfig` and has no idea other humans exist.
@@ -476,7 +491,7 @@ layout later without touching the rest.
 
 | Direction | Message          | Content                                                                 |
 | --------- | ---------------- | ----------------------------------------------------------------------- |
-| C → S     | `hello`          | protocol version, player id, name, resume token if reconnecting         |
+| C → S     | `hello`          | protocol version, name, resume token if reconnecting                    |
 | C → S     | `room.create` / `room.join` / `room.leave` | room code where needed                        |
 | C → S     | `room.settings` / `room.kick` / `room.host` / `room.start` / `room.end` | host only        |
 | C → S     | `room.ready` / `room.team` / `loadout` | the player's own state                            |
@@ -487,7 +502,7 @@ layout later without touching the rest.
 | C → S     | `input`          | the last few commands                                                   |
 | C → S     | `shot`           | as in 6.4                                                               |
 | S → C     | `snapshot`       | server time, last applied command, your state, every other player's state |
-| S → C     | `event`          | shot, hit, kill, respawn, join, leave                                   |
+| S → C     | `event`          | shot, hit, damage, kill, respawn                                        |
 | S → C     | `match.end`      | final scoreboard                                                        |
 | both      | `ping` / `pong`  | latency and clock offset                                                |
 | S → C     | `error`          | room not found, room full, kicked, version mismatch                     |
@@ -577,15 +592,15 @@ Testing along the way:
   two `PlayerController`s and expects identical positions.
 - A headless bot client (a Node script speaking the protocol) for load tests and for filling a match
   during development.
-- An artificial latency, jitter and loss setting in the client's debug helpers (`window.__TAL__.debug`),
+- An artificial latency and jitter setting in the client's debug helpers (`window.__TAL__.debug`),
   because netcode that is only tried on localhost has not been tried.
-- A two-browser Playwright script in the style of `scripts/e2e.mjs`.
+- A two-browser Playwright script in the style of `scripts/e2e.mjs` (not written).
 
-## 11. Open decisions
+## 11. Decisions
 
-1. **Where the server runs.** Any host with long-lived processes works. This is the only part of the
-   feature with a running cost and an account to set up, so it is the owner's call.
-2. **Regions.** One server location to start. Players far from it will have high ping; the lobby shows
+1. **Where the server runs.** Decided for now: Render's free plan, with its sleep and its small size. A
+   paid instance there or elsewhere removes both.
+2. **Regions.** One server location, Singapore. Players far from it will have high ping; the lobby shows
    it. More regions means a region picker and a smaller pool in each.
 3. **Quick match minimum.** The design starts a match with 2 players and lets others join in progress.
    A higher minimum gives fuller matches and longer waits.

@@ -10,8 +10,11 @@ import type { HitZone } from '../game/physics/CollisionWorld';
 import type { Command } from './command';
 import type { RoomSettings } from './settings';
 
-/** Bumped whenever a message changes shape. A client on another version is asked to reload. */
-export const PROTOCOL_VERSION = 2;
+/**
+ * Bumped whenever a message changes shape, or the shared simulation changes (a movement constant, say):
+ * client and server must run the same one. A client on another version is asked to reload.
+ */
+export const PROTOCOL_VERSION = 3;
 
 /** Rates, in messages per second (docs/multiplayer.md, section 6.1). */
 export const INPUT_RATE = 60;
@@ -95,7 +98,6 @@ export interface Loadout {
 export const PF_ALIVE = 1;
 export const PF_GROUNDED = 2;
 export const PF_WALKING = 4;
-export const PF_RELOADING = 8;
 export const PF_PROTECTED = 16;
 export const PF_CROUCHING = 32;
 
@@ -158,9 +160,7 @@ export type MatchEvent =
   | { type: 'damage'; by: string; from: Vec3; zone: HitZone; damage: number }
   | { type: 'kill'; killer: string; victim: string; weapon: WeaponId; headshot: boolean; assists: string[] }
   /** `yaw` in degrees, as spawn points are. */
-  | { type: 'respawn'; id: string; pos: Vec3; yaw: number }
-  | { type: 'join'; id: string; name: string; team: Team | null }
-  | { type: 'leave'; id: string };
+  | { type: 'respawn'; id: string; pos: Vec3; yaw: number };
 
 export type ErrorCode =
   | 'version'
@@ -169,7 +169,6 @@ export type ErrorCode =
   | 'room-full'
   | 'match-in-progress'
   | 'not-host'
-  | 'kicked'
   | 'rate-limited'
   | 'name-rejected'
   | 'not-enough-players'
@@ -180,7 +179,8 @@ export type ErrorCode =
 /* ------------------------------------------------------------------ */
 
 export type ClientMessage =
-  | { t: 'hello'; version: number; playerId: string; name: string; resume?: string }
+  /** `resume`: the token from an earlier `welcome`, to take back the same place after a reload or a dropped connection. */
+  | { t: 'hello'; version: number; name: string; resume?: string }
   | { t: 'room.create' }
   | { t: 'room.join'; code: string }
   | { t: 'room.leave' }

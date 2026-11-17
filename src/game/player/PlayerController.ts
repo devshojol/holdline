@@ -8,8 +8,8 @@ const STAND_HEIGHT = 1.8;
 const CROUCH_HEIGHT = 1.25;
 export const STAND_EYE = 1.62;
 const CROUCH_EYE = 1.08;
-/** Full running speed in m/s (raised from 5.4, about 8% faster). Walk and crouch speeds scale from it. */
-export const RUN_SPEED = 5.85;
+/** Full running speed in m/s. Walk and crouch speeds scale from it. The multiplayer server runs the same value. */
+export const RUN_SPEED = 5.4;
 const WALK_MULT = 0.65;
 const CROUCH_MULT = 0.5;
 const ACCEL = 48;

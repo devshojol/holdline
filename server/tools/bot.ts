@@ -40,7 +40,7 @@ function startBot(name: string) {
   let loop: ReturnType<typeof setInterval> | undefined;
   let view: { time: number; players: PlayerSnapshot[]; alive: boolean; player: PlayerController } | null = null;
 
-  ws.on('open', () => send({ t: 'hello', version: PROTOCOL_VERSION, playerId: '', name }));
+  ws.on('open', () => send({ t: 'hello', version: PROTOCOL_VERSION, name }));
   ws.on('close', () => {
     clearInterval(loop);
     console.log(`${name}: disconnected`);

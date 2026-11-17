@@ -32,7 +32,7 @@ import { Minimap } from '../hud/Minimap';
 import { buildMapData, findLocation, mapMood, type MapData } from '../maps/MapData';
 import { getMapDefinition } from '../maps/registry';
 import { COL_BULLET, humanoidHitboxes, rayHumanoid, type HitZone } from '../physics/CollisionWorld';
-import { PlayerController } from '../player/PlayerController';
+import { PlayerController, RUN_SPEED } from '../player/PlayerController';
 import { MODE_LABELS, PracticeDirector } from '../practice/PracticeDirector';
 import { avg, pct, SessionTracker } from '../practice/SessionTracker';
 import { SprayTrainer } from '../practice/SprayTrainer';
@@ -112,7 +112,12 @@ interface RemotePlayer {
   stepTimer: number;
   /** For the footstep voice, so two players' steps can be told apart. */
   voice: number;
+  /** Seconds left on the minimap after firing an unsuppressed gun (0 = not shown). */
+  revealed: number;
 }
+
+/** How long a player who fired an unsuppressed gun stays on everyone's minimap. */
+const FIRE_REVEAL_SEC = 2.5;
 
 /** The keys that move the player: the only ones a command carries. */
 const MOVE_MASK = actionMask(['forward', 'back', 'left', 'right', 'walk', 'crouch']);
@@ -1036,6 +1041,8 @@ export class GameEngine {
         const r = this.remotes.get(ev.by);
         const weapon = WEAPONS[ev.weapon];
         r?.visual.muzzleFlash();
+        // gunfire gives a position away: the shooter shows on the minimap for a moment (a suppressed gun doesn't)
+        if (r && !weapon.suppressed) r.revealed = FIRE_REVEAL_SEC;
         const muzzle = r ? r.visual.muzzleWorld() : ev.origin;
         this.audio.play(weapon.sound, { pos: muzzle, clean: true, bus: 'weapons', volume: weapon.suppressed ? 0.65 : 0.8, rate: 0.97 + Math.random() * 0.06 });
         if (weapon.tracer) this.effects.tracer(muzzle, ev.end, 260);
@@ -1107,7 +1114,7 @@ export class GameEngine {
       if (!r) {
         const n = this.remotes.size + 1;
         const visual = this.agentAssets ? this.agentAssets.create(1000 + n) : new BotVisual(this.botAssets, 1000 + n);
-        r = { track: new RemoteTrack(), visual, stepTimer: 0, voice: 0.93 + ((n * 37) % 10) * 0.012 };
+        r = { track: new RemoteTrack(), visual, stepTimer: 0, voice: 0.93 + ((n * 37) % 10) * 0.012, revealed: 0 };
         this.remotes.set(p.id, r);
       }
       r.track.push(msg.time, p);
@@ -1119,6 +1126,18 @@ export class GameEngine {
         this.remotes.delete(id);
       }
     }
+  }
+
+  /** Multiplayer: the other players the minimap may show, which is those who fired an unsuppressed gun a moment ago. */
+  private minimapRemotes() {
+    const t = this.serverClock.time(performance.now()) - INTERP_DELAY_MS;
+    const out: { x: number; z: number; alive: boolean; visible: boolean }[] = [];
+    for (const r of this.remotes.values()) {
+      if (r.revealed <= 0) continue;
+      const s = r.track.at(t);
+      if (s?.alive) out.push({ x: s.x, z: s.z, alive: true, visible: false });
+    }
+    return out;
   }
 
   private sendCommands() {
@@ -1141,11 +1160,12 @@ export class GameEngine {
     for (const r of this.remotes.values()) {
       const s = r.track.at(t);
       if (!s) continue;
+      r.revealed = s.alive ? Math.max(0, r.revealed - dt) : 0;
       // a dead player's body stays where it fell until they respawn (the 'kill' and 'respawn' events pose it)
       r.visual.update(dt, s.x, s.y, s.z, s.yaw, s.alive ? s.pitch : 0, s.crouch, s.alive ? s.speed : 0, s.y);
       // running footsteps are audible, as a bot's are
       if (s.alive && s.grounded && !s.walking && s.speed > 3.6) {
-        r.stepTimer -= dt * (s.speed / 5.85);
+        r.stepTimer -= dt * (s.speed / RUN_SPEED);
         if (r.stepTimer <= 0) {
           r.stepTimer = 0.36;
           this.audio.play(stepSound(this.surfaceUnder(s.x, s.y, s.z)), {
@@ -1584,8 +1604,9 @@ export class GameEngine {
         12,
         12,
         { x: this.player.pos.x, z: this.player.pos.z, yaw: this.player.yaw, alive: this.player.alive },
-        this.director.bots.map((b) => ({ x: b.x, z: b.z, alive: b.alive, visible: b.visibleToPlayer })),
-        { size: 220, viewRange: 26, enemyRange: this.settings.hud.minimapEnemyRange, fov: this.camera.fov, objective: this.director.spike },
+        this.net ? this.minimapRemotes() : this.director.bots.map((b) => ({ x: b.x, z: b.z, alive: b.alive, visible: b.visibleToPlayer })),
+        // in a match the only players listed are the ones who just fired, and they show at any distance
+        { size: 220, viewRange: 26, enemyRange: this.net ? 1e6 : this.settings.hud.minimapEnemyRange, fov: this.camera.fov, objective: this.director.spike },
       );
     }
 

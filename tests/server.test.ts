@@ -27,7 +27,7 @@ class Client implements Connection {
     resume?: string,
   ) {
     lobby.connect(this);
-    this.say({ t: 'hello', version: PROTOCOL_VERSION, playerId: '', name, resume });
+    this.say({ t: 'hello', version: PROTOCOL_VERSION, name, resume });
     const w = this.last('welcome');
     if (w) {
       this.id = w.playerId;
@@ -114,7 +114,7 @@ describe('lobby', () => {
     lobby.connect(stranger);
     lobby.receive(stranger, encode({ t: 'room.create' }));
     expect(stranger.inbox.at(-1)).toMatchObject({ t: 'error', code: 'bad-message' });
-    lobby.receive(stranger, encode({ t: 'hello', version: PROTOCOL_VERSION + 1, playerId: '', name: 'Old' }));
+    lobby.receive(stranger, encode({ t: 'hello', version: PROTOCOL_VERSION + 1, name: 'Old' }));
     expect(stranger.inbox.at(-1)).toMatchObject({ t: 'error', code: 'version' });
     expect(new Client(lobby, '   ').error).toBe('name-rejected');
     lobby.receive(stranger, 'garbage');

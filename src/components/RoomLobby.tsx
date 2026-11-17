@@ -145,23 +145,23 @@ export function RoomLobby({ room }: { room: RoomState }) {
       <div className="grid gap-6 xl:grid-cols-[1fr_440px]">
         <div className="space-y-5">
           {!quick && (
-          <Card title="Invite friends">
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-              <div>
-                <div className="text-xs uppercase tracking-widest text-dim">Room code</div>
-                <div className="select-all font-display text-5xl font-bold leading-none tracking-[0.2em] text-ink">{room.code}</div>
+            <Card title="Invite friends">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                <div>
+                  <div className="text-xs uppercase tracking-widest text-dim">Room code</div>
+                  <div className="select-all font-display text-5xl font-bold leading-none tracking-[0.2em] text-ink">{room.code}</div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <CopyButton text={link}>
+                    <LinkIcon size={16} /> Copy invite link
+                  </CopyButton>
+                  <CopyButton text={room.code}>
+                    <Copy size={16} /> Copy code
+                  </CopyButton>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <CopyButton text={link}>
-                  <LinkIcon size={16} /> Copy invite link
-                </CopyButton>
-                <CopyButton text={room.code}>
-                  <Copy size={16} /> Copy code
-                </CopyButton>
-              </div>
-            </div>
-            <div className="mt-3 select-all break-all text-xs text-dim">{link}</div>
-          </Card>
+              <div className="mt-3 select-all break-all text-xs text-dim">{link}</div>
+            </Card>
           )}
 
           <Card title={`Players · ${room.players.length} / ${room.settings.maxPlayers}`} right={!inLobby || quick ? undefined : <span className="text-xs text-dim">{isHost ? 'You are the host' : 'Waiting for the host to start'}</span>}>

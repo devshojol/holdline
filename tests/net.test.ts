@@ -172,7 +172,7 @@ describe('room codes', () => {
 
 describe('message codec', () => {
   it('round-trips messages in both directions', () => {
-    const hello: ClientMessage = { t: 'hello', version: PROTOCOL_VERSION, playerId: 'p1', name: 'Jett' };
+    const hello: ClientMessage = { t: 'hello', version: PROTOCOL_VERSION, name: 'Jett' };
     expect(decodeClient(encode(hello))).toEqual(hello);
     const pong = { t: 'pong', time: 1, serverTime: 2 } as const;
     expect(decodeServer(encode(pong))).toEqual(pong);
