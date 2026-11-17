@@ -74,6 +74,11 @@ export interface MatchResult {
 }
 
 const PING_MS = 2000;
+/**
+ * Attempts to reach the server before giving up, each a little later than the last (8 s apart at most):
+ * about a minute and a half in all. A host that puts an idle server to sleep needs about a minute to wake it.
+ */
+const MAX_RETRIES = 14;
 
 /** The server address: set at build time, or this machine in development. */
 function serverUrl(): string {
@@ -184,7 +189,7 @@ function open() {
     greeted = false;
     clearInterval(pingTimer);
     // come back by ourselves while there is a room to return to or something still to send
-    if (!stopped && (state.room || state.queue || outbox.length > 0) && retries < 8) {
+    if (!stopped && (state.room || state.queue || outbox.length > 0) && retries < MAX_RETRIES) {
       set({ status: 'reconnecting', ping: -1 });
       retryTimer = setTimeout(open, Math.min(8000, 500 * 2 ** retries++));
       return;

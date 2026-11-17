@@ -156,7 +156,7 @@ function Entry() {
             </form>
           </div>
           {!hasName && <p className="mt-3 text-xs text-warn">Choose a display name first.</p>}
-          {busy && <p className="mt-3 text-xs text-mute">Connecting to the game server…</p>}
+          {busy && <p className="mt-3 text-xs text-mute">Connecting to the game server… If nobody has played for a while it is asleep and takes up to a minute to wake.</p>}
         </Card>
 
         <QuickMatchCard disabled={!hasName || busy} />
@@ -237,7 +237,7 @@ function Searching() {
           <div className="text-xs uppercase tracking-widest text-dim">Players</div>
           <div className="text-base text-ink">
             {status !== 'online'
-              ? 'Connecting to the game server…'
+              ? 'Connecting to the game server… (up to a minute if it was asleep)'
               : startsIn !== null
                 ? `${queue.waiting} waiting · match starts in ${startsIn} s`
                 : others > 0

@@ -5,8 +5,9 @@
  *   PORT=9000 npm run server       another port
  *   ALLOWED_ORIGINS=https://example.com,https://www.example.com npm run server
  *                                  only accept browsers on these sites (anything is accepted when unset)
- *   CLIENT_IP_HEADER=fly-client-ip npm run server
- *                                  behind a proxy: the request header that carries the visitor's address
+ *   CLIENT_IP_HEADER=cf-connecting-ip,x-forwarded-for npm run server
+ *                                  behind a proxy: the request headers that carry the visitor's address,
+ *                                  most trusted first
  */
 import { createServer } from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
@@ -21,10 +22,15 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? '')
 /**
  * Behind a host's proxy every connection arrives from the proxy's own address, which would make the
  * per-address limits count all players as one. The proxy passes the visitor's address in a header;
- * naming it here makes the server use it. Only set this when a proxy you trust sets the header on
+ * naming it here makes the server use it (several can be listed: the first one present is used). Only set this when a proxy you trust sets the header on
  * every request: a server reached directly would be taking the visitor's word for who they are.
  */
-const CLIENT_IP_HEADER = (process.env.CLIENT_IP_HEADER ?? '').trim().toLowerCase();
+const CLIENT_IP_HEADERS = (process.env.CLIENT_IP_HEADER ?? '')
+  .split(',')
+  .map((h) => h.trim().toLowerCase())
+  .filter(Boolean);
+/** Which of those headers the latest connection carried ('none': the socket's own address was used). Shown on the health page. */
+let addressSource = 'none';
 /** Most sockets one address may hold open. */
 const MAX_PER_ADDRESS = Number(process.env.MAX_PER_ADDRESS) || 20;
 /** One tick per snapshot: timers advance and every running match sends its players the world. */
@@ -51,6 +57,8 @@ const http = createServer((req, res) => {
       players: lobby.playerCount,
       searching: lobby.queueLength,
       connections: wss.clients.size,
+      addresses: perAddress.size,
+      addressSource,
       memoryMb: Math.round(process.memoryUsage().rss / 1048576),
       uptimeSec: Math.round(process.uptime()),
       ...report,
@@ -65,8 +73,16 @@ const wss = new WebSocketServer({
 });
 
 wss.on('connection', (ws: WebSocket & { alive?: boolean }, req) => {
-  const forwarded = CLIENT_IP_HEADER ? req.headers[CLIENT_IP_HEADER] : undefined;
-  const address = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  let address = req.socket.remoteAddress ?? 'unknown';
+  addressSource = 'none';
+  for (const name of CLIENT_IP_HEADERS) {
+    const header = req.headers[name];
+    const value = (Array.isArray(header) ? header[0] : header)?.split(',')[0].trim();
+    if (!value) continue;
+    address = value;
+    addressSource = name;
+    break;
+  }
   const open = (perAddress.get(address) ?? 0) + 1;
   if (open > MAX_PER_ADDRESS) {
     ws.close(1013, 'Too many connections');

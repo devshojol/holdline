@@ -1,0 +1,27 @@
+# Render configuration for the multiplayer game server (docs/multiplayer.md, "Deploying").
+# In Render: New → Blueprint → pick this repository. Every push to main then redeploys the server.
+#
+# The free plan sleeps after 15 minutes with no traffic and takes about a minute to wake; an open
+# game connection counts as traffic, so it only sleeps when nobody is playing.
+
+services:
+  - type: web
+    name: tactical-aim-lab-server
+    runtime: docker
+    plan: free
+    region: singapore # nearest to most players; a service's region can't be changed later
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    autoDeployTrigger: commit
+    # Rooms live in this one process's memory: never more than one instance.
+    numInstances: 1
+    envVars:
+      - key: PORT
+        value: "8787"
+      # Only pages on the live site may connect.
+      - key: ALLOWED_ORIGINS
+        value: https://valorantaimlab.vercel.app,https://valorant-aim-lab-psi.vercel.app,https://valorant-aim-lab-shojolislam3231-3181s-projects.vercel.app
+      # Render's proxy hides each visitor's address; these headers carry it (the first one present is
+      # used). Without them every player would count as one address and hit the per-address limit together.
+      - key: CLIENT_IP_HEADER
+        value: cf-connecting-ip,true-client-ip,x-forwarded-for

@@ -67,7 +67,7 @@ does the same: bun installs the dependencies from `bun.lock`, and the 67 MB resu
 | `PORT`            | Port to listen on (default 8787). Most hosts set this for you.                           |
 | `ALLOWED_ORIGINS` | Comma-separated sites whose pages may connect, e.g. `https://your-site.example`. Unset = any site. Set it in production. |
 | `MAX_PER_ADDRESS` | Connections allowed from one address (default 20).                                      |
-| `CLIENT_IP_HEADER` | Behind a host's proxy: the request header carrying the visitor's address (Fly.io: `fly-client-ip`). Without it every player counts as the proxy's one address. Only set it when a trusted proxy fills the header. |
+| `CLIENT_IP_HEADER` | Behind a host's proxy: the request header carrying the visitor's address (Fly.io: `fly-client-ip`); several may be listed, most trusted first. Without it every player counts as the proxy's one address. Only set it when a trusted proxy fills the header. |
 
 What the host must provide:
 
@@ -82,7 +82,23 @@ What the host must provide:
 A restart or a deploy ends every match in progress (clients are told at once and return to the
 Multiplayer page), so deploy when it is quiet.
 
-**On Fly.io.** The server is deployed as the app `tactical-aim-lab-server` in Singapore (`sin`), at
+**On Render (being moved to).** Fly's trial stops machines after 5 minutes, so the server is moving to
+Render's free plan. `render.yaml` in the repository root defines the service: built from the
+`Dockerfile`, free plan, Singapore, redeployed on every push to `main`, restricted to the live site's
+addresses. To create it: in Render, New → Blueprint → pick this repository. What the free plan means:
+
+- It sleeps after 15 minutes with no traffic and takes about a minute to wake. An open game connection
+  counts as traffic, so it sleeps only when nobody is playing; the first player afterwards waits, and the
+  client keeps trying for about a minute and a half before giving up.
+- Render may restart a free service at any time, which ends a match in progress.
+- It is small (reported as 512 MB and 0.1 CPU): expect one or two matches at once.
+- 750 instance hours a month, which covers one service.
+
+Render's proxy hides visitors' addresses, so `CLIENT_IP_HEADER` lists the headers that carry them. The
+health page's `addressSource` shows which one the latest connection used; `none` would mean every player
+is being counted as one address.
+
+**On Fly.io (to be removed).** The server was first deployed as the app `tactical-aim-lab-server` in Singapore (`sin`), at
 `wss://tactical-aim-lab-server.fly.dev`. `fly.toml` in the repository root holds its settings: one
 always-on machine that is never stopped or doubled, HTTPS, the health check, and `CLIENT_IP_HEADER`.
 Only pages on the live site's three Vercel addresses may connect (the `ALLOWED_ORIGINS` secret); a page
@@ -95,6 +111,11 @@ curl https://tactical-aim-lab-server.fly.dev/          # the health check: {"ok"
 fly logs                                               # the server's output
 fly secrets set ALLOWED_ORIGINS=https://a.example,https://b.example   # change which sites may connect
 ```
+
+**A Fly account on its trial stops every machine after 5 minutes** (the machine's log says "Trial machine
+stopping" and points to https://fly.io/trial). Until a card is added there, the server has to be
+restarted by hand with `fly machine start` and stops again five minutes later, and the website's
+Multiplayer page reports that it can't reach the game server.
 
 Setting it up from nothing, on another account or under another name:
 
