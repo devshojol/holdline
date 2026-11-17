@@ -9,9 +9,9 @@ A design for playing against other people, in two ways:
 This document describes the player's experience, the rules, the architecture and the order to build it
 in. Decisions that are still open are collected in [section 11](#11-open-decisions).
 
-**Status.** Phases 0 to 5 of the [build order](#10-build-order) are done. The game server is deployed on
-Fly.io ([Deploying](#deploying)); the live website is not yet built with the multiplayer code and the
-server's address, so players can't reach it from there yet. Both modes can be played from start to finish. Custom: create a room, invite by code or link,
+**Status.** Phases 0 to 5 of the [build order](#10-build-order) are done, and multiplayer is live: the
+website at https://valorantaimlab.vercel.app talks to the game server on Render's free plan
+([Deploying](#deploying)). Both modes can be played from start to finish. Custom: create a room, invite by code or link,
 set it up, start, fight, and return to the room with the final score. Quick match: pick maps, wait, and a
 match forms by itself or you join one already under way; when it ends its room closes and Play again
 searches anew. Combat is decided by the server with lag compensation. Still to come: the client side of
@@ -82,10 +82,11 @@ What the host must provide:
 A restart or a deploy ends every match in progress (clients are told at once and return to the
 Multiplayer page), so deploy when it is quiet.
 
-**On Render (being moved to).** Fly's trial stops machines after 5 minutes, so the server is moving to
-Render's free plan. `render.yaml` in the repository root defines the service: built from the
-`Dockerfile`, free plan, Singapore, redeployed on every push to `main`, restricted to the live site's
-addresses. To create it: in Render, New → Blueprint → pick this repository. What the free plan means:
+**On Render.** The server runs on Render's free plan at `wss://tactical-aim-lab-server.onrender.com`,
+and the live site is built with that address. `render.yaml` in the repository root defines the service:
+built from the `Dockerfile`, free plan, Singapore, redeployed on every push to `main`, restricted to the
+live site's addresses. It was created in Render with New → Blueprint → this repository. Its health page
+is https://tactical-aim-lab-server.onrender.com/. What the free plan means:
 
 - It sleeps after 15 minutes with no traffic and takes about a minute to wake. An open game connection
   counts as traffic, so it sleeps only when nobody is playing; the first player afterwards waits, and the
@@ -95,8 +96,15 @@ addresses. To create it: in Render, New → Blueprint → pick this repository. 
 - 750 instance hours a month, which covers one service.
 
 Render's proxy hides visitors' addresses, so `CLIENT_IP_HEADER` lists the headers that carry them. The
-health page's `addressSource` shows which one the latest connection used; `none` would mean every player
-is being counted as one address.
+health page's `addressSource` shows which one the latest connection used (on Render it is
+`cf-connecting-ip`); `none` after a player has connected would mean every player is being counted as one
+address.
+
+To send test bots at it:
+
+```bash
+MP_SERVER=wss://tactical-aim-lab-server.onrender.com MP_ORIGIN=https://valorantaimlab.vercel.app npm run mp:bot -- quick 3 shoot
+```
 
 **On Fly.io (to be removed).** The server was first deployed as the app `tactical-aim-lab-server` in Singapore (`sin`), at
 `wss://tactical-aim-lab-server.fly.dev`. `fly.toml` in the repository root holds its settings: one
@@ -137,8 +145,8 @@ MP_SERVER=wss://tactical-aim-lab-server.fly.dev MP_ORIGIN=https://valorantaimlab
 ```
 
 **The website**: set `VITE_MP_SERVER` to the server's address (for example `wss://play.your-site.example`)
-(`wss://tactical-aim-lab-server.fly.dev`) in the site's build environment and rebuild. This has not been
-done yet, and the live site does not have the multiplayer code yet either. Without it the Multiplayer page says the mode is
+(`wss://tactical-aim-lab-server.onrender.com`) in the site's build environment and rebuild. On Vercel
+this is the project's `VITE_MP_SERVER` production variable. Without it the Multiplayer page says the mode is
 unavailable.
 
 ### Load
