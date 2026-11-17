@@ -33,6 +33,9 @@ Made with `scripts/prepare-agent-model.mjs` (see its header for the exact steps)
 - `sage.glb`: "[Sage | Valorant](https://sketchfab.com/3d-models/sage-valorant-17612cddefbc4f92acddc5fe76625bc2)" by [ILilMitch](https://sketchfab.com/ILilMitch)
 - `skye.glb`: "[Skye | Valorant](https://sketchfab.com/3d-models/skye-valorant-72e842b7c9614916a916307b8fa7fc86)" by [ILilMitch](https://sketchfab.com/ILilMitch)
 
+`agents/portraits/<id>.webp` are the agents' profile pictures in the menus: head-and-shoulders renders of these
+models (and of Miks), made with `scripts/agent-portraits.mjs`. The same credits and licence apply to them.
+
 Licensed under [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/). The characters are owned by Riot Games, so
 the same free, non-commercial rule applies. Each was made with `scripts/prepare-agent-model.mjs`
 (`node prepare-agent-model.mjs <in.glb> <out.glb> 0.5 <brimstone.glb>`, the last file giving Omen eye points) and

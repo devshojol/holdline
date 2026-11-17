@@ -6,6 +6,10 @@ import { Button, Card, ConfirmButton, Field, PageHeader, Segmented, Slider, Togg
 import { DEFAULT_SETTINGS, GRAPHICS_PRESETS } from '../settings/defaults';
 import { mergeDefaults } from '../services/storage';
 import { detectDevice } from '../settings/deviceProfile';
+import { AgentPortrait } from '../components/AgentPicker';
+import { getAgent } from '../game/agents';
+import { multiplayer, useMultiplayer } from '../multiplayer/client';
+import { MAX_NAME_LENGTH, sanitizeName } from '../net/protocol';
 
 const KEYS: [string, string][] = [
   ['W A S D', 'Move'],
@@ -41,6 +45,7 @@ export function SettingsPage() {
     <div>
       <PageHeader kicker="Options" title="Settings" />
       <div className="grid gap-6 lg:grid-cols-2">
+        <ProfileCard />
         <Card title="Graphics">
           <Field label="Preset">
             <Segmented
@@ -321,5 +326,50 @@ export function SettingsPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+/** The name other players see in multiplayer. It is first chosen on the multiplayer screen; this is where it is changed. */
+function ProfileCard() {
+  const name = useMultiplayer((s) => s.name);
+  const agent = getAgent(useMultiplayer((s) => s.agent));
+  const inRoom = useMultiplayer((s) => s.room !== null);
+  const [draft, setDraft] = useState(name);
+  const clean = sanitizeName(draft);
+  const changed = clean !== null && clean !== sanitizeName(name);
+  return (
+    <Card title="Profile" className="lg:col-span-2">
+      <form
+        className="flex flex-wrap items-end gap-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!changed) return;
+          multiplayer.setName(clean);
+          setDraft(clean);
+        }}
+      >
+        <AgentPortrait agent={agent} className="h-20 w-16 shrink-0 border border-white/10" />
+        <label className="block min-w-[14rem] flex-1 sm:max-w-sm">
+          <span className="mb-1.5 block text-xs uppercase tracking-widest text-dim">Callsign</span>
+          <input
+            className="w-full border border-line bg-bg px-3 py-2 font-display text-xl font-bold tracking-wide text-ink outline-none focus:border-accent"
+            value={draft}
+            maxLength={MAX_NAME_LENGTH}
+            placeholder="What others see"
+            aria-label="Callsign"
+            autoComplete="off"
+            spellCheck={false}
+            onChange={(e) => setDraft(e.target.value)}
+          />
+        </label>
+        <Button type="submit" disabled={!changed}>
+          Save
+        </Button>
+      </form>
+      <p className="mt-3 text-xs text-dim">
+        The name other players see in multiplayer. Your agent ({agent.name}) is picked on the Multiplayer screen.
+        {inRoom && ' A room keeps the name you joined with: the new one shows from the next room.'}
+      </p>
+    </Card>
   );
 }

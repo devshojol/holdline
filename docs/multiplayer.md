@@ -209,14 +209,18 @@ What helps us:
 
 ### 2.1 Entry point
 
-A new **Multiplayer** item in the navigation, next to Practice. The page has two cards, Quick match and
-Custom, plus a display-name field. The name is the only identity: it is stored in localStorage with a
-random player id. No account, no password.
+A new **Multiplayer** item in the navigation, next to Practice. The page is an agent select beside two modes, Quick match
+and Custom room. The name is the only identity: it is stored in localStorage with a random player id. No
+account, no password. It is asked for once, the first time the page is opened (a "Choose your callsign"
+prompt in place of the screen), shown from then on in the player's tag at the top of the page, and changed
+in Settings → Profile. A change is sent to the server at once outside a room; a room keeps the name the
+player joined with.
 
 Crosshair, sensitivity, graphics, audio and loadout come from the existing settings, unchanged.
 
-**Agent.** Below the name, and again in a room's lobby, the player picks one of nine agents
-(`src/game/agents.ts`), each a rigged model in `public/models` (credits in its README). It is cosmetic only and
+**Agent.** On that page, and again in a room's lobby, the player picks one of nine agents
+(`src/game/agents.ts`), each a rigged model in `public/models` (credits in its README) with a profile picture
+rendered from it (`scripts/agent-portraits.mjs`), shown in the picker, the player's tag and the lobby's player cards. It is cosmetic only and
 remembered in localStorage. In a match every other player is drawn as their agent's model (`AgentVisual`), loaded
 the first time someone plays that agent; until it has loaded, or with models off, the built-in body (`BotVisual`)
 stands in, in the agent's colours. Either holds the gun they really carry. A change made during a match shows

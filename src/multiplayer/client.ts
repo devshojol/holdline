@@ -366,9 +366,12 @@ export const multiplayer = {
     save('mp-agent', agent);
     if (greeted) raw({ t: 'agent', agent });
   },
+  /** Set the display name. Outside a room the server is told at once; inside one it keeps the name the room knows. */
   setName(name: string) {
+    const clean = sanitizeName(name);
     set({ name });
-    save('mp-name', sanitizeName(name) ?? '');
+    save('mp-name', clean ?? '');
+    if (greeted && clean && !state.room) raw({ t: 'hello', version: PROTOCOL_VERSION, name: clean, resume: readResume() });
   },
   createRoom() {
     set({ error: null });

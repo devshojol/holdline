@@ -1,7 +1,9 @@
-import { LogIn, Plus, RotateCcw, Search, Timer, Users, X } from 'lucide-react';
+import { Check, LogIn, Pencil, Plus, RotateCcw, Search, Timer, Users, X } from 'lucide-react';
 import { useEffect, useState, type CSSProperties } from 'react';
-import { Badge, Button, Card, PageHeader, cx } from '../components/ui';
-import { AgentPicker } from '../components/AgentPicker';
+import { Button, Card, PageHeader, cx } from '../components/ui';
+import { AgentPicker, AgentPortrait } from '../components/AgentPicker';
+import { getAgent } from '../game/agents';
+import { store } from '../hooks/useAppStore';
 import { MatchResultView } from '../components/Scoreboard';
 import { MAP_SUMMARIES } from '../game/maps/registry';
 import { mapName } from '../utils/labels';
@@ -16,6 +18,7 @@ export function MultiplayerPage() {
   const available = useMultiplayer((s) => s.available);
 
   const searching = useMultiplayer((s) => s.queue !== null);
+  const hasName = useMultiplayer((s) => sanitizeName(s.name) !== null);
 
   // a reload returns to the room this tab was in; leaving the page ends a connection nothing is using
   useEffect(() => {
@@ -34,8 +37,10 @@ export function MultiplayerPage() {
 
   return (
     <div>
-      <PageHeader kicker="Multiplayer" title="Play with others" />
-      {available ? <Entry /> : <Unavailable />}
+      <PageHeader kicker="Multiplayer" title="Play with others">
+        {available && hasName && <PlayerTag />}
+      </PageHeader>
+      {!available ? <Unavailable /> : hasName ? <Entry /> : <CallsignGate />}
     </div>
   );
 }
@@ -51,8 +56,70 @@ function Unavailable() {
   );
 }
 
-function Entry() {
+/** The player's tag: their picture, name and agent. The name is changed in Settings. */
+export function PlayerTag() {
   const name = useMultiplayer((s) => s.name);
+  const agent = getAgent(useMultiplayer((s) => s.agent));
+  return (
+    <div className="tal-playercard" style={{ '--agent': agent.accent } as CSSProperties}>
+      <AgentPortrait agent={agent} className="h-14 w-14 shrink-0" />
+      <div className="min-w-0 self-center">
+        <div className="max-w-[14rem] truncate font-display text-xl font-bold uppercase leading-none tracking-wide text-ink">{sanitizeName(name) ?? 'No name'}</div>
+        <div className="mt-1 text-[11px] uppercase tracking-widest" style={{ color: agent.accent }}>
+          {agent.name}
+        </div>
+      </div>
+      <button
+        type="button"
+        title="Change your name in Settings"
+        aria-label="Change your name in Settings"
+        onClick={() => store.go('settings')}
+        className="ml-1 self-center p-1.5 text-dim transition-colors hover:text-ink"
+      >
+        <Pencil size={15} />
+      </button>
+    </div>
+  );
+}
+
+/** First visit: the player picks the name others will see. Asked once; afterwards it is changed in Settings. */
+function CallsignGate() {
+  const invite = useMultiplayer((s) => s.invite);
+  const [draft, setDraft] = useState('');
+  const clean = sanitizeName(draft);
+  return (
+    <div className="grid place-items-center py-6 lg:py-16">
+      <form
+        className="tal-callsign tal-rise"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (clean) multiplayer.setName(clean);
+        }}
+      >
+        <div className="font-display text-xs font-semibold uppercase tracking-[0.4em] text-accent">{invite ? `Invited to room ${invite}` : 'Before you drop in'}</div>
+        <h2 className="mt-1 font-display text-5xl font-extrabold uppercase leading-none tracking-[0.04em] text-white">Choose your callsign</h2>
+        <p className="mx-auto mt-3 max-w-sm text-sm text-mute">The name other players see on the scoreboard and the kill feed. No account needed.</p>
+        <input
+          autoFocus
+          className="tal-callsign-input mt-6"
+          value={draft}
+          maxLength={MAX_NAME_LENGTH}
+          placeholder="CALLSIGN"
+          aria-label="Callsign"
+          autoComplete="off"
+          spellCheck={false}
+          onChange={(e) => setDraft(e.target.value)}
+        />
+        <Button type="submit" size="lg" className="mt-5 w-full" disabled={!clean}>
+          <Check size={20} /> Lock in
+        </Button>
+        <p className="mt-3 text-xs text-dim">You only do this once. It can be changed later in Settings.</p>
+      </form>
+    </div>
+  );
+}
+
+function Entry() {
   const status = useMultiplayer((s) => s.status);
   const error = useMultiplayer((s) => s.error);
   const invite = useMultiplayer((s) => s.invite);
@@ -60,7 +127,6 @@ function Entry() {
   const playerId = useMultiplayer((s) => s.playerId);
   const [code, setCode] = useState(invite ?? '');
 
-  const hasName = sanitizeName(name) !== null;
   const busy = status === 'connecting' || status === 'reconnecting';
   const codeReady = code.replace(/[\s-]/g, '').length === ROOM_CODE_LENGTH;
 
@@ -69,11 +135,10 @@ function Entry() {
       {invite && (
         <div className="flex flex-wrap items-center justify-between gap-3 border border-info/40 bg-info/10 px-4 py-3 text-sm text-ink">
           <span>
-            You were invited to room <span className="font-display text-lg font-bold tracking-[0.2em]">{invite}</span>.{' '}
-            {hasName ? 'Join when you are ready.' : 'Choose a display name, then join.'}
+            You were invited to room <span className="font-display text-lg font-bold tracking-[0.2em]">{invite}</span>. Join when you are ready.
           </span>
           <div className="flex gap-2">
-            <Button size="sm" disabled={!hasName || busy} onClick={() => multiplayer.joinRoom(invite)}>
+            <Button size="sm" disabled={busy} onClick={() => multiplayer.joinRoom(invite)}>
               <LogIn size={16} /> Join room
             </Button>
             <Button size="sm" variant="ghost" onClick={() => multiplayer.dismissInvite()}>
@@ -94,7 +159,7 @@ function Entry() {
 
       {result && (
         <MatchResultView scores={result.scores} settings={result.settings} winner={result.winner} me={playerId}>
-          <Button disabled={!hasName || busy} onClick={() => multiplayer.findMatch(multiplayer.get().quickMaps)}>
+          <Button disabled={busy} onClick={() => multiplayer.findMatch(multiplayer.get().quickMaps)}>
             <RotateCcw size={16} /> Play again
           </Button>
           <Button variant="ghost" onClick={() => multiplayer.dismissResult()}>
@@ -103,59 +168,50 @@ function Entry() {
         </MatchResultView>
       )}
 
-      <Card title="Display name">
-        <label className="block max-w-sm">
-          <input
-            className="w-full border border-line bg-bg px-3 py-2 text-lg text-ink outline-none focus:border-accent"
-            value={name}
-            maxLength={MAX_NAME_LENGTH}
-            placeholder="What others see"
-            aria-label="Display name"
-            onChange={(e) => multiplayer.setName(e.target.value)}
-          />
-          <span className="mt-1.5 block text-xs text-dim">The only thing other players know about you. No account needed.</span>
-        </label>
-      </Card>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
+        <AgentPicker />
 
-      <AgentPicker />
+        <div className="flex flex-col gap-5">
+          <QuickMatchCard disabled={busy} />
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Card title="Custom room" right={<Badge tone="ok">Up to {MAX_ROOM_PLAYERS} players</Badge>}>
-          <p className="mb-4 text-sm text-mute">Create a room, send the link to friends, pick the map and the rules, and start when everyone is in.</p>
-          <Button size="lg" disabled={!hasName || busy} onClick={() => multiplayer.createRoom()}>
-            <Plus size={20} /> Create room
-          </Button>
-
-          <div className="mt-6 border-t border-line pt-5">
-            <div className="mb-2 text-xs uppercase tracking-widest text-dim">Join with a code</div>
-            <form
-              className="flex flex-wrap gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (hasName && codeReady) multiplayer.joinRoom(code);
-              }}
-            >
-              <input
-                className="w-44 border border-line bg-bg px-3 py-2 font-display text-xl font-bold uppercase tracking-[0.25em] text-ink outline-none placeholder:text-dim focus:border-accent"
-                value={code}
-                maxLength={ROOM_CODE_LENGTH + 2}
-                placeholder="K7M2QX"
-                aria-label="Room code"
-                autoCapitalize="characters"
-                autoComplete="off"
-                spellCheck={false}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-              />
-              <Button type="submit" variant="outline" disabled={!hasName || !codeReady || busy}>
-                <LogIn size={18} /> Join
+          <section className="tal-mode tal-rise" style={{ '--i': 2 } as CSSProperties}>
+            <span className="tal-mode-index" aria-hidden="true">
+              02
+            </span>
+            <div className="font-display text-xs font-semibold uppercase tracking-[0.3em] text-info">With friends · up to {MAX_ROOM_PLAYERS}</div>
+            <h2 className="font-display text-3xl font-extrabold uppercase leading-none tracking-[0.05em] text-ink">Custom room</h2>
+            <p className="mt-2 text-sm text-mute">Your map, your rules. Send the link and start when everyone is in.</p>
+            <div className="mt-4 flex flex-wrap items-stretch gap-2">
+              <Button variant="outline" disabled={busy} onClick={() => multiplayer.createRoom()}>
+                <Plus size={18} /> Create room
               </Button>
-            </form>
-          </div>
-          {!hasName && <p className="mt-3 text-xs text-warn">Choose a display name first.</p>}
-          {busy && <p className="mt-3 text-xs text-mute">Connecting to the game server… If nobody has played for a while it is asleep and takes up to a minute to wake.</p>}
-        </Card>
+              <form
+                className="flex flex-1 items-stretch gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (codeReady) multiplayer.joinRoom(code);
+                }}
+              >
+                <input
+                  className="min-w-0 flex-1 border border-line bg-black/40 px-3 font-display text-xl font-bold uppercase tracking-[0.25em] text-ink outline-none placeholder:text-dim focus:border-accent"
+                  value={code}
+                  maxLength={ROOM_CODE_LENGTH + 2}
+                  placeholder="CODE"
+                  aria-label="Room code"
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  spellCheck={false}
+                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                />
+                <Button type="submit" variant="outline" disabled={!codeReady || busy}>
+                  <LogIn size={18} /> Join
+                </Button>
+              </form>
+            </div>
+          </section>
 
-        <QuickMatchCard disabled={!hasName || busy} />
+          {busy && <p className="text-xs text-mute">Connecting to the game server… If nobody has played for a while it is asleep and takes up to a minute to wake.</p>}
+        </div>
       </div>
     </div>
   );
@@ -167,14 +223,24 @@ function QuickMatchCard({ disabled }: { disabled: boolean }) {
   const [maps, setMaps] = useState<string[]>(saved);
   const toggle = (id: string) => setMaps((m) => (m.includes(id) ? m.filter((x) => x !== id) : [...m, id]));
   const chip = (on: boolean) =>
-    cx('border px-3 py-1.5 font-display text-sm font-semibold uppercase tracking-wider transition-colors', on ? 'border-accent bg-accent/15 text-ink' : 'border-line bg-bg/60 text-mute hover:border-mute hover:text-ink');
+    cx('border px-3 py-1.5 font-display text-sm font-semibold uppercase tracking-wider transition-colors', on ? 'border-accent bg-accent/15 text-ink' : 'border-line bg-black/30 text-mute hover:border-mute hover:text-ink');
 
   return (
-    <Card title="Quick match" right={<Badge tone="ok">Starts by itself</Badge>}>
-      <p className="mb-4 text-sm text-mute">
-        Pick the maps you are happy to play and search. A match starts within {QUEUE_START_DELAY_MS / 1000} seconds: with whoever else is searching, and bots making up the numbers until more people join.
-      </p>
-      <div className="mb-2 text-xs uppercase tracking-widest text-dim">Maps</div>
+    <section className="tal-mode tal-rise" data-primary="true" style={{ '--i': 1 } as CSSProperties}>
+      <span className="tal-mode-index" aria-hidden="true">
+        01
+      </span>
+      <div className="font-display text-xs font-semibold uppercase tracking-[0.3em] text-accent">Deathmatch · starts by itself</div>
+      <h2 className="font-display text-4xl font-extrabold uppercase leading-none tracking-[0.05em] text-white">Quick match</h2>
+      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-mute">
+        <span className="flex items-center gap-1.5">
+          <Users size={15} className="text-dim" /> Up to {QUICK_MATCH_SETTINGS.maxPlayers}, bots fill in
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Timer size={15} className="text-dim" /> {QUICK_MATCH_SETTINGS.timeLimitMin} min · first to {QUICK_MATCH_SETTINGS.killLimit}
+        </span>
+      </div>
+      <div className="mb-2 mt-4 text-xs uppercase tracking-widest text-dim">Maps</div>
       <div className="flex flex-wrap gap-1.5">
         <button type="button" aria-pressed={maps.length === 0} className={chip(maps.length === 0)} onClick={() => setMaps([])}>
           Any map
@@ -185,19 +251,13 @@ function QuickMatchCard({ disabled }: { disabled: boolean }) {
           </button>
         ))}
       </div>
-      <p className="mt-2 text-xs text-dim">{maps.length === 0 ? 'Any map finds a match fastest.' : 'Fewer maps can mean a longer wait.'}</p>
-      <Button size="lg" className="mt-5" disabled={disabled} onClick={() => multiplayer.findMatch(maps)}>
+      <p className="mt-2 text-xs text-dim">
+        {maps.length === 0 ? 'Any map finds a match fastest.' : 'Fewer maps can mean a longer wait.'} A match starts within {QUEUE_START_DELAY_MS / 1000} seconds.
+      </p>
+      <Button size="lg" className="mt-4 w-full" disabled={disabled} onClick={() => multiplayer.findMatch(maps)}>
         <Search size={20} /> Find match
       </Button>
-      <ul className="mt-5 space-y-2 border-t border-line pt-4 text-sm text-mute">
-        <li className="flex items-center gap-2">
-          <Users size={16} className="text-dim" /> Deathmatch, up to {QUICK_MATCH_SETTINGS.maxPlayers} players, all weapons
-        </li>
-        <li className="flex items-center gap-2">
-          <Timer size={16} className="text-dim" /> {QUICK_MATCH_SETTINGS.timeLimitMin} minutes, first to {QUICK_MATCH_SETTINGS.killLimit} kills
-        </li>
-      </ul>
-    </Card>
+    </section>
   );
 }
 

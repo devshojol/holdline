@@ -45,6 +45,11 @@ export function getAgent(id: string | null | undefined): AgentDef {
   return AGENTS.find((a) => a.id === id) ?? AGENTS.find((a) => a.id === DEFAULT_AGENT)!;
 }
 
+/** The agent's profile picture: a render of their model (scripts/agent-portraits.mjs), relative to the site root. */
+export function agentPortrait(agent: AgentDef): string {
+  return `models/agents/portraits/${agent.id}.webp`;
+}
+
 /** A random agent, preferring ones nobody in `taken` is playing yet. */
 export function randomAgentId(rng: () => number, taken: Iterable<string> = []): AgentId {
   const used = new Set(taken);

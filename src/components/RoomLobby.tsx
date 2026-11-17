@@ -218,7 +218,7 @@ export function RoomLobby({ room }: { room: RoomState }) {
         </div>
 
         <div className="space-y-5">
-          <AgentPicker note={inLobby ? 'How other players see you' : 'A change shows from the next match'} />
+          <AgentPicker compact note={inLobby ? 'How other players see you.' : 'A change shows from the next match.'} />
           <SettingsPanel settings={room.settings} editable={isHost && inLobby} players={room.players.length} fixed={quick} />
         </div>
       </div>
@@ -244,7 +244,7 @@ function PlayerCard({ player, me, isHost, teams, editable, showReady }: { player
   return (
     <li className={cx('tal-slot', !player.connected && 'opacity-50')} data-me={me} data-ready={showReady && player.ready && player.connected}>
       <div className="flex items-start justify-between gap-2">
-        <AgentPortrait agent={getAgent(player.agent)} className="h-12 w-12 shrink-0 border border-line" />
+        <AgentPortrait agent={getAgent(player.agent)} className="h-20 w-16 shrink-0 border border-white/10" />
         <span className="flex flex-col items-end gap-1">
           {player.host && (
             <Badge tone="accent">
