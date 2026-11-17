@@ -14,6 +14,8 @@ import { exitGameFullscreen } from '../utils/fullscreen';
 import type { NetLink } from '../game/net/NetLink';
 import { multiplayer, useMultiplayer } from '../multiplayer/client';
 import { Scoreboard } from '../components/Scoreboard';
+import { MapPreview } from '../components/MapPreview';
+import { TIPS } from '../utils/tips';
 
 declare global {
   interface Window {
@@ -47,8 +49,12 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
   const [report, setReport] = useState<SessionStats | null>(null);
   const [renderer, setRenderer] = useState('');
   const [startIssue, setStartIssue] = useState<'cooldown' | 'blocked' | null>(null);
+  /** One tip per session, for the loading screen. */
+  const [tip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)]);
   /** Weapons in hand; the weapon menu (B) changes them mid-session. */
   const [loadout, setLoadout] = useState({ primary: config.primary, secondary: config.secondary });
+  /** Multiplayer: guns chosen in the weapon menu that the server hasn't handed over yet. */
+  const [pendingLoadout, setPendingLoadout] = useState<{ primary: WeaponId; secondary: WeaponId } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,6 +90,12 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
           if (ev.stats.shots > 0 || ev.stats.durationSec >= 10) store.addSession(ev.stats);
           store.recordRoutineScore(ev.stats.score);
           setReport(ev.stats);
+          break;
+        case 'loadout':
+          // multiplayer: the server has put the chosen guns in hand
+          setLoadout(ev.loadout);
+          setPendingLoadout(null);
+          store.updatePractice(ev.loadout);
           break;
         case 'error':
           setError(ev.message);
@@ -130,12 +142,19 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
   const pickWeapon = async (slot: 0 | 1, id: WeaponId) => {
     const e = engineRef.current;
     if (!e) return;
+    if (net) {
+      // In a match the server decides when the guns change hands: at once while spawn-protected,
+      // otherwise at the next respawn. The engine swaps them when the server says so.
+      const chosen = { ...(pendingLoadout ?? loadout), ...(slot === 0 ? { primary: id } : { secondary: id }) };
+      setPendingLoadout(chosen);
+      multiplayer.setLoadout(chosen);
+      return;
+    }
     await e.setWeapon(slot, id);
     if (engineRef.current !== e) return;
     setLoadout(e.loadout);
     // remembered as the default loadout for the next session
     store.updatePractice(slot === 0 ? { primary: id } : { secondary: id });
-    if (net) multiplayer.setLoadout(e.loadout);
   };
   const inLoadout = status === 'paused' && pause?.reason === 'loadout' && !report;
 
@@ -222,12 +241,28 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
       )}
 
       {status === 'loading' && !error && (
-        <div className="absolute inset-0 grid place-items-center bg-bg">
-          <div className="w-72 text-center">
-            <div className="font-display text-xs font-semibold uppercase tracking-[0.35em] text-accent">{MODE_INFO[config.mode].label}</div>
-            <div className="mt-1 font-display text-4xl font-bold uppercase leading-none">{mapName(config.mapId)}</div>
-            <div className="tal-loadbar mt-5" />
-            <div className="mt-3 text-xs uppercase tracking-widest text-dim">Building the map…</div>
+        <div className="absolute inset-0 overflow-hidden bg-bg">
+          {/* the map being loaded, laid out behind the title */}
+          <div className="tal-holo absolute inset-0 grid place-items-center opacity-50" aria-hidden="true">
+            <div className="tal-holo-plate aspect-square h-[78%] max-w-[78%]">
+              <MapPreview mapId={config.mapId} focus={false} showSight={false} className="h-full w-full" />
+              <div className="tal-holo-scan" />
+            </div>
+          </div>
+          <div className="tal-vignette" aria-hidden="true" />
+          <div className="absolute inset-x-0 bottom-0 px-8 pb-10 md:px-16">
+            <div className="font-display text-sm font-semibold uppercase tracking-[0.4em] text-accent">{net ? 'Multiplayer · Deathmatch' : MODE_INFO[config.mode].label}</div>
+            <div className="tal-title-in font-display text-7xl font-extrabold uppercase leading-[0.9] tracking-[0.04em] md:text-8xl">{mapName(config.mapId)}</div>
+            <div className="mt-5 max-w-2xl">
+              <div className="tal-loadbar" />
+              <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 text-sm">
+                <span className="text-mute">
+                  <span className="mr-2 font-display font-bold uppercase tracking-widest text-accent">Tip</span>
+                  {tip}
+                </span>
+                <span className="text-xs uppercase tracking-widest text-dim">Building the map…</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -247,7 +282,16 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
         </div>
       )}
 
-      {inLoadout && <LoadoutMenu primary={loadout.primary} secondary={loadout.secondary} onPick={(slot, id) => void pickWeapon(slot, id)} onClose={() => void resume()} issue={startIssue} />}
+      {inLoadout && (
+        <LoadoutMenu
+          primary={(pendingLoadout ?? loadout).primary}
+          secondary={(pendingLoadout ?? loadout).secondary}
+          onPick={(slot, id) => void pickWeapon(slot, id)}
+          onClose={() => void resume()}
+          issue={startIssue}
+          note={net ? (pendingLoadout ? 'Chosen. You get these guns when you next respawn (at once if you have only just spawned).' : 'The match goes on while you choose. New guns arrive when you next respawn.') : undefined}
+        />
+      )}
 
       {(status === 'ready' || status === 'paused') && !report && !inLoadout && (
         <div className="absolute inset-0 grid place-items-center bg-black/55 backdrop-blur-[2px]">

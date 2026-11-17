@@ -6,6 +6,7 @@
  * `tick` on a timer, which is also how the tests drive it.
  */
 import { WEAPONS } from '../src/game/weapons/weaponConfigs';
+import { DEFAULT_AGENT, isAgentId, type AgentId } from '../src/game/agents';
 import {
   COUNTDOWN_MS,
   IDLE_KICK_MS,
@@ -66,6 +67,7 @@ interface Session {
   room: Room | null;
   ping: number;
   loadout: Loadout;
+  agent: AgentId;
   /** Server time the connection dropped (0 while connected). */
   droppedAt: number;
   /** The maps this player last queued for (empty = any), kept so they can be put back in the queue. */
@@ -131,7 +133,7 @@ export class Lobby {
   private lastPingBroadcast = 0;
   /** Players waiting for a quick match, in order of arrival. */
   private queue = new Map<Session, Queued>();
-  /** Per map: the server time at which at least `MIN_PLAYERS` waiting players first accepted it. */
+  /** Per map: the server time at which enough waiting players to start a match first accepted it. */
   private readonly forming = new Map<string, number>();
   private lastMatchmake = 0;
   /** Recent attempts per address and kind (server times), for the per-minute limits. */
@@ -178,7 +180,7 @@ export class Lobby {
     // the host keeps the role while their place is held: a reload shouldn't hand the room to someone else
     const room = session.room;
     room.match?.remove(session.id); // their body leaves the world; score and place are kept
-    if (room.phase === 'countdown' && this.connectedCount(room) < MIN_PLAYERS) this.cancelCountdown(room);
+    if (room.phase === 'countdown' && !this.enoughToPlay(room)) this.cancelCountdown(room);
     room.dirty = true;
     this.flush(room);
   }
@@ -292,7 +294,7 @@ export class Lobby {
       session.droppedAt = 0;
       if (!session.room) session.name = name;
     } else {
-      session = { id: this.token().replace(/-/g, '').slice(0, 12), name, resume: this.token(), conn, room: null, ping: -1, loadout: DEFAULT_LOADOUT, droppedAt: 0, queueMaps: [] };
+      session = { id: this.token().replace(/-/g, '').slice(0, 12), name, resume: this.token(), conn, room: null, ping: -1, loadout: DEFAULT_LOADOUT, agent: DEFAULT_AGENT, droppedAt: 0, queueMaps: [] };
       this.sessions.set(session.id, session);
       this.byResume.set(session.resume, session);
     }
@@ -325,8 +327,14 @@ export class Lobby {
         const secondary = l && typeof l.secondary === 'string' ? WEAPONS[l.secondary] : undefined;
         if (primary?.slot === 'primary' && secondary?.slot === 'secondary') {
           session.loadout = { primary: primary.id, secondary: secondary.id };
-          room?.match?.setLoadout(session.id, session.loadout);
+          room?.match?.setLoadout(session.id, session.loadout, this.now);
         }
+        return;
+      }
+      case 'agent': {
+        if (!isAgentId(msg.agent) || msg.agent === session.agent) return;
+        session.agent = msg.agent;
+        if (room) room.dirty = true;
         return;
       }
       case 'room.create': {
@@ -413,6 +421,9 @@ export class Lobby {
       case 'shot':
         room?.match?.shot(session.id, msg.shot, this.now);
         return;
+      case 'weapon':
+        room?.match?.setHeld(session.id, msg.weapon);
+        return;
     }
 
     // everything below acts on the room the player is in
@@ -471,8 +482,8 @@ export class Lobby {
       }
       case 'room.start': {
         if (room.phase !== 'lobby') return;
-        if (this.connectedCount(room) < MIN_PLAYERS) {
-          this.fail(session, 'not-enough-players', `A match needs at least ${MIN_PLAYERS} players.`);
+        if (!this.enoughToPlay(room)) {
+          this.fail(session, 'not-enough-players', `A match needs at least ${MIN_PLAYERS} players. Invite a friend, or turn on bots.`);
           return;
         }
         this.setPhase(room, 'countdown', this.now + COUNTDOWN_MS);
@@ -500,6 +511,17 @@ export class Lobby {
 
   private connectedCount(room: Room) {
     return room.members.filter((m) => m.session.conn).length;
+  }
+
+  /** A match needs someone to play it and someone to play against: a second person, or bots. */
+  private enoughToPlay(room: Room) {
+    const connected = this.connectedCount(room);
+    return connected >= 1 && Math.max(connected, room.settings.botFill) >= MIN_PLAYERS;
+  }
+
+  /** Keep the match topped up with bots: enough to reach the room's fill number, fewer as people join. */
+  private syncBots(room: Room) {
+    room.match?.setBotCount(Math.max(0, Math.min(room.settings.maxPlayers, room.settings.botFill) - room.members.length), this.now);
   }
 
   private newCode(): string {
@@ -540,8 +562,9 @@ export class Lobby {
       return;
     }
     if (room.hostId === session.id) this.pickHost(room);
+    this.syncBots(room); // a bot takes the place of whoever left
     // a match can't start with one player
-    if (room.phase === 'countdown' && this.connectedCount(room) < MIN_PLAYERS) this.cancelCountdown(room);
+    if (room.phase === 'countdown' && !this.enoughToPlay(room)) this.cancelCountdown(room);
     room.dirty = true;
     this.flush(room);
   }
@@ -610,13 +633,15 @@ export class Lobby {
       this.flush(best);
     }
 
-    // 2. new matches: a map starts when it is full, or a while after the second player who accepts it arrived
+    // 2. new matches: a map starts when it is full, or a while after enough players who accept it arrived.
+    // With bots filling the match one person is enough; without them it takes two.
+    const quickMinimum = QUICK_MATCH_SETTINGS.botFill >= MIN_PLAYERS ? 1 : MIN_PLAYERS;
     for (;;) {
       const waiting = new Map<string, Session[]>();
       for (const def of MAP_DEFINITIONS) {
         const list = [...this.queue].filter(([, q]) => accepts(q, def.id)).map(([s]) => s);
         waiting.set(def.id, list);
-        if (list.length < MIN_PLAYERS) this.forming.delete(def.id);
+        if (list.length < quickMinimum) this.forming.delete(def.id);
         else if (!this.forming.has(def.id)) this.forming.set(def.id, this.now);
       }
       let ready: string[] = [];
@@ -701,6 +726,7 @@ export class Lobby {
       );
       this.flush(room);
       for (const m of room.members) this.enterMatch(room, m.session);
+      this.syncBots(room);
     } else if (was === 'playing') {
       const match = room.match;
       room.match = null;
@@ -714,7 +740,8 @@ export class Lobby {
     if (!match || !session.conn || match.has(session.id)) return;
     const member = room.members.find((m) => m.session === session);
     if (!member) return;
-    const spawn = match.add(session.id, { name: member.name, team: member.team, loadout: session.loadout, ping: session.ping }, this.now);
+    const spawn = match.add(session.id, { name: member.name, team: member.team, loadout: session.loadout, ping: session.ping, agent: session.agent }, this.now);
+    this.syncBots(room); // a person arriving takes a bot's place
     this.send(session, { t: 'match.start', settings: room.settings, serverTime: this.now, endsAt: room.phaseEndsAt, spawn, scores: match.scoreboard() });
   }
 
@@ -753,6 +780,7 @@ export class Lobby {
         team: m.team,
         ping: m.session.ping,
         connected: m.session.conn !== null,
+        agent: m.session.agent,
       })),
     };
   }

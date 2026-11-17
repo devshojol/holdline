@@ -45,6 +45,8 @@ const CONFIG = {
   // stay separate nodes so the game can move them
   operator: { length: 1.25, tris: 16000, parts: { mag: { nodes: ['Magazine'] }, bolt: { joints: ['Bolt_08', 'BoltHead_09'] } } },
   // untextured (an STL conversion, plain white): repainted gunmetal like the Guardian
+  // Recon Phantom (replaces the Reaver Phantom)
+  phantom: { length: 0.95, tris: 18000 },
   sheriff: { length: 0.34, tris: 14000, error: 0.02, color: [0.16, 0.17, 0.18], metal: 0.6, rough: 0.45 },
 };
 

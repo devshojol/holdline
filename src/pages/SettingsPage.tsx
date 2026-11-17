@@ -172,12 +172,12 @@ export function SettingsPage() {
                 value={g.botModel}
                 onChange={(v) => setG({ botModel: v })}
                 options={[
-                  { value: 'agent', label: 'Miks (rigged)' },
+                  { value: 'agent', label: 'Agents (random)' },
                   { value: 'dummy', label: 'Training dummy' },
                 ]}
               />
               <p className="mt-2 text-xs text-dim">
-                Miks is a detailed animated model (~20k triangles per bot). Pick the dummy on slower machines or for big deathmatches. Applies on the next
+                Each bot wears a random agent model (~15–25k triangles per bot). Pick the dummy on slower machines or for big deathmatches. Applies on the next
                 session.
               </p>
             </Field>

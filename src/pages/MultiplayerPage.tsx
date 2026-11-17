@@ -1,12 +1,13 @@
 import { LogIn, Plus, RotateCcw, Search, Timer, Users, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Badge, Button, Card, PageHeader, cx } from '../components/ui';
-import { Scoreboard } from '../components/Scoreboard';
+import { AgentPicker } from '../components/AgentPicker';
+import { MatchResultView } from '../components/Scoreboard';
 import { MAP_SUMMARIES } from '../game/maps/registry';
 import { mapName } from '../utils/labels';
 import { RoomLobby } from '../components/RoomLobby';
 import { multiplayer, useMultiplayer } from '../multiplayer/client';
-import { MAX_NAME_LENGTH, sanitizeName } from '../net/protocol';
+import { MAX_NAME_LENGTH, QUEUE_START_DELAY_MS, sanitizeName } from '../net/protocol';
 import { ROOM_CODE_LENGTH } from '../net/roomCode';
 import { MAX_ROOM_PLAYERS, QUICK_MATCH_SETTINGS } from '../net/settings';
 
@@ -92,21 +93,14 @@ function Entry() {
       )}
 
       {result && (
-        <Card
-          title="Last match"
-          right={
-            <div className="flex gap-2">
-              <Button size="sm" disabled={!hasName || busy} onClick={() => multiplayer.findMatch(multiplayer.get().quickMaps)}>
-                <RotateCcw size={16} /> Play again
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => multiplayer.dismissResult()}>
-                Dismiss
-              </Button>
-            </div>
-          }
-        >
-          <Scoreboard scores={result.scores} settings={result.settings} me={playerId} winner={result.winner} />
-        </Card>
+        <MatchResultView scores={result.scores} settings={result.settings} winner={result.winner} me={playerId}>
+          <Button disabled={!hasName || busy} onClick={() => multiplayer.findMatch(multiplayer.get().quickMaps)}>
+            <RotateCcw size={16} /> Play again
+          </Button>
+          <Button variant="ghost" onClick={() => multiplayer.dismissResult()}>
+            Dismiss
+          </Button>
+        </MatchResultView>
       )}
 
       <Card title="Display name">
@@ -122,6 +116,8 @@ function Entry() {
           <span className="mt-1.5 block text-xs text-dim">The only thing other players know about you. No account needed.</span>
         </label>
       </Card>
+
+      <AgentPicker />
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card title="Custom room" right={<Badge tone="ok">Up to {MAX_ROOM_PLAYERS} players</Badge>}>
@@ -175,7 +171,9 @@ function QuickMatchCard({ disabled }: { disabled: boolean }) {
 
   return (
     <Card title="Quick match" right={<Badge tone="ok">Starts by itself</Badge>}>
-      <p className="mb-4 text-sm text-mute">Pick the maps you are happy to play, wait for other players, and the match starts by itself. You may join one already under way.</p>
+      <p className="mb-4 text-sm text-mute">
+        Pick the maps you are happy to play and search. A match starts within {QUEUE_START_DELAY_MS / 1000} seconds: with whoever else is searching, and bots making up the numbers until more people join.
+      </p>
       <div className="mb-2 text-xs uppercase tracking-widest text-dim">Maps</div>
       <div className="flex flex-wrap gap-1.5">
         <button type="button" aria-pressed={maps.length === 0} className={chip(maps.length === 0)} onClick={() => setMaps([])}>
@@ -220,36 +218,47 @@ function Searching() {
   const others = queue.waiting - 1;
   const alone = others <= 0 && elapsed >= 60;
 
+  /** Where the other searchers show on the radar: fixed spots, one per player, so they don't jump about. */
+  const blips = Array.from({ length: Math.min(9, Math.max(0, others)) }, (_, i) => {
+    const angle = i * 2.4 + 0.6;
+    const radius = 18 + ((i * 13) % 26);
+    return { '--x': `${50 + Math.cos(angle) * radius}%`, '--y': `${50 + Math.sin(angle) * radius}%` } as CSSProperties;
+  });
+
   return (
     <Card>
-      <div className="flex flex-wrap items-center gap-x-10 gap-y-4">
-        <div>
-          <div className="text-xs uppercase tracking-widest text-dim">Searching for</div>
-          <div className="font-display tabular text-5xl font-bold leading-none text-ink">
-            {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, '0')}
+      <div className="flex flex-col items-center gap-8 py-4 md:flex-row md:justify-center md:gap-14">
+        <div className="tal-radar grid place-items-center" aria-hidden="true">
+          {blips.map((style, i) => (
+            <span key={i} className="tal-radar-blip" style={style} />
+          ))}
+          <div className="relative z-10 text-center">
+            <div className="font-display tabular text-6xl font-extrabold leading-none text-white">
+              {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, '0')}
+            </div>
+            <div className="mt-1 font-display text-xs font-semibold uppercase tracking-[0.3em] text-accent">Searching</div>
           </div>
         </div>
-        <div>
+        <div className="max-w-sm text-center md:text-left">
           <div className="text-xs uppercase tracking-widest text-dim">Maps</div>
-          <div className="text-base text-ink">{queue.maps.length === 0 ? 'Any map' : queue.maps.map(mapName).join(', ')}</div>
-        </div>
-        <div role="status">
-          <div className="text-xs uppercase tracking-widest text-dim">Players</div>
-          <div className="text-base text-ink">
-            {status !== 'online'
-              ? 'Connecting to the game server… (up to a minute if it was asleep)'
-              : startsIn !== null
-                ? `${queue.waiting} waiting · match starts in ${startsIn} s`
-                : others > 0
-                  ? `${queue.waiting} waiting`
-                  : 'Nobody else is searching yet'}
+          <div className="font-display text-2xl font-bold uppercase leading-tight tracking-wide text-ink">{queue.maps.length === 0 ? 'Any map' : queue.maps.map(mapName).join(' · ')}</div>
+          <div role="status" className="mt-4">
+            <div className="text-xs uppercase tracking-widest text-dim">Status</div>
+            <div className="text-base text-ink">
+              {status !== 'online'
+                ? 'Connecting to the game server… (up to a minute if it was asleep)'
+                : startsIn !== null
+                  ? `${others > 0 ? `${queue.waiting} players searching` : 'Bots will join you'} · match starts in ${startsIn} s`
+                  : others > 0
+                    ? `${queue.waiting} players searching`
+                    : 'Looking for a match'}
+            </div>
           </div>
+          <Button variant="outline" className="mt-6" onClick={() => multiplayer.cancelSearch()}>
+            <X size={18} /> Cancel
+          </Button>
         </div>
-        <Button variant="outline" className="ml-auto" onClick={() => multiplayer.cancelSearch()}>
-          <X size={18} /> Cancel
-        </Button>
       </div>
-      <div className="tal-loadbar mt-5" />
       {alone && (
         <p className="mt-4 text-sm text-warn">
           Nobody else has been searching for a minute.{' '}

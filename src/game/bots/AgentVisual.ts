@@ -33,6 +33,7 @@ import {
 } from '../rendering/babylon';
 import { loadContainer } from '../rendering/gltf';
 import type { PlacedSkin, WeaponSkin } from '../weapons/WeaponSkins';
+import { WEAPONS } from '../weapons/weaponConfigs';
 import type { BotAssets, BotView } from './BotVisual';
 import { BOT_SCALE } from './perception/visibility';
 
@@ -110,6 +111,29 @@ const vE = new Vector3();
 const vU = new Vector3();
 const vN = new Vector3();
 
+/** How much of its own colour a character gives off as light (0 = lit by the scene only). */
+const SELF_LIGHT = 0.34;
+
+/**
+ * Make a character material give off some of its own colour, so a figure standing in shadow or far
+ * away never goes dark: the outfit keeps its hues and simply stops sinking into the scenery.
+ */
+function selfLight(mat: unknown) {
+  const m = mat as {
+    albedoTexture?: unknown;
+    albedoColor?: Color3;
+    diffuseTexture?: unknown;
+    diffuseColor?: Color3;
+    emissiveTexture?: unknown;
+    emissiveColor?: Color3;
+  };
+  if (!m || m.emissiveColor === undefined || m.emissiveTexture) return; // a material that already glows is left alone
+  const texture = m.albedoTexture ?? m.diffuseTexture;
+  const colour = m.albedoColor ?? m.diffuseColor ?? new Color3(1, 1, 1);
+  if (texture) m.emissiveTexture = texture;
+  m.emissiveColor = colour.scale(SELF_LIGHT);
+}
+
 /** Per-session agent template: the loaded model plus measurements of its rest pose. */
 export class AgentAssets {
   private constructor(
@@ -145,6 +169,7 @@ export class AgentAssets {
     // the bots come out a fifth too small.)
     const scale = EYE_HEIGHT / Math.max(0.5, eye.y);
     for (const r of probe.rootNodes) r.dispose(false, false); // materials are shared with the template
+    for (const mat of container.materials) selfLight(mat);
     for (const s of probe.skeletons) s.dispose();
     holder.dispose();
     return new AgentAssets(scene, container, bot, scale, yawFix);
@@ -247,6 +272,8 @@ class AgentVisual implements BotView {
   /** Support-hand point on the rifle, relative to the grip (metres along / above the barrel). */
   private handguardFwd = 0.27;
   private handguardUp = -0.035;
+  /** The gun this model is showing (null: the built-in one from construction). */
+  private shown: WeaponSkin | null = null;
 
   constructor(
     private readonly assets: AgentAssets,
@@ -268,6 +295,7 @@ class AgentVisual implements BotView {
     for (const m of this.meshes) {
       m.isPickable = false;
       m.receiveShadows = true;
+      m.applyFog = false; // the distance haze softens the scenery, not the people in it
       m.overlayColor = new Color3(1, 1, 1);
       m.overlayAlpha = 0.55;
     }
@@ -305,22 +333,7 @@ class AgentVisual implements BotView {
     this.gun.rotationQuaternion = new Quaternion();
     this.muzzle = new TransformNode(`agent-${id}-muzzle`, scene);
     this.muzzle.parent = this.gun;
-    if (assets.rifle) {
-      // weapon skin: grip at the gun origin, barrel along +Z
-      this.rifleSkin = assets.rifle.place(this.gun, BOT_RIFLE_LENGTH, Vector3.Zero());
-      for (const m of this.rifleSkin.meshes) {
-        m.isPickable = false;
-        m.overlayColor = new Color3(1, 1, 1);
-        m.overlayAlpha = 0.55;
-        this.meshes.push(m);
-      }
-      this.muzzle.position.copyFrom(this.rifleSkin.muzzle);
-      const hg = this.rifleSkin.handguard;
-      if (hg) {
-        this.handguardFwd = hg.z;
-        this.handguardUp = hg.y - 0.03;
-      }
-    }
+    if (assets.rifle) this.placeSkin(assets.rifle, BOT_RIFLE_LENGTH);
     const box = (w: number, h: number, d: number, px: number, py: number, pz: number, dark = false) => {
       const m = CreateBox(`agent-${id}-gun-p`, { width: w, height: h, depth: d }, scene);
       m.parent = this.gun;
@@ -447,7 +460,42 @@ class AgentVisual implements BotView {
     this.shadow.position.set(x, groundY + 0.015, z);
   }
 
-  muzzleWorld(): [number, number, number] {
+/** Put a weapon skin in the hands: grip at the gun origin, barrel along +Z. */
+  private placeSkin(skin: WeaponSkin, length: number) {
+    const placed = skin.place(this.gun, length, Vector3.Zero());
+    for (const m of placed.meshes) {
+      m.isPickable = false;
+      m.applyFog = false;
+      m.overlayColor = new Color3(1, 1, 1);
+      m.overlayAlpha = 0.55;
+      this.meshes.push(m);
+    }
+    this.rifleSkin = placed;
+    this.shown = skin;
+    this.muzzle.position.copyFrom(placed.muzzle);
+    const hg = placed.handguard;
+    // a gun with no handguard (a sidearm) is steadied with the left hand just ahead of the grip
+    this.handguardFwd = hg ? hg.z : Math.min(0.1, length * 0.3);
+    this.handguardUp = hg ? hg.y - 0.03 : -0.03;
+  }
+
+  /**
+   * Show another gun in the hands (multiplayer: the one the player really carries). Primaries are drawn
+   * at the usual rifle length and sidearms short, each in proportion to its first-person size.
+   */
+  setWeapon(skin: WeaponSkin) {
+    if (skin === this.shown || !this.rifleSkin) return; // the built-in block gun has no variants
+    for (const m of this.rifleSkin.meshes) {
+      const k = this.meshes.indexOf(m);
+      if (k >= 0) this.meshes.splice(k, 1);
+    }
+    this.rifleSkin.dispose();
+    const sidearm = WEAPONS[skin.id].slot === 'secondary';
+    const length = sidearm ? 0.3 * ((skin.spec.viewLength ?? 0.34) / 0.34) : BOT_RIFLE_LENGTH * ((skin.spec.viewLength ?? 0.92) / 0.92);
+    this.placeSkin(skin, length);
+  }
+
+    muzzleWorld(): [number, number, number] {
     this.gun.computeWorldMatrix(true);
     const p = this.muzzle.getAbsolutePosition();
     return [p.x, p.y, p.z];

@@ -15,8 +15,8 @@ This document has three parts: where things stand, how to run and deploy it, and
 
 ## Status
 
-Phases 0 to 5 of the [build order](#10-build-order) are built. Both modes can be played from start to
-finish, with combat decided by the server.
+Phases 0 to 5 and 7 of the [build order](#10-build-order) are built. Both modes can be played from start
+to finish, with combat decided by the server, and bots fill a match so one person can play.
 
 Not built yet:
 
@@ -24,13 +24,14 @@ Not built yet:
   up team kills, but the game shows no team colours.
 - **Weapon rules on the client** (phase 6). The server ignores shots from a gun the room doesn't allow,
   but the weapon menu doesn't lock those guns.
-- **Bots that fill a room** (phase 7, [section 9](#9-bots-in-multiplayer)).
 
 Where the build differs from the design:
 
 | Design                                                        | Built                                                                                         |
 | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| A weapon change applies at the next respawn                   | It is in your hands at once                                                                   |
+| Bots in a match are the practice bots, taught to fight many   | A new, plainer bot plays as a server-side player ([section 9](#9-bots-in-multiplayer))        |
+| Quick match starts with 2 players                             | It starts with 1: bots fill the match to 6 and step out as people join                        |
+| Reserve ammunition is fixed per life                          | A kill restocks the spare ammunition                                                          |
 | The server validates ammo                                     | It checks the gun, fire rate, origin and direction, but does not count the magazine           |
 | The server works out run speed from the weapon state          | The client sends the multiplier; the server holds it to what the player's two guns allow      |
 | Enemies show on the minimap while a teammate can see them     | Any player shows for 2.5 seconds after firing an unsuppressed gun, and not otherwise          |
@@ -39,7 +40,8 @@ Where the build differs from the design:
 | Enemies out of sight could be withheld from clients           | Every player's position is sent to every player                                               |
 | The first input format repeats recent commands                | Nothing is repeated: a WebSocket delivers everything in order                                 |
 
-Not yet tried: two people playing each other from two machines (every opponent in testing was a bot),
+Not yet tried: two people playing each other from two machines (every opponent in testing was a bot or a
+scripted player),
 the first connection after the server has slept, and more than one match at a time on the free server.
 
 ## Running it locally
@@ -213,6 +215,14 @@ random player id. No account, no password.
 
 Crosshair, sensitivity, graphics, audio and loadout come from the existing settings, unchanged.
 
+**Agent.** Below the name, and again in a room's lobby, the player picks one of nine agents
+(`src/game/agents.ts`), each a rigged model in `public/models` (credits in its README). It is cosmetic only and
+remembered in localStorage. In a match every other player is drawn as their agent's model (`AgentVisual`), loaded
+the first time someone plays that agent; until it has loaded, or with models off, the built-in body (`BotVisual`)
+stands in, in the agent's colours. Either holds the gun they really carry. A change made during a match shows
+from the next one. Server bots get a random agent, a different one each while any are free; practice bots each
+wear one of three agents picked at random for the session.
+
 ### 2.2 Custom room
 
 ```
@@ -307,9 +317,10 @@ Rules that apply to both:
 | Join in progress    | On / off (may friends join after the match has started)                 | On          |
 | Teams (Team DM)     | Players pick a side in the lobby; host can move players; Auto-balance button | Auto   |
 | Friendly fire (Team DM) | On / off                                                            | Off         |
+| Bots                | Off, or fill the match to 2, 4, 6, 8 or 10 players; Easy, Normal or Hard | Off         |
 
-Bots that fill empty slots are a wanted setting but are not in the first version: see
-[section 9](#9-bots-in-multiplayer).
+With bots on, the host can start a match alone. Bots take the empty places up to the fill number and
+step out, lowest scorer first, as people join ([section 9](#9-bots-in-multiplayer)).
 
 ## 4. Quick match matchmaking
 
@@ -321,7 +332,7 @@ The server looks at the queue once a second and, for each waiting player in orde
 1. **Join a running match.** If a quick match on an accepted map has a free slot and more than 3 minutes
    or 10 kills left, the player joins it. This is what keeps waits short when few people are online.
 2. **Start a new match.** Otherwise the player waits. When 10 players accept a common map, the match
-   starts immediately. When at least **2** do, a 15-second timer starts for that group; anyone who arrives
+   starts immediately. As soon as **1** does (bots will fill the rest), a 15-second timer starts for that group; anyone who arrives
    meanwhile is added, and the match starts when the timer ends. It then stays open to newcomers under
    rule 1.
 3. **Any map.** A player who chose Any map goes wherever rule 1 or 2 is satisfied first. When a new match
@@ -494,9 +505,9 @@ layout later without touching the rest.
 | C → S     | `hello`          | protocol version, name, resume token if reconnecting                    |
 | C → S     | `room.create` / `room.join` / `room.leave` | room code where needed                        |
 | C → S     | `room.settings` / `room.kick` / `room.host` / `room.start` / `room.end` | host only        |
-| C → S     | `room.ready` / `room.team` / `loadout` | the player's own state                            |
+| C → S     | `room.ready` / `room.team` / `loadout` / `agent` | the player's own state                  |
 | C → S     | `queue.join` / `queue.leave` | accepted maps                                               |
-| S → C     | `room.state`     | code, settings, players (name, ready, team, host, ping), phase          |
+| S → C     | `room.state`     | code, settings, players (name, ready, team, host, ping, agent), phase   |
 | S → C     | `queue.state`    | waiting count, timer                                                    |
 | S → C     | `match.start`    | map, settings, your spawn, server clock, end time                       |
 | C → S     | `input`          | the last few commands                                                   |
@@ -560,16 +571,31 @@ sight to. There is no kernel anti-cheat in a browser, and none is planned.
 
 ## 9. Bots in multiplayer
 
-Filling empty slots with bots would make a 3-player room or a quiet quick match much better, and the
-bots are the best part of this project. It is left out of the first version for a concrete reason: `Bot`,
-`DeathmatchBehavior` and `PracticeDirector` assume one human target (`BotContext.player`,
-`visibleToPlayer`, a single grace timer, `maxAttackers` slots per player). Running them on the server
-means teaching them to choose among several targets and to fight each other, which is its own piece of
-work (and is already on the README's list as "bots that fight each other in Deathmatch").
+**As designed.** Filling empty slots with bots makes a 3-player room or a quiet quick match much better.
+The practice bots (`Bot`, `DeathmatchBehavior`, `PracticeDirector`) assume one human target, so the plan
+was to teach them to choose among several targets and to fight each other.
 
-Once that is done, bots run only on the server and reach clients as ordinary players in the snapshot, so
-no client work is needed. Custom rooms then gain "Fill with bots" and a difficulty; quick match fills to
-a minimum of 6.
+**As built.** A new bot, `server/MatchBot.ts`, instead of a reworked practice bot. It is a player like
+any other: it has a body in the match, moves it by producing the same commands a client sends, and fires
+through the same path as a client's shot. Collisions, hits, damage, scoring, snapshots and the kill feed
+therefore need no special case, and clients see a bot as an ordinary player (marked "Bot" on the
+scoreboard). What the file adds is the deciding:
+
+- **Seeing.** Every 120 ms it looks for the nearest enemy inside a 130° field of view (or within 4 m)
+  with a clear line of sight, using the same visibility test as the practice bots.
+- **Fighting.** It turns towards the target no faster than its turn rate, waits out a reaction time,
+  then fires bursts (two bullets at range, four in the middle, a spray up close) with an aim error that
+  starts wide and settles. It reloads when empty and sidesteps between bursts on Normal and Hard.
+- **Moving.** With nobody in view it walks a path (grid A\*) to a random place on the map, or to where
+  an enemy was last seen for a few seconds after losing them. Shot from out of view, it goes to look.
+- **Difficulty** sets reaction time (0.62 / 0.4 / 0.25 s), starting aim error (8° / 5° / 2.8°), turn
+  rate and how often it goes for the head.
+
+It is plainer than the practice bots: it does not hold angles, jiggle or shoulder-peek.
+
+The room's fill number is the size the match is kept at: bots = fill number minus the people in the
+room. A person joining takes the place of the lowest-scoring bot; a person leaving is replaced. Quick
+match fills to 6, which is why one searching player is enough to start a match.
 
 ## 10. Build order
 
@@ -584,7 +610,7 @@ Each phase ends with something that can be tried.
 | 4 ✓   | Quick match: queue, join in progress, searching screen, idle removal                           | Players arriving at different times end up in the same match           |
 | 5 ✓   | Hardening: reconnect, validation limits, rate limits, load test, deployment                    | 10 simulated clients per match, several matches, on the real host      |
 | 6     | Team Deathmatch and the remaining custom settings                                              | Teams, friendly fire, weapon restrictions work                         |
-| 7     | Bots in multiplayer (section 9)                                                                | A room can be filled with bots that fight everyone                     |
+| 7 ✓   | Bots in multiplayer (section 9)                                                                | A room can be filled with bots that fight everyone                     |
 
 Testing along the way:
 

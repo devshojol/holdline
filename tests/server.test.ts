@@ -215,6 +215,26 @@ describe('lobby', () => {
     expect(guest.room.players.every((p) => !p.ready)).toBe(true);
   });
 
+  it('lets one player start a match against bots', () => {
+    const lobby = setup();
+    const host = new Client(lobby, 'Sova');
+    host.say({ t: 'room.create' });
+    host.say({ t: 'room.settings', patch: { botFill: 4, botDifficulty: 'hard' } });
+    host.say({ t: 'room.start' });
+    expect(host.error).toBeUndefined();
+    lobby.tick(1000 + COUNTDOWN_MS);
+    expect(host.room.phase).toBe('playing');
+    const bots = () => host.last('scores')!.scores.filter((p) => p.bot).length;
+    expect(bots()).toBe(3);
+    // a friend joining takes a bot's place; leaving gives it back
+    const friend = new Client(lobby, 'Jett');
+    friend.say({ t: 'room.join', code: host.room.code });
+    expect(bots()).toBe(2);
+    expect(host.last('scores')!.scores).toHaveLength(4);
+    friend.say({ t: 'room.leave' });
+    expect(bots()).toBe(3);
+  });
+
   it('needs two players to start, and lets the host end early', () => {
     const lobby = setup();
     const host = new Client(lobby, 'Sova');
@@ -239,6 +259,15 @@ describe('lobby', () => {
     const late = new Client(lobby, 'Omen');
     late.say({ t: 'room.join', code });
     expect(late.error).toBe('match-in-progress');
+  });
+
+  it('shows each player’s agent and ignores ones that do not exist', () => {
+    const { host, guest } = roomOfTwo();
+    expect(host.room.players[1].agent).toBe('phoenix');
+    guest.say({ t: 'agent', agent: 'sage' });
+    expect(host.room.players[1].agent).toBe('sage');
+    guest.say({ t: 'agent', agent: 'nobody' } as never);
+    expect(host.room.players[1].agent).toBe('sage');
   });
 
   it('keeps a dropped player’s place and gives it back on reconnect', () => {
@@ -346,34 +375,42 @@ describe('quick match', () => {
   /** Keep a client looking busy so it isn't removed for idling. */
   const act = (c: Client, seq: number) => c.say({ t: 'input', cmds: [{ seq, dt: 1 / 120, held: 1, pressed: 0, yaw: seq * 0.01, pitch: 0, speed: 1 }] });
 
-  it('keeps one player waiting and tells them they are alone', () => {
+  it('gives a lone player a match with bots after the wait', () => {
     const lobby = setup();
     const t = clock(lobby);
     const a = new Client(lobby, 'Sova');
     a.say({ t: 'queue.join', maps: ['vellora'] });
-    expect(a.queue).toEqual({ maps: ['vellora'], waiting: 1, startsAt: 0 });
-    t.wait(60_000);
-    expect(a.queue).toEqual({ maps: ['vellora'], waiting: 1, startsAt: 0 });
+    expect(a.queue).toEqual({ maps: ['vellora'], waiting: 1, startsAt: 1000 + QUEUE_START_DELAY_MS });
+    t.wait(QUEUE_START_DELAY_MS - 2000);
     expect(a.inRoom).toBeNull();
-    expect(lobby.roomCount).toBe(0);
+    t.wait(3000);
+    expect(a.queue).toBeNull();
+    expect(a.room).toMatchObject({ kind: 'quick', phase: 'countdown', settings: { mapId: 'vellora', botFill: 6 } });
+    expect(a.room.players.map((p) => p.name)).toEqual(['Sova']); // bots are not in the room, only in the match
+    t.wait(COUNTDOWN_MS + 500);
+    expect(a.room.phase).toBe('playing');
+    const board = a.last('scores')!.scores;
+    expect(board).toHaveLength(6);
+    expect(board.filter((p) => p.bot)).toHaveLength(5);
+    expect(a.last('snapshot')!.players).toHaveLength(5);
   });
 
-  it('starts a match 15 seconds after a second player arrives, adding anyone who comes meanwhile', () => {
+  it('adds anyone who arrives during the wait, without restarting it', () => {
     const lobby = setup();
     const t = clock(lobby);
     const a = new Client(lobby, 'Sova');
     a.say({ t: 'queue.join', maps: ['vellora'] });
+    const startsAt = t.now() + QUEUE_START_DELAY_MS;
     t.wait(5000);
     const b = new Client(lobby, 'Jett');
     b.say({ t: 'queue.join', maps: ['vellora'] });
-    const startsAt = t.now() + QUEUE_START_DELAY_MS;
     expect(a.queue).toEqual({ maps: ['vellora'], waiting: 2, startsAt });
-    t.wait(8000);
+    t.wait(5000);
     const c = new Client(lobby, 'Omen');
     c.say({ t: 'queue.join', maps: [] }); // any map
-    expect(c.queue).toMatchObject({ waiting: 3, startsAt }); // the timer doesn't restart
+    expect(c.queue).toMatchObject({ waiting: 3, startsAt });
     expect(a.inRoom).toBeNull();
-    t.wait(QUEUE_START_DELAY_MS - 8000 + 1000);
+    t.wait(QUEUE_START_DELAY_MS - 10_000 + 1000);
     for (const p of [a, b, c]) {
       expect(p.queue).toBeNull();
       expect(p.room).toMatchObject({ kind: 'quick', phase: 'countdown', settings: { mapId: 'vellora', mode: 'deathmatch', killLimit: 40, timeLimitMin: 10 } });
@@ -383,6 +420,7 @@ describe('quick match', () => {
     t.wait(COUNTDOWN_MS + 100);
     expect(a.room.phase).toBe('playing');
     expect(a.last('match.start')).toBeDefined();
+    expect(a.last('scores')!.scores.filter((p) => p.bot)).toHaveLength(3); // three people, three bots: six in all
     expect(lobby.queueLength).toBe(0);
   });
 
@@ -407,15 +445,18 @@ describe('quick match', () => {
     const b = new Client(lobby, 'Jett');
     a.say({ t: 'queue.join', maps: ['vellora'] });
     b.say({ t: 'queue.join', maps: ['kitsune', 'not-a-map'] });
-    expect(b.queue).toEqual({ maps: ['kitsune'], waiting: 1, startsAt: 0 });
-    t.wait(30_000);
-    expect(lobby.roomCount).toBe(0);
+    expect(b.queue).toMatchObject({ maps: ['kitsune'], waiting: 1 });
+    t.wait(5000);
     const c = new Client(lobby, 'Omen');
     c.say({ t: 'queue.join', maps: ['kitsune', 'coralis'] });
-    t.wait(QUEUE_START_DELAY_MS + 1000);
+    expect(c.queue).toMatchObject({ waiting: 2 });
+    t.wait(QUEUE_START_DELAY_MS);
+    // two matches: one on each map, each with the players who asked for it
+    expect(a.inRoom?.settings.mapId).toBe('vellora');
+    expect(a.inRoom?.players.map((p) => p.name)).toEqual(['Sova']);
     expect(b.inRoom?.settings.mapId).toBe('kitsune');
     expect(c.inRoom?.players.map((p) => p.name)).toEqual(['Jett', 'Omen']);
-    expect(a.inRoom).toBeNull();
+    expect(lobby.roomCount).toBe(2);
   });
 
   it('puts a late arrival into the match already running', () => {
@@ -444,6 +485,8 @@ describe('quick match', () => {
     tooLate.say({ t: 'queue.join', maps: [] });
     expect(tooLate.inRoom).toBeNull();
     expect(tooLate.queue).toMatchObject({ waiting: 1 });
+    // a person who joins takes a bot's place, so the match keeps its six players
+    expect(late.last('scores')!.scores.filter((p) => p.bot)).toHaveLength(3);
   });
 
   it('cannot be entered by code, changed or started by a player', () => {
@@ -473,20 +516,21 @@ describe('quick match', () => {
     expect(a.queue).toMatchObject({ waiting: 2 });
     b.say({ t: 'queue.leave' });
     expect(b.queue).toBeNull();
-    expect(a.queue).toMatchObject({ waiting: 1, startsAt: 0 });
+    expect(a.queue).toMatchObject({ waiting: 1 });
     const c = new Client(lobby, 'Omen');
     c.say({ t: 'queue.join', maps: [] });
     lobby.disconnect(c);
-    t.wait(QUEUE_START_DELAY_MS + 2000);
+    t.wait(2000);
     expect(lobby.queueLength).toBe(1);
-    expect(a.inRoom).toBeNull();
     // creating a custom room takes you out of the queue
     a.say({ t: 'room.create' });
     expect(lobby.queueLength).toBe(0);
     expect(a.room.kind).toBe('custom');
+    t.wait(QUEUE_START_DELAY_MS + 2000);
+    expect(lobby.roomCount).toBe(1); // nobody was left searching, so no match was made
   });
 
-  it('sends the other player back to the queue when one leaves during the countdown', () => {
+  it('carries on when one of two leaves during the countdown, and folds when nobody is left', () => {
     const lobby = setup();
     const t = clock(lobby);
     const a = new Client(lobby, 'Sova');
@@ -496,8 +540,10 @@ describe('quick match', () => {
     t.wait(QUEUE_START_DELAY_MS + 1000);
     expect(a.room.phase).toBe('countdown');
     b.say({ t: 'room.leave' });
+    expect(a.room.players.map((p) => p.name)).toEqual(['Sova']); // bots will make up the numbers
+    expect(a.room.phase).toBe('countdown');
+    a.say({ t: 'room.leave' });
     expect(lobby.roomCount).toBe(0);
-    expect(a.queue).toEqual({ maps: ['vellora'], waiting: 1, startsAt: 0 });
   });
 
   it('removes a player who does nothing for a minute, and keeps the ones playing', () => {
@@ -534,8 +580,9 @@ describe('quick match', () => {
       act(a, i);
       act(b, i);
     }
-    expect(a.last('match.end')).toMatchObject({ winner: null });
-    expect(a.last('match.end')!.scores.map((s) => s.name).sort()).toEqual(['Jett', 'Sova']);
+    const end = a.last('match.end')!;
+    expect(end.scores.filter((s) => !s.bot).map((s) => s.name).sort()).toEqual(['Jett', 'Sova']);
+    expect(end.scores.filter((s) => s.bot)).toHaveLength(4);
     expect(a.last('room.left')?.reason).toBe('closed');
     expect(lobby.roomCount).toBe(0);
     a.say({ t: 'queue.join', maps: [] }); // play again

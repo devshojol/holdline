@@ -10,7 +10,6 @@
  *  - vertices welded and stored quantized (KHR_mesh_quantization: 8-bit normals, 16-bit UVs, 8-bit
  *    joints/weights, and 16-bit positions on unskinned models) with 16-bit indices where they fit;
  *  - animation keyframes that add nothing removed (fp-arms-anim.glb);
- *  - the Phantom skin simplified further (it is by far the densest model);
  *  - textures re-encoded as WebP only when that makes them smaller.
  *
  * Safe to run again: an already compressed file comes out the same size.
@@ -27,7 +26,7 @@ const dir = process.argv[2];
 if (!dir) throw new Error('usage: node compress-models.mjs <public/models>');
 
 /** Extra per-file steps. `simplify` is the share of triangles to keep. */
-const EXTRA = { 'weapons/phantom.glb': { simplify: 0.45, error: 0.002 } };
+const EXTRA = {};
 
 const files = [];
 (function walk(d, rel) {

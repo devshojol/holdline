@@ -21,6 +21,7 @@ import { AudioEngine, stepSound, type StepSurface } from '../audio/AudioEngine';
 import { encodeWav, renderAllGuns } from '../audio/gunSynth';
 import { Bot, type BotContext } from '../bots/Bot';
 import { BotAssets, BotVisual } from '../bots/BotVisual';
+import { AGENTS, getAgent, type AgentId } from '../agents';
 import type { AgentAssets } from '../bots/AgentVisual';
 import type { WeaponSkin } from '../weapons/WeaponSkins';
 import { ArmsTemplate } from '../weapons/FirstPersonArms';
@@ -77,6 +78,24 @@ import { INPUT_RATE, INTERP_DELAY_MS, PF_ALIVE, type MatchEvent, type ServerMess
 const DEG = Math.PI / 180;
 const BASE_HFOV = 103 * DEG;
 const SIM_STEP = 1 / 120;
+/** How many agent models practice loads for its bots (each bot wears one of them at random). */
+const PRACTICE_AGENTS = 3;
+
+function shuffled<T>(items: T[]): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+/**
+ * Distance haze (exponential-squared fog in the map's pale haze colour). Scenery is untouched up
+ * close, about a fifth washed out at 45 m and nearly half at 70 m. Characters are left out of it
+ * (`applyFog = false` on their meshes), so a far enemy stays at full colour against a softened
+ * background instead of blending into it.
+ */
+const HAZE_DENSITY = 0.011;
 
 /** True when running inside an iframe (pointer lock may be disallowed by the embedder's sandbox). */
 function isEmbedded(): boolean {
@@ -92,6 +111,8 @@ export type EngineEvent =
   | { type: 'hud'; hud: HudState }
   | { type: 'killfeed'; entry: KillFeedEntry }
   | { type: 'ended'; stats: SessionStats }
+  /** Multiplayer: the server put new guns in the player's hands (a change made mid-life arrives at the respawn). */
+  | { type: 'loadout'; loadout: { primary: WeaponId; secondary: WeaponId } }
   | { type: 'notice'; message: string | null }
   | { type: 'error'; message: string };
 
@@ -114,6 +135,16 @@ interface RemotePlayer {
   voice: number;
   /** Seconds left on the minimap after firing an unsuppressed gun (0 = not shown). */
   revealed: number;
+  /** The gun the model is showing, or is about to once its model has loaded. */
+  weapon: WeaponId;
+  /** The agent the body is dressed as (null until the server has said). */
+  agent: string | null;
+  /** Visual id, kept when the body is rebuilt for another agent. */
+  n: number;
+  /** The body is the agent's model (not the blocky stand-in). */
+  model: boolean;
+  /** Down (a body built now must start dead). */
+  dead: boolean;
 }
 
 /** How long a player who fired an unsuppressed gun stays on everyone's minimap. */
@@ -148,7 +179,11 @@ export class GameEngine {
   private director!: PracticeDirector;
   private tracker!: SessionTracker;
   private botAssets!: BotAssets;
-  private agentAssets: AgentAssets | null = null;
+  /** Agent models by agent, once loaded (null: failed, or models are off). */
+  private readonly agentModels = new Map<AgentId, Promise<AgentAssets | null>>();
+  private readonly agentReady = new Map<AgentId, AgentAssets>();
+  /** Multiplayer: visual ids handed to other players' bodies. */
+  private remoteSerial = 0;
   private weaponSkins = new Map<WeaponId, WeaponSkin>();
   private armsTemplate: ArmsTemplate | null = null;
   private hitboxMeshes: Mesh[] | null = null;
@@ -171,6 +206,10 @@ export class GameEngine {
   private netSnapshots = 0;
   /** Shots sent and not yet answered, by the command they were fired on (for the statistics of a confirmed hit). */
   private readonly netShots = new Map<number, ShotInfo>();
+  /** The gun the server was last told is in this player's hands. */
+  private netHeld: WeaponId | null = null;
+  /** Gun models being fetched for other players, so each is only asked for once. */
+  private readonly skinLoads = new Map<WeaponId, Promise<WeaponSkin | undefined>>();
 
   status: EngineStatus = 'loading';
   private listeners = new Set<(e: EngineEvent) => void>();
@@ -292,7 +331,7 @@ export class GameEngine {
     const mood = mapMood(def);
     scene.clearColor = Color4.FromHexString(def.palette.sky[1] + 'ff');
     scene.fogMode = Scene.FOGMODE_EXP2;
-    scene.fogDensity = 0.0045;
+    scene.fogDensity = HAZE_DENSITY;
     scene.fogColor = Color3.FromHexString(def.palette.fog);
     if (this.settings.graphics.postFx) {
       scene.imageProcessingConfiguration.contrast = 1.22;
@@ -425,6 +464,9 @@ export class GameEngine {
     let skins = new Map<WeaponId, WeaponSkin>();
     if (__LOCAL_MODELS__) {
       const g = this.settings.graphics;
+      // practice bots each wear a random agent from a few loaded up front; multiplayer loads the agents
+      // players picked as they show up
+      const practiceAgents = g.botModel === 'agent' && !this.net ? shuffled(AGENTS.map((a) => a.id)).slice(0, PRACTICE_AGENTS) : [];
       const wantAgent = g.botModel === 'agent';
       const skinIds: WeaponId[] = g.gunModels === 'skins' ? [this.config.primary, this.config.secondary, ...(wantAgent ? (['vandal'] as WeaponId[]) : [])] : [];
       const failed: string[] = [];
@@ -436,13 +478,10 @@ export class GameEngine {
               return new Map<WeaponId, WeaponSkin>();
             })
           : Promise.resolve(new Map<WeaponId, WeaponSkin>()),
-        wantAgent
-          ? import('../bots/AgentVisual').then((m) => m.AgentAssets.load(scene, 'models/miks.glb', this.botAssets)).catch((err) => {
-              console.warn('[bots] agent model unavailable — using training dummies', err);
-              failed.push('the agent bot model');
-              return null;
-            })
-          : Promise.resolve(null),
+        Promise.all(practiceAgents.map((a) => this.loadAgent(a))).then((loaded) => {
+          if (practiceAgents.length && !loaded.some(Boolean)) failed.push('the agent models');
+          return null;
+        }),
         // animated arms pack first (if chosen), then the glove-arm model, then the built-in arms
         g.fpArms === 'animated'
           ? ArmsTemplate.loadAnimated(scene).catch((err) => {
@@ -456,17 +495,16 @@ export class GameEngine {
               })
             : Promise.resolve(null),
       ]);
+      void agents;
       if (this.disposed) {
-        agents?.dispose();
         arms?.dispose();
         for (const k of loadedSkins.values()) k.dispose();
         return;
       }
       skins = loadedSkins;
       this.weaponSkins = loadedSkins;
-      this.agentAssets = agents;
       this.armsTemplate = arms;
-      if (agents) agents.rifle = loadedSkins.get('vandal') ?? null;
+      for (const a of this.agentReady.values()) a.rifle = loadedSkins.get('vandal') ?? null;
       if (failed.length) this.emit({ type: 'notice', message: `Couldn't load ${failed.join(' and ')} — using the simple models.` });
       mark('models');
     }
@@ -481,8 +519,10 @@ export class GameEngine {
       location,
       config: this.config,
       tracker: this.tracker,
-      createVisual: (id) =>
-        this.agentAssets ? this.agentAssets.create(id) : new BotVisual(this.botAssets, id),
+      createVisual: (id) => {
+        const ready = [...this.agentReady.values()];
+        return ready.length ? ready[Math.floor(Math.random() * ready.length)].create(id) : new BotVisual(this.botAssets, id);
+      },
       rng: Math.random,
     });
 
@@ -731,7 +771,8 @@ export class GameEngine {
     this.director?.dispose();
     this.viewModel?.dispose();
     this.effects?.dispose();
-    this.agentAssets?.dispose();
+    for (const a of this.agentReady.values()) a.dispose();
+    this.agentReady.clear();
     for (const k of this.weaponSkins.values()) k.dispose();
     this.armsTemplate?.dispose();
     this.botAssets?.dispose();
@@ -893,6 +934,11 @@ export class GameEngine {
       this.netOutbox.push(this.prediction.step(this.player, dt, held & MOVE_MASK, pressed & JUMP_MASK));
     } else this.player.update(dt, this.input);
     this.weapons.update(dt, this.input, this.player);
+    if (this.net && this.weapons.weapon.id !== this.netHeld) {
+      // tell the others which gun is out, so they see the right one
+      this.netHeld = this.weapons.weapon.id;
+      this.net.send({ t: 'weapon', weapon: this.netHeld });
+    }
     this.reloadSounds();
     this.boltSounds();
     this.director.useHeld = this.input.isDown('use');
@@ -1021,6 +1067,8 @@ export class GameEngine {
         const shot = this.netShots.get(ev.seq);
         if (shot) this.tracker.hit(shot, ev.zone, ev.damage);
         if (ev.killed) {
+          this.weapons.refillReserve(); // a kill restocks the spare ammunition
+          this.lastHud = null;
           this.tracker.kill(shot?.weapon.id ?? this.weapons.weapon.id, ev.zone === 'head', null);
           this.hitmarker = { t: 0.35, kind: 'kill' };
           this.playKillSound(shot?.weapon.id ?? this.weapons.weapon.id, ev.zone === 'head');
@@ -1069,7 +1117,13 @@ export class GameEngine {
           this.tracker.death();
           this.killStreak = 0;
           this.deathFlash = 1;
-        } else this.remotes.get(ev.victim)?.visual.die();
+        } else {
+          const victim = this.remotes.get(ev.victim);
+          if (victim) {
+            victim.dead = true;
+            victim.visual.die();
+          }
+        }
         return;
       }
       case 'respawn': {
@@ -1078,11 +1132,22 @@ export class GameEngine {
           this.respawnPlayer(ev.pos[0], ev.pos[1], ev.pos[2], ev.yaw);
           this.prediction.reset();
           this.netOffset = [0, 0, 0];
+          this.netHeld = null; // the server starts a fresh body: say again which gun is out
           return;
         }
         const r = this.remotes.get(ev.id);
         r?.track.clear();
+        if (r) r.dead = false;
         r?.visual.revive();
+        return;
+      }
+      case 'loadout': {
+        const { primary, secondary } = ev.loadout;
+        void (async () => {
+          await this.setWeapon(0, primary);
+          await this.setWeapon(1, secondary);
+          if (!this.disposed) this.emit({ type: 'loadout', loadout: this.loadout });
+        })();
         return;
       }
     }
@@ -1111,13 +1176,19 @@ export class GameEngine {
     }
     for (const p of msg.players) {
       let r = this.remotes.get(p.id);
+      const agent = this.net!.agentOf(p.id);
       if (!r) {
-        const n = this.remotes.size + 1;
-        const visual = this.agentAssets ? this.agentAssets.create(1000 + n) : new BotVisual(this.botAssets, 1000 + n);
-        r = { track: new RemoteTrack(), visual, stepTimer: 0, voice: 0.93 + ((n * 37) % 10) * 0.012, revealed: 0 };
+        const n = ++this.remoteSerial;
+        r = { track: new RemoteTrack(), visual: this.agentVisual(agent, 1000 + n), stepTimer: 0, voice: 0.93 + ((n * 37) % 10) * 0.012, revealed: 0, weapon: 'vandal', agent, n, model: false, dead: false };
         this.remotes.set(p.id, r);
+        this.dressRemote(r, p.weapon);
+      } else if (agent && agent !== r.agent) {
+        // the scoreboard naming their agent can arrive after their first snapshot: dress them again
+        r.agent = agent;
+        this.dressRemote(r, p.weapon, true);
       }
       r.track.push(msg.time, p);
+      if (p.weapon !== r.weapon) this.showRemoteWeapon(r, p.weapon);
     }
     // a player missing from the snapshot has left or dropped
     for (const [id, r] of this.remotes) {
@@ -1138,6 +1209,90 @@ export class GameEngine {
       if (s?.alive) out.push({ x: s.x, z: s.z, alive: true, visible: false });
     }
     return out;
+  }
+
+  /** Load an agent's model once per session (null: models are off, or it failed and the blocky body stands in). */
+  private loadAgent(agent: AgentId): Promise<AgentAssets | null> {
+    let load = this.agentModels.get(agent);
+    if (load) return load;
+    if (!__LOCAL_MODELS__ || this.settings.graphics.botModel !== 'agent') load = Promise.resolve(null);
+    else {
+      load = import('../bots/AgentVisual')
+        .then((m) => m.AgentAssets.load(this.scene, getAgent(agent).model, this.botAssets))
+        .then((assets) => {
+          if (this.disposed) {
+            assets.dispose();
+            return null;
+          }
+          assets.rifle = this.weaponSkins.get('vandal') ?? null;
+          this.agentReady.set(agent, assets);
+          return assets;
+        })
+        .catch((err) => {
+          console.warn(`[agents] ${agent} model unavailable — using the blocky body`, err);
+          return null;
+        });
+    }
+    this.agentModels.set(agent, load);
+    return load;
+  }
+
+  /** A body for an agent: their model when it has loaded, else the blocky body in their colours. */
+  private agentVisual(agent: string | null, id: number): BotView {
+    const ready = agent ? this.agentReady.get(agent as AgentId) : undefined;
+    return ready ? ready.create(id) : new BotVisual(this.botAssets, id, getAgent(agent));
+  }
+
+  /**
+   * Dress another player as their agent: the model if it is loaded, else the stand-in until it is.
+   * `rebuild` replaces the body even when it is already a model (they picked another agent).
+   */
+  private dressRemote(r: RemotePlayer, weapon: WeaponId, rebuild = false) {
+    const agent = r.agent as AgentId | null;
+    const swap = () => {
+      r.visual.dispose();
+      r.visual = this.agentVisual(agent, 1000 + r.n);
+      r.model = !!(agent && this.agentReady.has(agent));
+    };
+    if (rebuild) swap();
+    else r.model = !!(agent && this.agentReady.has(agent));
+    this.showRemoteWeapon(r, weapon);
+    if (!agent || r.model) return;
+    void this.loadAgent(agent).then((assets) => {
+      // still here, still that agent, and not already swapped by another load
+      if (!assets || this.disposed || r.agent !== agent || r.model || ![...this.remotes.values()].includes(r)) return;
+      swap();
+      if (r.dead) r.visual.die();
+      this.showRemoteWeapon(r, r.weapon);
+    });
+  }
+
+  /** Put the gun another player really carries into their model's hands, fetching its model if need be. */
+  private showRemoteWeapon(r: RemotePlayer, weapon: WeaponId) {
+    r.weapon = weapon;
+    if (!r.visual.setWeapon || !__LOCAL_MODELS__ || this.settings.graphics.gunModels !== 'skins') return;
+    const ready = this.weaponSkins.get(weapon);
+    if (ready) {
+      r.visual.setWeapon(ready);
+      return;
+    }
+    let load = this.skinLoads.get(weapon);
+    if (!load) {
+      load = import('../weapons/WeaponSkins')
+        .then((m) => m.loadWeaponSkins(this.scene, [weapon]))
+        .then((skins) => {
+          const skin = skins.get(weapon);
+          if (this.disposed) skin?.dispose();
+          else if (skin) this.weaponSkins.set(weapon, skin);
+          return this.disposed ? undefined : skin;
+        })
+        .catch(() => undefined);
+      this.skinLoads.set(weapon, load);
+    }
+    void load.then((skin) => {
+      // they may have switched again, or left, while it loaded
+      if (skin && !this.disposed && r.weapon === weapon && [...this.remotes.values()].includes(r)) r.visual.setWeapon?.(skin);
+    });
   }
 
   private sendCommands() {

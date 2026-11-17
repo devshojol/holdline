@@ -34,12 +34,15 @@ export function LoadoutMenu({
   onPick,
   onClose,
   issue,
+  note = 'The session is paused. Your choice applies when you return.',
 }: {
   primary: WeaponId;
   secondary: WeaponId;
   onPick: (slot: 0 | 1, id: WeaponId) => void;
   onClose: () => void;
   issue: 'cooldown' | 'blocked' | null;
+  /** The line under the title saying when a choice takes effect. */
+  note?: string;
 }) {
   return (
     <div className="absolute inset-0 grid place-items-center bg-black/60 backdrop-blur-[2px]">
@@ -49,7 +52,7 @@ export function LoadoutMenu({
             <div className="font-display text-sm font-semibold uppercase tracking-[0.25em] text-accent">Weapon menu</div>
             <div className="font-display text-3xl font-bold uppercase leading-none">Choose your loadout</div>
           </div>
-          <div className="text-xs text-dim">The session is paused. Your choice applies when you return.</div>
+          <div className="text-xs text-dim">{note}</div>
         </div>
 
         <div className="mt-5 text-xs uppercase tracking-widest text-dim">Primary · key 1</div>

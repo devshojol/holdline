@@ -1,3 +1,4 @@
+import { isAgentId } from '../src/game/agents';
 import { describe, expect, it } from 'vitest';
 import { Match, type PlayerInfo } from '../server/Match';
 import { buildMapData } from '../src/game/maps/MapData';
@@ -20,7 +21,7 @@ function newMatch(rng: () => number, settings: Partial<RoomSettings> = {}) {
 }
 
 function info(name: string, extra: Partial<PlayerInfo> = {}): PlayerInfo {
-  return { name, team: null, loadout: { primary: 'vandal', secondary: 'classic' }, ping: 20, ...extra };
+  return { name, team: null, loadout: { primary: 'vandal', secondary: 'classic' }, ping: 20, agent: 'phoenix', ...extra };
 }
 
 function seeded(seed: number) {
@@ -444,5 +445,105 @@ describe('combat', () => {
     expect(d.match.scoreboard().find((s) => s.id === 'shooter')!.kills).toBe(1);
     d.match.remove('shooter', true); // left the room for good
     expect(d.match.scoreboard().some((s) => s.id === 'shooter')).toBe(false);
+  });
+});
+
+describe('bots in a match', () => {
+  /** A match of bots only, run for `seconds` at the snapshot rate. */
+  function botMatch(count: number, seconds: number, settings: Partial<RoomSettings> = {}) {
+    const m = newMatch(seeded(21), { spawnProtectionSec: 0, respawnDelaySec: 1, killLimit: 0, ...settings });
+    let now = 1000;
+    m.match.tick(now);
+    m.match.setBotCount(count, now);
+    const start = new Map(m.match.snapshot('nobody').players.map((p) => [p.id, p.pos]));
+    for (const end = now + seconds * 1000; now < end; ) {
+      now += 1000 / 30;
+      m.match.tick(now);
+    }
+    return { ...m, start, now };
+  }
+
+  it('walk the map, find each other and fight', () => {
+    const m = botMatch(6, 60);
+    const board = m.match.scoreboard();
+    expect(board).toHaveLength(6);
+    expect(board.every((p) => p.bot)).toBe(true);
+    expect(new Set(board.map((p) => p.name)).size).toBe(6);
+    // they moved from where they spawned…
+    const moved = m.match.snapshot('nobody').players.filter((p) => Math.hypot(p.pos[0] - m.start.get(p.id)![0], p.pos[2] - m.start.get(p.id)![2]) > 3).length;
+    expect(moved).toBeGreaterThanOrEqual(4);
+    // …and a minute of six bots produces kills, deaths to match, and respawns
+    const kills = board.reduce((n, p) => n + p.kills, 0);
+    expect(kills).toBeGreaterThanOrEqual(3);
+    expect(board.reduce((n, p) => n + p.deaths, 0)).toBe(kills);
+    expect(m.sent.some(([, msg]) => msg.t === 'event' && msg.event.type === 'respawn')).toBe(true);
+  });
+
+  it('are better shots when harder', () => {
+    const kills = (botDifficulty: RoomSettings['botDifficulty']) =>
+      botMatch(6, 90, { botDifficulty })
+        .match.scoreboard()
+        .reduce((n, p) => n + p.kills, 0);
+    expect(kills('hard')).toBeGreaterThan(kills('easy'));
+  });
+
+  it('stay off their own team and carry only guns the room allows', () => {
+    const teams = botMatch(6, 45, { mode: 'team-deathmatch' });
+    const board = teams.match.scoreboard();
+    expect(board.filter((p) => p.team === 'a')).toHaveLength(3);
+    expect(board.filter((p) => p.team === 'b')).toHaveLength(3);
+    expect(board.every((p) => p.kills >= 0)).toBe(true); // a team kill would have cost a kill
+    const pistols = botMatch(4, 1, { weapons: 'sidearms' });
+    expect(pistols.match.snapshot('nobody').players.every((p) => ['classic', 'ghost', 'sheriff'].includes(p.weapon))).toBe(true);
+  });
+
+  it('come and go to keep the match at its number', () => {
+    const m = botMatch(5, 1);
+    m.match.setBotCount(2, m.now);
+    expect(m.match.botCount).toBe(2);
+    expect(m.match.scoreboard()).toHaveLength(2);
+    m.match.setBotCount(0, m.now);
+    expect(m.match.snapshot('nobody').players).toEqual([]);
+  });
+
+  it('each play a random agent, different ones while there are enough', () => {
+    const m = botMatch(6, 1);
+    const agents = m.match.scoreboard().map((s) => s.agent);
+    expect(agents.every((a) => isAgentId(a))).toBe(true);
+    expect(new Set(agents).size).toBe(agents.length);
+  });
+});
+
+describe('loadout and held gun', () => {
+  it('changes guns at the next respawn, or at once while protected', () => {
+    const m = newMatch(seeded(4), { spawnProtectionSec: 2, respawnDelaySec: 1 });
+    m.match.add('me', info('Me'), 0);
+    m.match.tick(1000);
+    const mine = () => m.events('me').filter((e) => e.type === 'loadout');
+    // still protected: the new guns are theirs straight away
+    m.match.setLoadout('me', { primary: 'phantom', secondary: 'ghost' }, 1000);
+    expect(mine()).toEqual([{ type: 'loadout', loadout: { primary: 'phantom', secondary: 'ghost' } }]);
+    // protection over: the next change waits
+    m.match.tick(4000);
+    m.match.setLoadout('me', { primary: 'operator', secondary: 'sheriff' }, 4000);
+    expect(mine()).toHaveLength(1);
+    const body = (m.match as unknown as { bodies: Map<string, { controller: PlayerController; respawnAt: number }> }).bodies.get('me')!;
+    body.controller.damage(999);
+    body.respawnAt = 5000;
+    m.match.tick(5000);
+    expect(mine().at(-1)).toEqual({ type: 'loadout', loadout: { primary: 'operator', secondary: 'sheriff' } });
+  });
+
+  it('shows others the gun a player holds, if it is one of theirs', () => {
+    const m = newMatch(seeded(4));
+    m.match.add('a', info('A'), 0);
+    m.match.add('b', info('B'), 0);
+    const held = () => m.match.snapshot('b').players[0].weapon;
+    expect(held()).toBe('vandal');
+    m.match.setHeld('a', 'classic');
+    expect(held()).toBe('classic');
+    m.match.setHeld('a', 'operator'); // not carried
+    m.match.setHeld('a', 42);
+    expect(held()).toBe('classic');
   });
 });

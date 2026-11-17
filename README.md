@@ -155,7 +155,7 @@ A bot is one `Bot` entity (state, perception, aim, shooting, movement) plus a _b
 - **Deathmatch behaviour** (`behaviors/DeathmatchBehavior.ts`): patrol → engage → hold or chase → search, with cover and re-peek. In a fight the bot stops to shoot and sidesteps between bursts, closing in when its gun is out of range and backing off when the player is on top of it; it ducks behind cover when hurt or reloading. When the player breaks line of sight it holds the angle or pushes (by aggression), walks the last stretch quietly, follows the way the player was heading and checks the longest lanes before giving up. Careful bots hold an angle on close footsteps; a bot that spots the player alerts roaming bots within 28 m; a bot shot from behind turns on the shooter. Roaming bots look into the next lane before a corner and keep apart from each other. Paths come from grid A\* (`navigation/`) with step heights, drops, corner rules and path smoothing.
 - **Weapons and fairness**: each bot draws a gun when it spawns (Practice → Bot weapons: a weighted mix of every gun but the sniper, rifles only, sidearms only, or your own primary) and taps semi-automatic guns in ones and twos. `maxAttackers` limits how many bots may shoot at once (1 / 2 / 3 / no limit for Easy / Normal / Hard / Radiant); the others hold fire until a slot frees up. Bots hold fire for a moment after you respawn (2 s in Deathmatch).
 - **Size**: bots are person-sized (1.8 m). One constant, `BOT_SCALE` in `visibility.ts`, scales the model, hitboxes, collision, eye height and visibility checks together; regenerate enemy spots after changing it.
-- **Visuals** (`bots/AgentVisual.ts`): by default the rigged Miks agent model. It has no animations, so its skeleton is posed in code every frame: a gait whose planted feet match the ground speed, hip bob and sway, a lean into the run, a low combat squat when crouched, aim pitch, both hands IK-solved onto the rifle, a recoil kick per shot, a flinch when hit, a reload with the left hand swapping the magazine, and a fall onto the back on death. Posing is skipped off-screen and runs at a third of the rate far away. Joints are matched by name without the exporter's number suffix, so another agent on the same rig can replace the file. The fallback is a procedural training dummy.
+- **Visuals** (`bots/AgentVisual.ts`): by default a rigged agent model, a random one of the agents in `src/game/agents.ts` per bot. It has no animations, so its skeleton is posed in code every frame: a gait whose planted feet match the ground speed, hip bob and sway, a lean into the run, a low combat squat when crouched, aim pitch, both hands IK-solved onto the rifle, a recoil kick per shot, a flinch when hit, a reload with the left hand swapping the magazine, and a fall onto the back on death. Posing is skipped off-screen and runs at a third of the rate far away. Joints are matched by name without the exporter's number suffix, so any agent on the same rig works (`scripts/prepare-agent-model.mjs` prepares one). The fallback is a procedural training dummy.
 
 ### 3.7 Maps
 
@@ -192,15 +192,18 @@ A bot is one `Bot` entity (state, perception, aim, shooting, movement) plus a _b
 Deathmatch against other people, up to 10 in a match. Full detail, including how to run and deploy it, is in [`docs/multiplayer.md`](docs/multiplayer.md).
 
 - **Custom rooms**: create a room, invite friends with a 6-character code or a link, and set the map, time limit, kill limit, allowed weapons, respawn delay and more. The host starts the match; afterwards everyone returns to the room with the final score.
-- **Quick match**: pick the maps you accept and search. A match starts 15 seconds after a second player arrives (at once with 10), and later arrivals join it while it has time left. Idle players are removed.
+- **Quick match**: pick the maps you accept and search. A match starts within 15 seconds (at once with 10 players), filled to six with bots, and later arrivals take a bot's place while the match has time left. Idle players are removed.
+- **Bots** (`server/MatchBot.ts`) fill a match so one person can play: they roam, fight whoever they see, including each other, chase for a moment and turn on whoever shoots them, at three difficulties. A custom room can fill to any size.
 - **The server decides.** A Node game server (`server/`) owns every room and match. It runs the same `PlayerController`, `CollisionWorld` and hitbox code as the client (the files are shared, and a test fails if any of them touches the browser or Babylon), so a client can't teleport, deal extra damage or score for itself.
 - **Movement** is predicted on the client and corrected by the server: each simulation step is sent as a command and replayed there. Other players are drawn 100 ms in the past, blended between snapshots that arrive 30 times a second.
 - **Shots** play their effects at once on the shooter's screen. The server checks the gun, fire rate, origin and direction, rewinds the other players to where the shooter saw them (lag compensation), and reports the hit.
-- **In a match**: the kill feed, a Tab scoreboard, a match clock, spawn protection, and the minimap shows a player for a moment after they fire an unsuppressed gun. The world never pauses.
+- **In a match**: the kill feed, a Tab scoreboard, a match clock, spawn protection, and the minimap shows a player for a moment after they fire an unsuppressed gun. Other players are drawn holding the gun they carry. A kill restocks spare ammunition; guns picked in the weapon menu arrive at the next respawn. The world never pauses.
+- **Around a match**: the room shows players as cards with the places bots will take, searching shows a radar, loading shows the map, and the end is a Victory, Defeat or Draw screen with the scoreboard.
 - **Try it locally** with `npm run server` and `npm run dev`; `npm run mp:bot -- <room code> 3 shoot` adds test players.
 
 ### 3.10 Rendering
 
+- **Seeing enemies at range**: a light distance haze in each map's own pale colour softens far scenery (about a fifth at 45 m), while characters are left out of it and give off a third of their own colour as light. A far enemy stays crisp and saturated against a softened background instead of sinking into it.
 - `MapRenderer` batches the merged boxes into a few meshes with world-space UVs, so textures tile evenly at any box size. Wall, floor, crate, metal and stone textures and the sky are drawn procedurally on canvases (`rendering/textures.ts`), seeded per map.
 - Graphics presets (Potato / Low / Medium / High) set shadows, resolution scale, anti-aliasing, effects, post-processing, lighting, texture size and which bot, gun and arm models load. Potato is for machines without a dedicated GPU. On first run `settings/deviceProfile.ts` reads the GPU name and picks a preset; Settings shows what it found.
 - Adaptive resolution (on by default) lowers the render scale in steps while the frame rate is under 60 (or the FPS limit) and raises it again afterwards, down to half the chosen scale. An FPS limit (30 / 60 / 120 / 144) is available for laptops.
@@ -227,7 +230,7 @@ Deathmatch against other people, up to 10 in a match. Full detail, including how
 - `npm run server:build` bundles the game server into `dist-server/index.cjs`; the `Dockerfile` builds the same into an image. It runs on Render (`render.yaml`).
 - `npm run build:single` builds with `vite.single.config.ts` and inlines all JS, CSS and the favicon into one HTML file. That build sets `__LOCAL_MODELS__` to false, so it never loads GLB models or recordings: bots are training dummies, arms are built from shapes and all sounds are synthesised.
 - `scripts/compress-models.mjs` shrinks every GLB in a folder (welding, quantized vertex data, trimmed animation keyframes). It simplifies the Phantom on every run, so point it at a folder holding only the new files rather than at all of `public/models`.
-- Model preparation is scripted with glTF-Transform: `scripts/prepare-agent-model.mjs` (bot model), `scripts/prepare-weapon-skin.mjs` (gun skins), `scripts/prepare-fp-arms.mjs` and `scripts/prepare-fp-arms-pistol.mjs` (first-person arms). `scripts/extract-gun-samples.py` and `extract-gun-samples-2.py` cut single shots out of longer recordings. The scripts run from a scratch folder that has the tools installed (see each file's header).
+- Model preparation is scripted with glTF-Transform: `scripts/prepare-agent-model.mjs` (agent models), `scripts/prepare-weapon-skin.mjs` (gun skins), `scripts/prepare-fp-arms.mjs` and `scripts/prepare-fp-arms-pistol.mjs` (first-person arms). `scripts/extract-gun-samples.py` and `extract-gun-samples-2.py` cut single shots out of longer recordings. The scripts run from a scratch folder that has the tools installed (see each file's header).
 
 ### 3.14 Testing and debugging
 
@@ -249,7 +252,7 @@ Deathmatch against other people, up to 10 in a match. Full detail, including how
 - The minimap doesn't show height.
 - The Operator's scope is click-to-cycle only (no hold-to-scope option).
 - Statistics are kept in localStorage (300 sessions), not IndexedDB. Multiplayer matches aren't recorded in them.
-- Multiplayer: other players always appear holding the Vandal; a weapon picked mid-match is in hand at once; the free game server sleeps when nobody is playing. Two people on two machines haven't been tried yet (testing used bots).
+- Multiplayer: the free game server sleeps when nobody is playing, and Team Deathmatch has no team colours yet. Two people on two machines haven't been tried (testing used bots).
 - WebGPU and real-GPU frame rates haven't been measured; automated runs use software rendering. Use the Potato or Low preset on weak machines.
 - In a sandboxed iframe Pointer Lock may be blocked; the game falls back to free-mouse aiming. Firefox has no raw pointer input, so OS acceleration may apply.
 
@@ -284,7 +287,7 @@ Deathmatch against other people, up to 10 in a match. Full detail, including how
 **Multiplayer** (see `docs/multiplayer.md`)
 
 - Team Deathmatch on the client (team colours, teammates on the minimap) and locking the guns a room doesn't allow.
-- Bots that fill a room, which needs bots that fight several players and each other.
+- Smarter multiplayer bots: they don't yet hold angles or peek the way the practice bots do.
 - A game server that doesn't sleep: the free one takes about a minute to wake after a quiet spell.
 
 ## 6. Credits

@@ -26,6 +26,7 @@ import type { PracticeConfig } from '../types';
 import type { NetLink } from '../game/net/NetLink';
 import { getMapDefinition } from '../game/maps/registry';
 import { DEFAULT_PRACTICE } from '../settings/defaults';
+import { DEFAULT_AGENT, isAgentId, type AgentId } from '../game/agents';
 
 /** A match this player has a body in. */
 export interface ActiveMatch {
@@ -40,6 +41,8 @@ export interface MultiplayerState {
   available: boolean;
   status: 'idle' | 'connecting' | 'online' | 'reconnecting';
   name: string;
+  /** The agent this player picked (remembered between visits). */
+  agent: AgentId;
   playerId: string | null;
   room: RoomState | null;
   /** The last thing that went wrong, in words for the player. */
@@ -93,10 +96,16 @@ function inviteFromUrl(): string | null {
   return normalizeRoomCode(new URLSearchParams(location.search).get('room'));
 }
 
+function storedAgent(): AgentId {
+  const id = load<string>('mp-agent', DEFAULT_AGENT);
+  return isAgentId(id) ? id : DEFAULT_AGENT;
+}
+
 let state: MultiplayerState = {
   available: serverUrl() !== '',
   status: 'idle',
   name: load('mp-name', ''),
+  agent: storedAgent(),
   playerId: null,
   room: null,
   error: null,
@@ -224,6 +233,7 @@ function receive(msg: ServerMessage) {
       set({ status: 'online', playerId: msg.playerId, clockOffset: msg.serverTime - Date.now(), room: msg.room ? state.room : null });
       const { primary, secondary } = appStore.get().practice;
       raw({ t: 'loadout', loadout: { primary, secondary } });
+      raw({ t: 'agent', agent: state.agent });
       const queued = outbox;
       outbox = [];
       // a join or create that was waiting is pointless if the server already put us back in a room
@@ -290,6 +300,7 @@ function receive(msg: ServerMessage) {
         spawn: msg.spawn,
         endsAt: msg.endsAt,
         nameOf: (id) => state.scores.find((p) => p.id === id)?.name ?? state.room?.players.find((p) => p.id === id)?.name ?? 'Player',
+        agentOf: (id) => state.scores.find((p) => p.id === id)?.agent ?? state.room?.players.find((p) => p.id === id)?.agent ?? null,
         send: raw,
         onMessage: null,
         drop: () => socket?.close(),
@@ -347,6 +358,13 @@ export const multiplayer = {
   subscribe(fn: () => void) {
     listeners.add(fn);
     return () => listeners.delete(fn);
+  },
+  /** Pick an agent: remembered here and told to the server (in a match, it shows from the next one). */
+  setAgent(agent: AgentId) {
+    if (!isAgentId(agent)) return;
+    set({ agent });
+    save('mp-agent', agent);
+    if (greeted) raw({ t: 'agent', agent });
   },
   setName(name: string) {
     set({ name });

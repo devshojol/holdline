@@ -126,6 +126,11 @@ export class WeaponSystem {
     return this.lastShotAge;
   }
 
+  /** Top up the spare ammunition of both guns (multiplayer: the reward for a kill). The magazines are left as they are. */
+  refillReserve() {
+    for (const s of this.slots) s.reserve = s.cfg.reserve;
+  }
+
   refill() {
     for (const s of this.slots) {
       s.ammo = s.cfg.magazine;

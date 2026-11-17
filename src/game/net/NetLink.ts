@@ -1,5 +1,6 @@
 import type { Vec3 } from '../../types';
 import type { ClientMessage, ServerMessage } from '../../net/protocol';
+import type { AgentId } from '../agents';
 
 /** What the game engine needs from the connection to play a multiplayer match. */
 export interface NetLink {
@@ -11,6 +12,8 @@ export interface NetLink {
   endsAt: number;
   /** The display name of a player in the match. */
   nameOf(id: string): string;
+  /** The agent a player in the match plays as, once the server has said. */
+  agentOf(id: string): AgentId | null;
   send(msg: ClientMessage): void;
   /** Set by the engine: called for every snapshot and match event. */
   onMessage: ((msg: ServerMessage) => void) | null;

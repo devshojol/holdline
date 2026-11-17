@@ -18,6 +18,8 @@ export type MatchMode = 'deathmatch' | 'team-deathmatch';
  */
 export type WeaponRule = 'all' | 'rifles' | 'sidearms' | 'no-operator' | 'single';
 
+export type BotDifficulty = 'easy' | 'normal' | 'hard';
+
 export interface RoomSettings {
   mapId: string;
   mode: MatchMode;
@@ -40,6 +42,12 @@ export interface RoomSettings {
   joinInProgress: boolean;
   /** Team Deathmatch only. */
   friendlyFire: boolean;
+  /**
+   * Bots join until the match has this many players, and step out one by one as people join.
+   * 0 = no bots.
+   */
+  botFill: number;
+  botDifficulty: BotDifficulty;
 }
 
 export const MAX_ROOM_PLAYERS = 10;
@@ -50,6 +58,8 @@ export const ROOM_OPTIONS = {
   killLimit: [0, 20, 30, 40, 50, 75, 100],
   respawnDelaySec: [1, 3, 5],
   spawnProtectionSec: [0, 2, 4],
+  botFill: [0, 2, 4, 6, 8, 10],
+  botDifficulty: ['easy', 'normal', 'hard'],
   mode: ['deathmatch', 'team-deathmatch'],
   weapons: ['all', 'rifles', 'sidearms', 'no-operator', 'single'],
 } as const;
@@ -68,6 +78,8 @@ export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
   spawnProtectionSec: 2,
   joinInProgress: true,
   friendlyFire: false,
+  botFill: 0,
+  botDifficulty: 'normal',
 };
 
 /** Quick match always plays these rules; only the map varies. */
@@ -84,6 +96,9 @@ export const QUICK_MATCH_SETTINGS: Omit<RoomSettings, 'mapId'> = {
   spawnProtectionSec: 2,
   joinInProgress: true,
   friendlyFire: false,
+  // a quick match is never empty: bots make up the numbers until people arrive
+  botFill: 6,
+  botDifficulty: 'normal',
 };
 
 export function isMapId(id: unknown): id is string {
@@ -117,6 +132,8 @@ export function applyRoomSettings(current: RoomSettings, patch: unknown): RoomSe
     spawnProtectionSec: oneOf(ROOM_OPTIONS.spawnProtectionSec, p.spawnProtectionSec, current.spawnProtectionSec),
     joinInProgress: bool(p.joinInProgress, current.joinInProgress),
     friendlyFire: bool(p.friendlyFire, current.friendlyFire),
+    botFill: oneOf(ROOM_OPTIONS.botFill, p.botFill, current.botFill),
+    botDifficulty: oneOf(ROOM_OPTIONS.botDifficulty, p.botDifficulty, current.botDifficulty),
   };
 }
 

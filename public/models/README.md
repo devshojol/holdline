@@ -1,8 +1,9 @@
-# Bot character model
+# Agent models (`miks.glb`, `agents/`)
 
-`miks.glb` is used for the bots when **Settings → Graphics → Bot model** is set to *Miks* (the default).
-If the file is missing or fails to load, the game falls back to the built-in blocky training dummy.
-The model has no animations of its own: the game poses its skeleton in code (`src/game/bots/AgentVisual.ts`).
+The agents players pick in multiplayer (`src/game/agents.ts`); bots wear a random one, in multiplayer and in
+practice, when **Settings → Graphics → Bot model** is set to *Agents* (the default). A missing or broken file falls
+back to the built-in blocky body in that agent's colours. The models have no animations of their own: the game poses
+their skeletons in code (`src/game/bots/AgentVisual.ts`).
 
 ## Credit (CC BY 4.0)
 
@@ -21,6 +22,23 @@ Made with `scripts/prepare-agent-model.mjs` (see its header for the exact steps)
 - skeleton reduced from 569 to 31 joints (face, hair, cloth, finger, twist and weapon joints merged into the
   joints that stay), with the bind matrices rebuilt from the rest pose.
 
+## `agents/` credits (all CC BY 4.0)
+
+- `brimstone.glb`: "[Brimstone | Valorant](https://sketchfab.com/3d-models/brimstone-valorant-9beae7093ce8427aa48c22e2d83b3660)" by [ILilMitch](https://sketchfab.com/ILilMitch)
+- `cypher.glb`: "[Cypher [Valorant]](https://sketchfab.com/3d-models/cypher-valorant-e59de758479d4f5c8714183e94a4d047)" by [vintnes6](https://sketchfab.com/vintnes6)
+- `iso.glb`: "[Iso | Valorant](https://sketchfab.com/3d-models/iso-valorant-ec862c284e7d490eada1bbcd48ac571a)" by [ILilMitch](https://sketchfab.com/ILilMitch)
+- `neon.glb`: "[Neon - Valorant](https://sketchfab.com/3d-models/neon-valorant-4c28be54d3524b5d989ed66e8f1a4bfa)" by [Sketch Nerd](https://sketchfab.com/Sketchnerd)
+- `omen.glb`: "[Omen | Valorant](https://sketchfab.com/3d-models/omen-valorant-983679f060524d5685ddd442ab67784a)" by [ILilMitch](https://sketchfab.com/ILilMitch)
+- `phoenix.glb`: "[Phoenix | Valorant](https://sketchfab.com/3d-models/phoenix-valorant-ed6fdbf91b8b42b1a899e82f520f1fb3)" by [ILilMitch](https://sketchfab.com/ILilMitch)
+- `sage.glb`: "[Sage | Valorant](https://sketchfab.com/3d-models/sage-valorant-17612cddefbc4f92acddc5fe76625bc2)" by [ILilMitch](https://sketchfab.com/ILilMitch)
+- `skye.glb`: "[Skye | Valorant](https://sketchfab.com/3d-models/skye-valorant-72e842b7c9614916a916307b8fa7fc86)" by [ILilMitch](https://sketchfab.com/ILilMitch)
+
+Licensed under [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/). The characters are owned by Riot Games, so
+the same free, non-commercial rule applies. Each was made with `scripts/prepare-agent-model.mjs`
+(`node prepare-agent-model.mjs <in.glb> <out.glb> 0.5 <brimstone.glb>`, the last file giving Omen eye points) and
+then `scripts/compress-models.mjs`: materials converted to metal/roughness, simplified to about half the triangles
+(12k–26k), textures 1024 px WebP, skeleton reduced to 31 joints, and the model recentred to stand on its origin.
+
 # Weapon skins (`weapons/`)
 
 Used for the first-person guns when **Settings → Graphics → Gun models** is set to *Skins* (the default);
@@ -31,8 +49,8 @@ The grip, support-hand, muzzle and sight points measured on each model live in `
 
 - `vandal.glb`: "[Gaia Vandal (Orange)](https://sketchfab.com/3d-models/gaia-vandal-orange-46e6e410115441c182efab311d557532)"
   by [ILilMitch](https://sketchfab.com/ILilMitch), licensed under [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/).
-- `phantom.glb`: "[Phantom - Reaver (White Variant) Valorant](https://sketchfab.com/3d-models/phantom-reaver-white-variant-valorant-399ea10e99b5459cbf892498c7c258fc)"
-  by [MisterM4n](https://sketchfab.com/MisterM4n), licensed under [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/).
+- `phantom.glb`: "[Valorant Recon Phantom Rifle](https://sketchfab.com/3d-models/valorant-recon-phantom-rifle-85af07c2d05c4298a3a497ed091805b0)"
+  by [jordanstasak](https://sketchfab.com/jordanstasak), licensed under [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/).
 - `sheriff.glb`: "[Valorant Sheriff](https://sketchfab.com/3d-models/valorant-sheriff-a9d26172689e407eb43726ab9a0e4d68)"
   by [sn00p](https://sketchfab.com/sn00ps), licensed under [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/).
 - `classic.glb`: "[Prime Classic | Valorant](https://sketchfab.com/3d-models/prime-classic-valorant-ba82312c24cf4b89a6b34030b764947f)"
@@ -53,7 +71,7 @@ All eight skins are Valorant designs owned by Riot Games, so the same free, non-
 
 ## Changes made to the originals
 
-The Classic, Ghost, Spectre, Guardian, Operator and Sheriff were prepared with `scripts/prepare-weapon-skin.mjs`
+The Phantom, Classic, Ghost, Spectre, Guardian, Operator and Sheriff were prepared with `scripts/prepare-weapon-skin.mjs`
 (see its header): the Classic's skinned mesh baked in its bind pose, skins and the Ghost's ground plane removed,
 every part baked into one space with the barrel along +Z and scaled to metres, meshes joined, simplified to
 6k–16k triangles (the Sheriff from about 1.5M), and textures resized to 1024 px WebP.
@@ -63,9 +81,8 @@ for the reload and for working the bolt after each shot.
 The Guardian was converted from two 3D-print STL files: its magazine (exported at the print origin) moved into the
 mag well. The Guardian and Sheriff have no textures in the originals, so both get a flat gunmetal material.
 
-The Vandal and Phantom were recentred and their textures resized to 1024 px and converted to WebP (`gltf-transform center`,
-`resize`, `webp`, `prune`). The Phantom was also welded, simplified from about 225k to 37k triangles and
-quantized (`weld`, `simplify --ratio 0.06 --error 0.01`, `quantize`).
+The Vandal was recentred and its textures resized to 1024 px and converted to WebP (`gltf-transform center`,
+`resize`, `webp`, `prune`). The Phantom was simplified from about 19k to 18k triangles.
 
 # First-person arms (`fp-arms.glb`)
 
@@ -131,7 +148,6 @@ Made with `scripts/prepare-fp-arms-pistol.mjs` (2.3 MB → 0.36 MB):
 
 # Compression
 
-After the per-model steps above, every GLB here was run through `scripts/compress-models.mjs` once (run it on a
-folder holding only new files: it simplifies the Phantom again on every run): vertices welded,
+After the per-model steps above, every GLB here was run through `scripts/compress-models.mjs` once: vertices welded,
 normals, tangents, UVs, joints and weights stored quantized (`KHR_mesh_quantization`; positions too on unskinned
-models), redundant animation keyframes removed, and the Phantom simplified again (about 37k → 17k triangles).
+models) and redundant animation keyframes removed.

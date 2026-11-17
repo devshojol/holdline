@@ -1,14 +1,16 @@
-import { Check, Copy, Crown, Link as LinkIcon, LogOut, Play, Square, UserX, WifiOff } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Bot, Check, Copy, Crown, Link as LinkIcon, LogOut, Play, Square, UserPlus, UserX, WifiOff } from 'lucide-react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import type { WeaponId } from '../types';
 import { MAP_SUMMARIES } from '../game/maps/registry';
 import { ALL_WEAPONS, WEAPONS } from '../game/weapons/weaponConfigs';
 import { multiplayer, useMultiplayer } from '../multiplayer/client';
 import { MIN_PLAYERS, type RoomPlayer, type RoomState, type Team } from '../net/protocol';
-import { ROOM_OPTIONS, type MatchMode, type RoomSettings, type WeaponRule } from '../net/settings';
+import { ROOM_OPTIONS, type BotDifficulty, type MatchMode, type RoomSettings, type WeaponRule } from '../net/settings';
 import { mapName } from '../utils/labels';
+import { AgentPicker, AgentPortrait } from './AgentPicker';
+import { getAgent } from '../game/agents';
 import { MapPreview } from './MapPreview';
-import { Scoreboard } from './Scoreboard';
+import { MatchResultView } from './Scoreboard';
 import { Badge, Button, Card, ConfirmButton, Field, PageHeader, Segmented, Toggle, cx } from './ui';
 
 const MODE_LABEL: Record<MatchMode, string> = { deathmatch: 'Deathmatch', 'team-deathmatch': 'Team Deathmatch' };
@@ -20,6 +22,7 @@ const WEAPON_RULE_LABEL: Record<WeaponRule, string> = {
   single: 'One gun',
 };
 const TEAM_LABEL: Record<Team, string> = { a: 'Team A', b: 'Team B' };
+const DIFFICULTY_LABEL: Record<BotDifficulty, string> = { easy: 'Easy', normal: 'Normal', hard: 'Hard' };
 
 /** Re-render on a timer while something on screen counts down. */
 function useNow(active: boolean) {
@@ -75,7 +78,12 @@ export function RoomLobby({ room }: { room: RoomState }) {
   const isHost = !!me?.host;
   const inLobby = room.phase === 'lobby';
   const connected = room.players.filter((p) => p.connected).length;
-  const canStart = isHost && inLobby && connected >= MIN_PLAYERS;
+  // someone to play against: a second person, or bots
+  const canStart = isHost && inLobby && Math.max(connected, room.settings.botFill) >= MIN_PLAYERS;
+  const teams = room.settings.mode === 'team-deathmatch';
+  const slots = room.settings.maxPlayers;
+  /** Places bots will take once the match starts. */
+  const botSlots = Math.max(0, Math.min(slots, room.settings.botFill) - room.players.length);
   const link = multiplayer.inviteLink(room.code);
   const remaining = room.phaseEndsAt - now;
   const quick = room.kind === 'quick';
@@ -90,7 +98,7 @@ export function RoomLobby({ room }: { room: RoomState }) {
             </Button>
           )}
           {isHost && inLobby && (
-            <Button size="lg" disabled={!canStart} title={canStart ? undefined : `A match needs at least ${MIN_PLAYERS} players`} onClick={() => multiplayer.start()}>
+            <Button size="lg" disabled={!canStart} title={canStart ? undefined : `A match needs at least ${MIN_PLAYERS} players: invite a friend or turn on bots`} onClick={() => multiplayer.start()}>
               <Play size={20} /> Start match
             </Button>
           )}
@@ -125,7 +133,18 @@ export function RoomLobby({ room }: { room: RoomState }) {
       )}
 
       {room.phase === 'countdown' && (
-        <PhaseBanner tone="accent" label={quick ? 'Match found · starts in' : 'Match starts in'} value={String(Math.max(0, Math.ceil(remaining / 1000)))} note={`${mapName(room.settings.mapId)} · ${MODE_LABEL[room.settings.mode]}`} />
+        <div role="status" className="tal-result mb-5" style={{ '--ink': '#fff', '--glow': 'rgba(255,70,85,0.3)', '--edge': 'rgba(255,70,85,0.55)' } as CSSProperties}>
+          <div className="font-display text-xs font-semibold uppercase tracking-[0.4em] text-mute">{quick ? 'Match found' : 'Match starting'}</div>
+          <div className="font-display tabular text-8xl font-extrabold leading-none text-white">
+            {/* the key restarts the pop each second */}
+            <span key={Math.ceil(remaining / 1000)} className="tal-count">
+              {Math.max(0, Math.ceil(remaining / 1000))}
+            </span>
+          </div>
+          <div className="mt-1 font-display text-lg font-semibold uppercase tracking-[0.2em] text-ink">
+            {mapName(room.settings.mapId)} · {MODE_LABEL[room.settings.mode]}
+          </div>
+        </div>
       )}
       {room.phase === 'playing' && (
         <PhaseBanner
@@ -135,11 +154,18 @@ export function RoomLobby({ room }: { room: RoomState }) {
           note={inMatch ? 'You stepped out to the room. Your player is still standing in the match.' : undefined}
         />
       )}
-      {room.phase === 'scoreboard' && <PhaseBanner tone="mute" label={quick ? 'Match over · this room closes in' : 'Match over · back to the lobby in'} value={String(Math.max(0, Math.ceil(remaining / 1000)))} />}
       {result && room.phase !== 'playing' && room.phase !== 'countdown' && (
-        <Card className="mb-5" title={room.phase === 'scoreboard' ? 'Final score' : 'Last match'}>
-          <Scoreboard scores={result.scores} settings={result.settings} me={myId} winner={result.winner} />
-        </Card>
+        <MatchResultView scores={result.scores} settings={result.settings} winner={result.winner} me={myId}>
+          {room.phase === 'scoreboard' ? (
+            <span role="status" className="text-sm text-mute">
+              {quick ? 'This room closes in' : 'Back to the lobby in'} <span className="tabular font-semibold text-ink">{Math.max(0, Math.ceil(remaining / 1000))}</span> s
+            </span>
+          ) : (
+            <Button size="sm" variant="ghost" onClick={() => multiplayer.dismissResult()}>
+              Hide
+            </Button>
+          )}
+        </MatchResultView>
       )}
 
       <div className="grid gap-6 xl:grid-cols-[1fr_440px]">
@@ -164,21 +190,35 @@ export function RoomLobby({ room }: { room: RoomState }) {
             </Card>
           )}
 
-          <Card title={`Players · ${room.players.length} / ${room.settings.maxPlayers}`} right={!inLobby || quick ? undefined : <span className="text-xs text-dim">{isHost ? 'You are the host' : 'Waiting for the host to start'}</span>}>
-            <ul className="divide-y divide-line">
+          <Card
+            title={`Players · ${room.players.length} / ${slots}`}
+            right={
+              <span className="text-xs text-dim">
+                {botSlots > 0 && `${botSlots} ${botSlots === 1 ? 'bot fills' : 'bots fill'} in · `}
+                {!inLobby || quick ? MODE_LABEL[room.settings.mode] : isHost ? 'You are the host' : 'Waiting for the host to start'}
+              </span>
+            }
+          >
+            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
               {room.players.map((p) => (
-                <PlayerRow key={p.id} player={p} me={p.id === myId} isHost={isHost} teams={room.settings.mode === 'team-deathmatch'} editable={inLobby} showReady={!quick} />
+                <PlayerCard key={p.id} player={p} me={p.id === myId} isHost={isHost} teams={teams} editable={inLobby} showReady={!quick} />
               ))}
-              {Array.from({ length: room.settings.maxPlayers - room.players.length }, (_, i) => (
-                <li key={`empty-${i}`} className="py-2.5 text-sm text-dim">
-                  Open slot
-                </li>
-              ))}
+              {Array.from({ length: slots - room.players.length }, (_, i) => {
+                const bot = i < botSlots;
+                return (
+                  <li key={`empty-${i}`} className="tal-slot items-center justify-center gap-1 text-center text-dim" data-empty="true">
+                    {bot ? <Bot size={22} /> : <UserPlus size={22} className="opacity-50" />}
+                    <span className="font-display text-sm font-semibold uppercase tracking-widest">{bot ? 'Bot' : 'Open'}</span>
+                    {bot && <span className="text-[11px]">{DIFFICULTY_LABEL[room.settings.botDifficulty]} · joins at the start</span>}
+                  </li>
+                );
+              })}
             </ul>
           </Card>
         </div>
 
         <div className="space-y-5">
+          <AgentPicker note={inLobby ? 'How other players see you' : 'A change shows from the next match'} />
           <SettingsPanel settings={room.settings} editable={isHost && inLobby} players={room.players.length} fixed={quick} />
         </div>
       </div>
@@ -199,47 +239,58 @@ function PhaseBanner({ tone, label, value, note }: { tone: 'accent' | 'ok' | 'mu
   );
 }
 
-function PlayerRow({ player, me, isHost, teams, editable, showReady }: { player: RoomPlayer; me: boolean; isHost: boolean; teams: boolean; editable: boolean; showReady: boolean }) {
+function PlayerCard({ player, me, isHost, teams, editable, showReady }: { player: RoomPlayer; me: boolean; isHost: boolean; teams: boolean; editable: boolean; showReady: boolean }) {
   const canMove = editable && (me || isHost);
   return (
-    <li className={cx('flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5', !player.connected && 'opacity-50')}>
-      <span className="min-w-0 flex-1 truncate text-base text-ink">
-        {player.name}
-        {me && <span className="ml-2 text-xs text-dim">you</span>}
-      </span>
-      {player.host && (
-        <Badge tone="accent">
-          <Crown size={11} className="mr-1" /> Host
-        </Badge>
-      )}
-      {teams &&
-        player.team &&
-        (canMove ? (
-          <Segmented<Team>
-            value={player.team}
-            onChange={(t) => multiplayer.setTeam(t, me ? undefined : player.id)}
-            options={[
-              { value: 'a', label: 'A' },
-              { value: 'b', label: 'B' },
-            ]}
-          />
-        ) : (
-          <Badge>{TEAM_LABEL[player.team]}</Badge>
-        ))}
-      {!player.connected ? <Badge tone="warn">Reconnecting</Badge> : !showReady ? null : player.ready ? <Badge tone="ok">Ready</Badge> : <Badge>Not ready</Badge>}
-      <span className="tabular w-14 text-right text-xs text-dim">{player.connected && player.ping >= 0 ? `${player.ping} ms` : '—'}</span>
-      {isHost && !me && (
-        <span className="flex gap-1">
-          <Button size="sm" variant="ghost" title={`Make ${player.name} the host`} disabled={!player.connected} onClick={() => multiplayer.makeHost(player.id)}>
-            <Crown size={15} />
-            <span className="sr-only">Make host</span>
-          </Button>
-          <Button size="sm" variant="ghost" title={`Remove ${player.name} from the room`} onClick={() => multiplayer.kick(player.id)}>
-            <UserX size={15} />
-            <span className="sr-only">Remove</span>
-          </Button>
+    <li className={cx('tal-slot', !player.connected && 'opacity-50')} data-me={me} data-ready={showReady && player.ready && player.connected}>
+      <div className="flex items-start justify-between gap-2">
+        <AgentPortrait agent={getAgent(player.agent)} className="h-12 w-12 shrink-0 border border-line" />
+        <span className="flex flex-col items-end gap-1">
+          {player.host && (
+            <Badge tone="accent">
+              <Crown size={11} className="mr-1" /> Host
+            </Badge>
+          )}
+          <span className="tabular text-[11px] text-dim">{player.connected && player.ping >= 0 ? `${player.ping} ms` : '—'}</span>
         </span>
-      )}
+      </div>
+      <div className="mt-2 min-w-0 flex-1">
+        <div className="truncate font-display text-lg font-bold uppercase leading-tight tracking-wide text-ink" title={player.name}>
+          {player.name}
+        </div>
+        <div className="text-[11px] uppercase tracking-widest text-dim">
+          {me ? 'You' : 'Player'} · <span style={{ color: getAgent(player.agent).accent }}>{getAgent(player.agent).name}</span>
+        </div>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {!player.connected ? <Badge tone="warn">Reconnecting</Badge> : !showReady ? null : player.ready ? <Badge tone="ok">Ready</Badge> : <Badge>Not ready</Badge>}
+        {teams &&
+          player.team &&
+          (canMove ? (
+            <Segmented<Team>
+              value={player.team}
+              onChange={(t) => multiplayer.setTeam(t, me ? undefined : player.id)}
+              options={[
+                { value: 'a', label: 'A' },
+                { value: 'b', label: 'B' },
+              ]}
+            />
+          ) : (
+            <Badge>{TEAM_LABEL[player.team]}</Badge>
+          ))}
+        {isHost && !me && (
+          <span className="ml-auto flex">
+            <Button size="sm" variant="ghost" className="!px-1.5" title={`Make ${player.name} the host`} disabled={!player.connected} onClick={() => multiplayer.makeHost(player.id)}>
+              <Crown size={15} />
+              <span className="sr-only">Make host</span>
+            </Button>
+            <Button size="sm" variant="ghost" className="!px-1.5" title={`Remove ${player.name} from the room`} onClick={() => multiplayer.kick(player.id)}>
+              <UserX size={15} />
+              <span className="sr-only">Remove</span>
+            </Button>
+          </span>
+        )}
+      </div>
     </li>
   );
 }
@@ -318,6 +369,22 @@ function SettingsPanel({ settings, editable, players, fixed }: { settings: RoomS
             onChange={(spawnProtectionSec) => update({ spawnProtectionSec })}
             options={opts(ROOM_OPTIONS.spawnProtectionSec, settings.spawnProtectionSec, (s) => (s === 0 ? 'Off' : `${s} s`))}
           />
+        </Field>
+        <Field label="Bots">
+          <Segmented
+            value={settings.botFill}
+            onChange={(botFill) => update({ botFill })}
+            options={opts(ROOM_OPTIONS.botFill, settings.botFill, (n) => (n === 0 ? 'Off' : `Fill to ${n}`))}
+          />
+          {settings.botFill > 0 && (
+            <Segmented<BotDifficulty>
+              className="mt-2"
+              value={settings.botDifficulty}
+              onChange={(botDifficulty) => update({ botDifficulty })}
+              options={opts(ROOM_OPTIONS.botDifficulty, settings.botDifficulty, (d) => DIFFICULTY_LABEL[d])}
+            />
+          )}
+          <p className="mt-2 text-xs text-dim">{settings.botFill > 0 ? 'Bots make up the numbers and step out as people join.' : 'With bots on, you can start a match on your own.'}</p>
         </Field>
         <div className="mt-2 border-t border-line pt-2">
           <Switch label="Headshots only" hint="Body and leg hits deal no damage" checked={settings.headshotsOnly} editable={editable} onChange={(headshotsOnly) => update({ headshotsOnly })} />

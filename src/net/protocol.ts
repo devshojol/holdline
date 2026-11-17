@@ -9,12 +9,13 @@ import type { Vec3, WeaponId } from '../types';
 import type { HitZone } from '../game/physics/CollisionWorld';
 import type { Command } from './command';
 import type { RoomSettings } from './settings';
+import type { AgentId } from '../game/agents';
 
 /**
  * Bumped whenever a message changes shape, or the shared simulation changes (a movement constant, say):
  * client and server must run the same one. A client on another version is asked to reload.
  */
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 5;
 
 /** Rates, in messages per second (docs/multiplayer.md, section 6.1). */
 export const INPUT_RATE = 60;
@@ -63,6 +64,8 @@ export interface RoomPlayer {
   /** Round-trip time in milliseconds, -1 until measured. */
   ping: number;
   connected: boolean;
+  /** The agent they picked (cosmetic). */
+  agent: AgentId;
 }
 
 export interface RoomState {
@@ -138,6 +141,10 @@ export interface ScoreLine {
   assists: number;
   headshots: number;
   ping: number;
+  /** Played by the server, filling a place until a person takes it. */
+  bot?: boolean;
+  /** The agent they play as (a bot's is picked at random). */
+  agent: AgentId;
 }
 
 export interface ShotMessage {
@@ -160,7 +167,9 @@ export type MatchEvent =
   | { type: 'damage'; by: string; from: Vec3; zone: HitZone; damage: number }
   | { type: 'kill'; killer: string; victim: string; weapon: WeaponId; headshot: boolean; assists: string[] }
   /** `yaw` in degrees, as spawn points are. */
-  | { type: 'respawn'; id: string; pos: Vec3; yaw: number };
+  | { type: 'respawn'; id: string; pos: Vec3; yaw: number }
+  /** Sent to one player: the guns they carry from now on (a change made mid-life takes effect at the respawn). */
+  | { type: 'loadout'; loadout: Loadout };
 
 export type ErrorCode =
   | 'version'
@@ -192,6 +201,10 @@ export type ClientMessage =
   | { t: 'room.ready'; ready: boolean }
   | { t: 'room.team'; team: Team; id?: string }
   | { t: 'loadout'; loadout: Loadout }
+  /** The agent this player wants to be seen as. A change made during a match shows from the next match. */
+  | { t: 'agent'; agent: AgentId }
+  /** The gun now in the player's hands (so others see the right one). */
+  | { t: 'weapon'; weapon: WeaponId }
   | { t: 'queue.join'; maps: string[] }
   | { t: 'queue.leave' }
   | { t: 'input'; cmds: Command[] }
@@ -231,6 +244,8 @@ const CLIENT_TYPES: ReadonlySet<string> = new Set<MessageType<ClientMessage> | '
   'room.ready',
   'room.team',
   'loadout',
+  'agent',
+  'weapon',
   'queue.join',
   'queue.leave',
   'input',

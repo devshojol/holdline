@@ -1,4 +1,5 @@
 import { Trophy } from 'lucide-react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { ScoreLine, Team } from '../net/protocol';
 import type { RoomSettings } from '../net/settings';
 import { mapName } from '../utils/labels';
@@ -64,13 +65,14 @@ export function Scoreboard({ scores, settings, me, winner }: { scores: ScoreLine
               <td className="max-w-0 truncate py-1.5 text-ink">
                 {s.name}
                 {s.id === me && <span className="ml-2 text-xs text-dim">you</span>}
+                {s.bot && <span className="ml-2 border border-white/15 px-1 text-[10px] font-semibold uppercase tracking-wider text-dim">Bot</span>}
               </td>
               {teams && <td className="py-1.5">{s.team ? TEAM_NAME[s.team] : '—'}</td>}
               <td className="tabular py-1.5 text-right font-semibold text-ink">{s.kills}</td>
               <td className="tabular py-1.5 text-right">{s.deaths}</td>
               <td className="tabular py-1.5 text-right">{s.assists}</td>
               <td className="tabular py-1.5 text-right">{s.kills > 0 ? Math.round((s.headshots / s.kills) * 100) : 0}</td>
-              <td className="tabular py-1.5 text-right text-dim">{s.ping >= 0 ? `${s.ping} ms` : '—'}</td>
+              <td className="tabular py-1.5 text-right text-dim">{!s.bot && s.ping >= 0 ? `${s.ping} ms` : '—'}</td>
             </tr>
           ))}
           {scores.length === 0 && (
@@ -83,5 +85,39 @@ export function Scoreboard({ scores, settings, me, winner }: { scores: ScoreLine
         </tbody>
       </table>
     </div>
+  );
+}
+
+const ORDINAL = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th'];
+
+/**
+ * How a match ended, as a game shows it: the verdict in large letters, where you placed, then the
+ * full scoreboard. `children` goes under the verdict (a countdown, a Play again button).
+ */
+export function MatchResultView({ scores, settings, winner, me, children }: { scores: ScoreLine[]; settings: RoomSettings; winner: string | Team | null; me: string | null; children?: ReactNode }) {
+  const mine = scores.find((s) => s.id === me);
+  const place = mine ? scores.indexOf(mine) : -1;
+  const won = winner !== null && (winner === me || (mine?.team != null && winner === mine.team));
+  const verdict = winner === null ? 'Draw' : won ? 'Victory' : 'Defeat';
+  // gold for a win, the accent red for a loss, neutral for a draw
+  const look = (won ? { '--ink': '#ffe9a8', '--glow': 'rgba(242,193,78,0.34)', '--edge': 'rgba(242,193,78,0.55)' } : winner === null ? { '--ink': '#ece8e1', '--glow': 'rgba(138,150,165,0.2)', '--edge': 'rgba(138,150,165,0.4)' } : { '--ink': '#ff8b95', '--glow': 'rgba(255,70,85,0.3)', '--edge': 'rgba(255,70,85,0.55)' }) as CSSProperties;
+  return (
+    <section aria-label="Match result" className="mb-5">
+      <div className="tal-result" style={look}>
+        <div className="font-display text-xs font-semibold uppercase tracking-[0.4em] text-mute">Match over · {mapName(settings.mapId)}</div>
+        <div className="tal-result-title">{verdict}</div>
+        {mine && (
+          <div className="mt-2 text-sm text-mute">
+            You placed <span className="font-semibold text-ink">{ORDINAL[place] ?? `${place + 1}th`}</span> of {scores.length} with{' '}
+            <span className="font-semibold text-ink">{mine.kills}</span> {mine.kills === 1 ? 'kill' : 'kills'} and <span className="font-semibold text-ink">{mine.deaths}</span>{' '}
+            {mine.deaths === 1 ? 'death' : 'deaths'}
+          </div>
+        )}
+        {children && <div className="mt-4 flex flex-wrap items-center justify-center gap-3">{children}</div>}
+      </div>
+      <div className="tal-card tal-panel border border-t-0 p-5">
+        <Scoreboard scores={scores} settings={settings} me={me} winner={winner} />
+      </div>
+    </section>
   );
 }

@@ -53,14 +53,15 @@ const SKIN_SPECS: Partial<Record<WeaponId, SkinSpec>> = {
     sightY: 0.16,
     magNode: 'Gaia-Vandal-Orange-Main-Mag_0',
   },
+  // prepared with scripts/prepare-weapon-skin.mjs like the six below
   phantom: {
     file: 'models/weapons/phantom.glb',
     yaw: 0,
-    length: 0.997,
-    grip: [-0.04, -0.2],
+    length: 0.95,
+    grip: [-0.036, -0.2],
     handguard: [0.02, 0.14],
-    muzzle: [0.075, 0.5],
-    sightY: 0.115,
+    muzzle: [0.056, 0.475],
+    sightY: 0.105,
   },
   // The six below were prepared with scripts/prepare-weapon-skin.mjs: barrel along +Z, centred,
   // in metres, so `yaw` is 0 and the points are read straight off a side view.

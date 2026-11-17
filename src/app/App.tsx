@@ -4,6 +4,7 @@ import { version } from '../../package.json';
 import { store, useAppStore, type Page } from '../hooks/useAppStore';
 import { cx } from '../components/ui';
 import { useMultiplayer } from '../multiplayer/client';
+import { TIPS } from '../utils/tips';
 import { uiSound } from '../utils/uiSound';
 import { HomePage } from '../pages/HomePage';
 import { PracticePage } from '../pages/PracticePage';
@@ -37,15 +38,6 @@ const OPTIONS: Tab[] = [
   { id: 'crosshair', label: 'Crosshair', icon: Crosshair },
   { id: 'sensitivity', label: 'Sensitivity', icon: MousePointer2 },
   { id: 'settings', label: 'Settings', icon: Settings },
-];
-
-const TIPS = [
-  'Stop before you shoot: the first bullet is only accurate once you are still.',
-  'Keep your crosshair at head height, where an enemy will appear.',
-  'Tap at long range, burst in the middle, spray only up close.',
-  'A suppressed gun keeps you off the minimap in a multiplayer match.',
-  'Counter-strafe: tap the opposite key to stop at once.',
-  'Walking and crouching make no footsteps.',
 ];
 
 /** Sparks drifting up the backdrop: fixed values, so they don't jump when the menu re-renders. */

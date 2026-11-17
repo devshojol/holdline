@@ -7,8 +7,12 @@ import {
   Mesh,
   StandardMaterial,
   TransformNode,
+  Vector3,
   type Scene,
 } from '../rendering/babylon';
+import type { AgentDef } from '../agents';
+import { WEAPONS } from '../weapons/weaponConfigs';
+import type { PlacedSkin, WeaponSkin } from '../weapons/WeaponSkins';
 import { BOT_SCALE } from './perception/visibility';
 
 const ENEMY_RED = Color3.FromHexString('#ff3b4e');
@@ -24,6 +28,8 @@ export interface BotView {
   reload?(duration: number): void;
   update(dt: number, x: number, y: number, z: number, yaw: number, aimPitch: number, crouch: number, speed: number, groundY: number): void;
   muzzleWorld(): [number, number, number];
+  /** Show another gun in the hands (optional: only the agent model has gun models). */
+  setWeapon?(skin: import('../weapons/WeaponSkins').WeaponSkin): void;
   dispose(): void;
 }
 
@@ -73,8 +79,9 @@ export class BotAssets {
 }
 
 /**
- * Stylised humanoid "training agent" built from primitives: readable silhouette,
- * red enemy highlight, crouch / walk / death animation and a muzzle flash.
+ * Stylised humanoid built from primitives: readable silhouette, crouch / walk / death animation and a
+ * muzzle flash. Without an agent it is the grey "training agent" with a red enemy highlight; with one it
+ * stands in for that agent's model (not loaded, or models turned off) in the agent's colours.
  */
 export class BotVisual implements BotView {
   readonly root: TransformNode;
@@ -88,7 +95,13 @@ export class BotVisual implements BotView {
   private readonly shadow: Mesh;
   private readonly bodyMat: StandardMaterial;
   private readonly accentMat: StandardMaterial;
+  /** The agent's own gear colour (null: the shared dark material). */
+  private readonly gearMat: StandardMaterial | null = null;
+  private readonly baseEmissive: Color3;
   private readonly meshes: Mesh[] = [];
+  private readonly blockGun: Mesh;
+  private skin: PlacedSkin | null = null;
+  private shownSkin: WeaponSkin | null = null;
   private walkPhase = 0;
   private flashTime = 0;
   private hitFlash = 0;
@@ -97,15 +110,26 @@ export class BotVisual implements BotView {
   constructor(
     private readonly assets: BotAssets,
     id: number,
+    agent?: AgentDef,
   ) {
     const scene = assets.scene;
     this.bodyMat = new StandardMaterial(`bot-body-${id}`, scene);
-    this.bodyMat.diffuseColor = Color3.FromHexString('#3b4150');
+    this.bodyMat.diffuseColor = Color3.FromHexString(agent?.body ?? '#3b4150');
     this.bodyMat.specularColor = new Color3(0.12, 0.12, 0.12);
+    this.baseEmissive = this.bodyMat.diffuseColor.scale(0.34); // never goes dark in shadow or at range
+    this.bodyMat.emissiveColor = this.baseEmissive.clone();
+    const accent = agent ? Color3.FromHexString(agent.accent) : ENEMY_RED;
     this.accentMat = new StandardMaterial(`bot-accent-${id}`, scene);
-    this.accentMat.diffuseColor = ENEMY_RED;
-    this.accentMat.emissiveColor = ENEMY_RED.scale(0.55);
+    this.accentMat.diffuseColor = accent;
+    this.accentMat.emissiveColor = accent.scale(0.55);
     this.accentMat.specularColor = new Color3(0.2, 0.2, 0.2);
+    if (agent) {
+      this.gearMat = new StandardMaterial(`bot-gear-${id}`, scene);
+      this.gearMat.diffuseColor = Color3.FromHexString(agent.gear);
+      this.gearMat.specularColor = new Color3(0.15, 0.15, 0.15);
+      this.gearMat.emissiveColor = this.gearMat.diffuseColor.scale(0.3);
+    }
+    const gearMat = this.gearMat ?? this.assets.darkMat;
 
     this.root = new TransformNode(`bot-${id}`, scene);
     this.root.scaling.setAll(BOT_SCALE); // built at person size, drawn BOT_SCALE larger (matches the hitboxes)
@@ -129,6 +153,7 @@ export class BotVisual implements BotView {
       m.position.set(x, y, z);
       m.material = mat;
       m.isPickable = false;
+      m.applyFog = false; // the distance haze softens the scenery, not the figures in it
       this.meshes.push(m);
       return m;
     };
@@ -138,20 +163,20 @@ export class BotVisual implements BotView {
     this.legL.parent = this.hips;
     this.legL.position.set(-0.11, 0, 0);
     box(this.legL, 0.17, 0.86, 0.2, 0, -0.43, 0, this.bodyMat);
-    box(this.legL, 0.19, 0.12, 0.26, 0, -0.8, 0.03, this.assets.darkMat);
+    box(this.legL, 0.19, 0.12, 0.26, 0, -0.8, 0.03, gearMat);
     this.legR = new TransformNode(`bot-${id}-legR`, scene);
     this.legR.parent = this.hips;
     this.legR.position.set(0.11, 0, 0);
     box(this.legR, 0.17, 0.86, 0.2, 0, -0.43, 0, this.bodyMat);
-    box(this.legR, 0.19, 0.12, 0.26, 0, -0.8, 0.03, this.assets.darkMat);
+    box(this.legR, 0.19, 0.12, 0.26, 0, -0.8, 0.03, gearMat);
 
     // torso, vest, head
     box(this.upper, 0.5, 0.6, 0.3, 0, 0.3, 0, this.bodyMat);
-    box(this.upper, 0.42, 0.34, 0.06, 0, 0.36, 0.17, this.assets.darkMat);
+    box(this.upper, 0.42, 0.34, 0.06, 0, 0.36, 0.17, gearMat);
     box(this.upper, 0.52, 0.06, 0.32, 0, 0.55, 0, this.accentMat);
     box(this.upper, 0.26, 0.28, 0.27, 0, 0.75, 0.02, this.bodyMat);
     box(this.upper, 0.22, 0.06, 0.04, 0, 0.78, 0.16, this.accentMat); // visor
-    box(this.upper, 0.28, 0.06, 0.29, 0, 0.9, 0.02, this.assets.darkMat); // helmet cap
+    box(this.upper, 0.28, 0.06, 0.29, 0, 0.9, 0.02, gearMat); // helmet cap
 
     // arms + gun
     this.gunPivot = new TransformNode(`bot-${id}-gun`, scene);
@@ -164,7 +189,9 @@ export class BotVisual implements BotView {
     gun.position.set(0, 0.02, 0.3);
     gun.material = this.assets.gunMat;
     gun.isPickable = false;
+    gun.applyFog = false;
     this.meshes.push(gun);
+    this.blockGun = gun;
     this.muzzle = new TransformNode(`bot-${id}-muzzle`, scene);
     this.muzzle.parent = this.gunPivot;
     this.muzzle.position.set(0, 0.03, 0.68);
@@ -252,7 +279,7 @@ export class BotVisual implements BotView {
       this.hitFlash -= dt;
       this.bodyMat.emissiveColor.set(0.9, 0.9, 0.9);
     } else {
-      this.bodyMat.emissiveColor.set(0.05, 0.05, 0.07);
+      this.bodyMat.emissiveColor.copyFrom(this.baseEmissive);
     }
   }
 
@@ -261,12 +288,32 @@ export class BotVisual implements BotView {
     return [p.x, p.y, p.z];
   }
 
+  /** Hold another gun's model in place of the block rifle (multiplayer: the gun the player really carries). */
+  setWeapon(skin: WeaponSkin) {
+    if (skin === this.shownSkin) return;
+    this.skin?.dispose();
+    // the body is built at person size and drawn BOT_SCALE larger, so lengths here are in person units
+    const sidearm = WEAPONS[skin.id].slot === 'secondary';
+    const length = (sidearm ? 0.3 * ((skin.spec.viewLength ?? 0.34) / 0.34) : 0.72 * ((skin.spec.viewLength ?? 0.92) / 0.92)) / BOT_SCALE;
+    const placed = skin.place(this.gunPivot, length, new Vector3(0, -0.02, sidearm ? 0.2 : 0.08));
+    for (const m of placed.meshes) {
+      m.isPickable = false;
+      m.applyFog = false;
+    }
+    this.skin = placed;
+    this.shownSkin = skin;
+    this.blockGun.setEnabled(false);
+    this.muzzle.position.copyFrom(placed.muzzle);
+  }
+
   dispose() {
+    this.skin?.dispose();
     for (const m of this.meshes) m.dispose();
     this.flash.dispose();
     this.shadow.dispose();
     this.root.dispose();
     this.bodyMat.dispose();
     this.accentMat.dispose();
+    this.gearMat?.dispose();
   }
 }

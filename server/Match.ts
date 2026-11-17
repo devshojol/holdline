@@ -7,7 +7,8 @@
  * the weapon tables), which is what lets a client predict its movement and be right, and makes a
  * hit on one screen a hit here.
  */
-import type { Vec3, WeaponId } from '../src/types';
+import { randomAgentId, type AgentId } from '../src/game/agents';
+import type { Vec3, WeaponConfig, WeaponId } from '../src/types';
 import { isHumanoidVisible } from '../src/game/bots/perception/visibility';
 import { buildMapData, type MapData } from '../src/game/maps/MapData';
 import { getMapDefinition } from '../src/game/maps/registry';
@@ -32,6 +33,7 @@ import {
   type Team,
 } from '../src/net/protocol';
 import { isWeaponAllowed, type RoomSettings } from '../src/net/settings';
+import { MatchBot, type BotTarget } from './MatchBot';
 
 /** Seconds of movement a player may have in hand: covers a burst of commands arriving late together. */
 const MAX_TIME_BUDGET = 0.5;
@@ -106,6 +108,7 @@ export interface PlayerInfo {
   team: Team | null;
   loadout: Loadout;
   ping: number;
+  agent: AgentId;
 }
 
 /** A player's standing in the match. It outlives their body: a dropped player keeps their score. */
@@ -117,7 +120,13 @@ interface Score {
   assists: number;
   headshots: number;
   ping: number;
+  bot: boolean;
+  agent: AgentId;
 }
+
+/** The guns a bot may be given, most likely first; the room's weapon rule narrows the list. */
+const BOT_GUNS: WeaponId[] = ['vandal', 'phantom', 'vandal', 'phantom', 'spectre', 'guardian', 'sheriff', 'ghost', 'classic'];
+const BOT_NAMES = ['Viper', 'Rook', 'Kestrel', 'Onyx', 'Wraith', 'Ember', 'Nova', 'Talon', 'Jinx', 'Sable', 'Vex', 'Pyre'];
 
 interface Body {
   id: string;
@@ -144,6 +153,12 @@ interface Body {
   hurtBy: Set<string>;
   /** Server time the player last did something: pressed a key, moved their view, fired. */
   activeAt: number;
+  /** The view of the last command received, to tell a player who is looking around from one who is away. */
+  lastView: [number, number] | null;
+  /** A loadout chosen mid-life, waiting for the next respawn. */
+  pendingLoadout: Loadout | null;
+  /** The mind of a bot (null for a person). */
+  bot: MatchBot | null;
 }
 
 export class Match {
@@ -151,6 +166,8 @@ export class Match {
   private readonly bodies = new Map<string, Body>();
   private readonly scores = new Map<string, Score>();
   private now = 0;
+  private lastTick = 0;
+  private botSerial = 0;
   /** Set once the kill limit is reached: the room ends the match. */
   over = false;
 
@@ -172,17 +189,29 @@ export class Match {
   /** Put a player into the world at a spawn away from everyone else. Returns where. */
   add(id: string, info: PlayerInfo, now: number): { pos: Vec3; yaw: number } {
     this.now = now;
-    const pos = this.pickSpawn(id, info.team);
+    const { pos, yaw } = this.place(id, info.team, info.loadout, null, now);
+    // someone coming back keeps the score they had
+    const score = this.scores.get(id);
+    if (score) Object.assign(score, { name: info.name, team: info.team, ping: info.ping, agent: info.agent });
+    else this.scores.set(id, { name: info.name, team: info.team, kills: 0, deaths: 0, assists: 0, headshots: 0, ping: info.ping, bot: false, agent: info.agent });
+    this.emit(null, { t: 'scores', scores: this.scoreboard() });
+    return { pos, yaw };
+  }
+
+  /** Create a body at a fresh spawn. */
+  private place(id: string, team: Team | null, loadout: Loadout, bot: MatchBot | null, now: number) {
+    const pos = this.pickSpawn(id, team);
     const yaw = this.rng() * 360;
     const controller = new PlayerController(this.map.data.world);
     controller.spawn(pos[0], pos[1], pos[2], yaw);
+    bot?.reset((yaw * Math.PI) / 180);
     this.bodies.set(id, {
       id,
       controller,
       input: new CommandInput(),
-      loadout: info.loadout,
-      weapon: info.loadout.primary,
-      team: info.team,
+      loadout,
+      weapon: bot ? bot.weapon.id : loadout.primary,
+      team,
       ackSeq: -1,
       budget: MAX_TIME_BUDGET / 2,
       budgetAt: now,
@@ -193,13 +222,78 @@ export class Match {
       respawnAt: 0,
       hurtBy: new Set(),
       activeAt: now,
+      lastView: null,
+      pendingLoadout: null,
+      bot,
     });
-    // someone coming back keeps the score they had
-    const score = this.scores.get(id);
-    if (score) Object.assign(score, { name: info.name, team: info.team, ping: info.ping });
-    else this.scores.set(id, { name: info.name, team: info.team, kills: 0, deaths: 0, assists: 0, headshots: 0, ping: info.ping });
-    this.emit(null, { t: 'scores', scores: this.scoreboard() });
     return { pos, yaw };
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Bots                                                                */
+  /* ------------------------------------------------------------------ */
+
+  /** How many bots are playing. */
+  get botCount() {
+    let n = 0;
+    for (const b of this.bodies.values()) if (b.bot) n++;
+    return n;
+  }
+
+  /** Bring the number of bots to `count`: new ones spawn in, surplus ones (the lowest scorers) leave. */
+  setBotCount(count: number, now: number) {
+    this.now = now;
+    let changed = false;
+    while (this.botCount < count) {
+      this.addBot(now);
+      changed = true;
+    }
+    while (this.botCount > count) {
+      const bots = [...this.bodies.values()].filter((b) => b.bot);
+      bots.sort((a, b) => (this.scores.get(a.id)?.kills ?? 0) - (this.scores.get(b.id)?.kills ?? 0));
+      this.bodies.delete(bots[0].id);
+      this.scores.delete(bots[0].id);
+      changed = true;
+    }
+    if (changed) this.emit(null, { t: 'scores', scores: this.scoreboard() });
+  }
+
+  private addBot(now: number) {
+    const id = `bot-${++this.botSerial}`;
+    const taken = new Set([...this.scores.values()].map((s) => s.name));
+    const free = BOT_NAMES.filter((n) => !taken.has(n));
+    const name = free.length ? free[Math.floor(this.rng() * free.length) % free.length] : `Bot ${this.botSerial}`;
+    // teams stay even: a bot joins the smaller one
+    let team: Team | null = null;
+    if (this.settings.mode === 'team-deathmatch') {
+      const a = [...this.bodies.values()].filter((b) => b.team === 'a').length;
+      team = a <= this.bodies.size - a ? 'a' : 'b';
+    }
+    const allowed = BOT_GUNS.filter((g) => isWeaponAllowed(this.settings, WEAPONS[g]));
+    const gun = WEAPONS[allowed.length ? allowed[Math.floor(this.rng() * allowed.length) % allowed.length] : this.settings.singleWeapon];
+    const loadout: Loadout = { primary: gun.slot === 'primary' ? gun.id : 'vandal', secondary: gun.slot === 'secondary' ? gun.id : 'classic' };
+    const bot = new MatchBot(this.map.data, this.map.spawns, gun, this.settings.botDifficulty, this.rng);
+    this.place(id, team, loadout, bot, now);
+    const agent = randomAgentId(this.rng, [...this.scores.values()].map((s) => s.agent));
+    this.scores.set(id, { name, team, kills: 0, deaths: 0, assists: 0, headshots: 0, ping: 0, bot: true, agent });
+  }
+
+  /** Let every living bot decide and act for the time since the last tick. */
+  private runBots(dt: number) {
+    for (const body of this.bodies.values()) {
+      const bot = body.bot;
+      if (!bot || !body.controller.alive) continue;
+      const others: BotTarget[] = [];
+      for (const o of this.bodies.values()) {
+        if (o === body || (body.team !== null && o.team === body.team)) continue;
+        others.push({ id: o.id, controller: o.controller, protected: this.isProtected(o) });
+      }
+      const cmds = bot.think(dt, body.controller, others, (origin, dir) => {
+        body.protectedUntil = 0;
+        this.resolveShot(body, bot.weapon, { seq: 0, weapon: bot.weapon.id, origin, dir, viewTime: this.now }, this.now);
+      });
+      for (const cmd of cmds) applyCommand(body.controller, body.input, cmd);
+    }
   }
 
   /** Take a player's body out of the world. `forget` also drops their score (they left the room). */
@@ -208,9 +302,29 @@ export class Match {
     if (forget && this.scores.delete(id)) this.emit(null, { t: 'scores', scores: this.scoreboard() });
   }
 
-  setLoadout(id: string, loadout: Loadout) {
+  /**
+   * A player chose other guns. While they are still under spawn protection (or dead) the change is
+   * immediate; otherwise it waits for their next respawn, so nobody swaps guns in the middle of a fight.
+   */
+  setLoadout(id: string, loadout: Loadout, now: number) {
     const body = this.bodies.get(id);
-    if (body) body.loadout = loadout;
+    if (!body) return;
+    this.now = now;
+    if (!body.controller.alive || this.isProtected(body)) this.applyLoadout(body, loadout);
+    else body.pendingLoadout = loadout;
+  }
+
+  private applyLoadout(body: Body, loadout: Loadout) {
+    body.loadout = loadout;
+    body.pendingLoadout = null;
+    if (body.weapon !== loadout.primary && body.weapon !== loadout.secondary) body.weapon = loadout.primary;
+    this.send(body.id, { type: 'loadout', loadout });
+  }
+
+  /** Which of their guns a player has in their hands, so the others see the right one. */
+  setHeld(id: string, weapon: unknown) {
+    const body = this.bodies.get(id);
+    if (body && (weapon === body.loadout.primary || weapon === body.loadout.secondary)) body.weapon = weapon as WeaponId;
   }
 
   setPing(id: string, ping: number) {
@@ -276,7 +390,9 @@ export class Match {
       const cmd = sanitizeCommand(raw);
       if (!cmd || cmd.seq <= body.ackSeq) continue;
       body.ackSeq = cmd.seq;
-      if (cmd.held !== 0 || cmd.pressed !== 0 || cmd.yaw !== body.controller.yaw || cmd.pitch !== body.controller.pitch) body.activeAt = now;
+      // doing something: a key, or a view that moved since the previous command
+      if (cmd.held !== 0 || cmd.pressed !== 0 || (body.lastView !== null && (cmd.yaw !== body.lastView[0] || cmd.pitch !== body.lastView[1]))) body.activeAt = now;
+      body.lastView = [cmd.yaw, cmd.pitch];
       // out of time: the command is acknowledged but not run, so the client is pulled back to where it really is
       if (cmd.dt > body.budget) continue;
       body.budget -= cmd.dt;
@@ -291,7 +407,10 @@ export class Match {
    * later shot can be judged against what its shooter was looking at.
    */
   tick(now: number) {
+    const dt = this.lastTick > 0 ? Math.min(0.1, (now - this.lastTick) / 1000) : 0;
+    this.lastTick = now;
     this.now = now;
+    if (dt > 0 && !this.over) this.runBots(dt);
     for (const body of this.bodies.values()) {
       if (body.respawnAt > 0 && now >= body.respawnAt) this.respawn(body);
       const c = body.controller;
@@ -304,6 +423,8 @@ export class Match {
     const pos = this.pickSpawn(body.id, body.team);
     const yaw = this.rng() * 360;
     body.controller.spawn(pos[0], pos[1], pos[2], yaw);
+    body.bot?.reset((yaw * Math.PI) / 180);
+    if (body.pendingLoadout) this.applyLoadout(body, body.pendingLoadout);
     body.respawnAt = 0;
     body.protectedUntil = this.protection(this.now);
     body.hurtBy.clear();
@@ -390,6 +511,16 @@ export class Match {
     body.weapon = shot.weapon;
     body.activeAt = now;
     body.protectedUntil = 0; // firing gives up spawn protection
+    this.resolveShot(body, weapon, shot, now);
+  }
+
+  /** Find what a bullet hit, in the world its shooter was looking at, and tell everyone concerned. */
+  private resolveShot(body: Body, weapon: WeaponConfig, shot: Shot, now: number) {
+    const id = body.id;
+    const c = body.controller;
+    const eye: Vec3 = [c.pos.x, c.pos.y + c.eyeHeight, c.pos.z];
+    const [ox, oy, oz] = shot.origin;
+    const [dx, dy, dz] = shot.dir;
 
     // Lag compensation: put everyone else where the shooter saw them. What a client draws is the world
     // as it was one interpolation delay plus its own connection delay ago; the rewind is capped so a
@@ -421,6 +552,7 @@ export class Match {
     victim.hurtBy.add(id);
     this.send(id, { type: 'hit', seq: shot.seq, victim: victim.id, zone, damage, killed });
     this.send(victim.id, { type: 'damage', by: id, from: [round(eye[0]), round(eye[1]), round(eye[2])], zone, damage });
+    victim.bot?.onDamaged(eye);
     if (killed) this.kill(body, victim, shot.weapon, zone === 'head', sameTeam);
   }
 
