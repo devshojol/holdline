@@ -208,7 +208,7 @@ export class GameEngine {
   private readonly netShots = new Map<number, ShotInfo>();
   /** The gun the server was last told is in this player's hands. */
   private netHeld: WeaponId | null = null;
-  /** Gun models being fetched for other players, so each is only asked for once. */
+  /** Gun models being fetched for other players and bots, so each is only asked for once. */
   private readonly skinLoads = new Map<WeaponId, Promise<WeaponSkin | undefined>>();
 
   status: EngineStatus = 'loading';
@@ -522,6 +522,11 @@ export class GameEngine {
       createVisual: (id) => {
         const ready = [...this.agentReady.values()];
         return ready.length ? ready[Math.floor(Math.random() * ready.length)].create(id) : new BotVisual(this.botAssets, id);
+      },
+      // a practice bot's body shows the gun it was really given
+      onBotWeapon: (bot) => {
+        const weapon = bot.weapon.id;
+        this.holdWeapon(() => (bot.weapon.id === weapon ? bot.visual : null), weapon);
       },
       rng: Math.random,
     });
@@ -1270,10 +1275,19 @@ export class GameEngine {
   /** Put the gun another player really carries into their model's hands, fetching its model if need be. */
   private showRemoteWeapon(r: RemotePlayer, weapon: WeaponId) {
     r.weapon = weapon;
-    if (!r.visual.setWeapon || !__LOCAL_MODELS__ || this.settings.graphics.gunModels !== 'skins') return;
+    // they may have switched again, been rebuilt as another agent, or left, while the gun's model loaded
+    this.holdWeapon(() => (r.weapon === weapon && [...this.remotes.values()].includes(r) ? r.visual : null), weapon);
+  }
+
+  /**
+   * Put a gun's model into a body's hands, fetching the model if need be. `body` is asked again once
+   * the model has loaded and answers null when the gun is no longer wanted there.
+   */
+  private holdWeapon(body: () => BotView | null, weapon: WeaponId) {
+    if (!__LOCAL_MODELS__ || this.settings.graphics.gunModels !== 'skins') return;
     const ready = this.weaponSkins.get(weapon);
     if (ready) {
-      r.visual.setWeapon(ready);
+      body()?.setWeapon?.(ready);
       return;
     }
     let load = this.skinLoads.get(weapon);
@@ -1290,8 +1304,7 @@ export class GameEngine {
       this.skinLoads.set(weapon, load);
     }
     void load.then((skin) => {
-      // they may have switched again, or left, while it loaded
-      if (skin && !this.disposed && r.weapon === weapon && [...this.remotes.values()].includes(r)) r.visual.setWeapon?.(skin);
+      if (skin && !this.disposed) body()?.setWeapon?.(skin);
     });
   }
 

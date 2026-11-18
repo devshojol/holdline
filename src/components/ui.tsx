@@ -130,7 +130,7 @@ export function Slider({
 
 export function Toggle({ label, checked, onChange, hint }: { label: string; checked: boolean; onChange: (v: boolean) => void; hint?: string }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-4 py-2">
+    <label className="tal-row flex cursor-pointer items-center justify-between gap-4 py-2">
       <span>
         <span className="block text-sm text-ink">{label}</span>
         {hint && <span className="block text-xs text-dim">{hint}</span>}
@@ -140,9 +140,10 @@ export function Toggle({ label, checked, onChange, hint }: { label: string; chec
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={cx('relative h-6 w-11 shrink-0 border transition-colors', checked ? 'border-accent bg-accent/25' : 'border-line bg-bg')}
+        className="tal-switch"
       >
-        <span className={cx('absolute top-0.5 h-4 w-4 transition-all', checked ? 'left-[22px] bg-accent' : 'left-0.5 bg-mute')} />
+        <span className="tal-switch-knob" />
+        <span className="tal-switch-text">{checked ? 'On' : 'Off'}</span>
       </button>
     </label>
   );
@@ -168,10 +169,8 @@ export function Segmented<T extends string | number>({
           title={o.title}
           disabled={o.disabled}
           onClick={() => onChange(o.value)}
-          className={cx(
-            'border px-3 py-1.5 font-display text-sm font-semibold uppercase tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-35',
-            o.value === value ? 'border-accent bg-accent/15 text-ink' : 'border-line bg-bg/60 text-mute hover:border-mute hover:text-ink',
-          )}
+          aria-pressed={o.value === value}
+          className="tal-chip"
         >
           {o.label}
         </button>
@@ -182,7 +181,7 @@ export function Segmented<T extends string | number>({
 
 export function Stat({ label, value, sub, accent }: { label: string; value: ReactNode; sub?: ReactNode; accent?: boolean }) {
   return (
-    <div className="border border-line bg-bg/50 px-4 py-3">
+    <div className="tal-stat" data-accent={accent}>
       <div className="text-xs uppercase tracking-widest text-dim">{label}</div>
       <div className={cx('font-display tabular text-3xl font-bold leading-tight', accent ? 'text-accent' : 'text-ink')}>{value}</div>
       {sub && <div className="text-xs text-mute">{sub}</div>}
@@ -193,7 +192,7 @@ export function Stat({ label, value, sub, accent }: { label: string; value: Reac
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="py-2">
-      <div className="mb-2 text-xs uppercase tracking-widest text-dim">{label}</div>
+      <div className="tal-field-label mb-2 text-xs uppercase tracking-widest text-dim">{label}</div>
       {children}
     </div>
   );

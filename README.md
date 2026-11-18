@@ -247,7 +247,7 @@ Deathmatch against other people, up to 10 in a match. Full detail, including how
 ## 4. Known issues and limits
 
 - The animation packs have no ADS or walking animations: ADS moves the whole rig. Rifle reloads were authored for an M4, so on skins without a separate magazine the left hand mimes the change. The pistol arms pack is under the Sketchfab Standard licence, not Creative Commons: check its terms before publishing it.
-- Bots carry different guns but their models always show the Vandal. They don't fight each other in Deathmatch, their reloads make no sound, and all their animation is procedural (no motion-captured clips, no ragdoll). The agent model's face, cloth, hair and fingers don't move.
+- Bots don't fight each other in Deathmatch, their reloads make no sound, and all their animation is procedural (no motion-captured clips, no ragdoll). The agent model's face, cloth, hair and fingers don't move.
 - Navigation is grid A\*, not a Recast navmesh.
 - The minimap doesn't show height.
 - The Operator's scope is click-to-cycle only (no hold-to-scope option).

@@ -4,6 +4,7 @@ import { Button, Card, PageHeader, cx } from '../components/ui';
 import { AgentPicker, AgentPortrait } from '../components/AgentPicker';
 import { getAgent } from '../game/agents';
 import { store } from '../hooks/useAppStore';
+import { showSettingsSection } from './SettingsPage';
 import { MatchResultView } from '../components/Scoreboard';
 import { MAP_SUMMARIES } from '../game/maps/registry';
 import { mapName } from '../utils/labels';
@@ -73,7 +74,10 @@ export function PlayerTag() {
         type="button"
         title="Change your name in Settings"
         aria-label="Change your name in Settings"
-        onClick={() => store.go('settings')}
+        onClick={() => {
+          showSettingsSection('profile');
+          store.go('settings');
+        }}
         className="ml-1 self-center p-1.5 text-dim transition-colors hover:text-ink"
       >
         <Pencil size={15} />

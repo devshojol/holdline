@@ -1,4 +1,4 @@
-import { Download, RotateCcw, Upload } from 'lucide-react';
+import { Database, Download, Keyboard, LayoutDashboard, Monitor, RotateCcw, Upload, User, Volume2 } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import type { AudioSettings, GraphicsPreset, GraphicsSettings, HudSettings } from '../types';
 import { store, useAppStore } from '../hooks/useAppStore';
@@ -10,6 +10,22 @@ import { AgentPortrait } from '../components/AgentPicker';
 import { getAgent } from '../game/agents';
 import { multiplayer, useMultiplayer } from '../multiplayer/client';
 import { MAX_NAME_LENGTH, sanitizeName } from '../net/protocol';
+
+type Section = 'profile' | 'graphics' | 'audio' | 'hud' | 'controls' | 'data';
+const SECTIONS: { id: Section; label: string; icon: typeof Monitor }[] = [
+  { id: 'profile', label: 'Profile', icon: User },
+  { id: 'graphics', label: 'Graphics', icon: Monitor },
+  { id: 'audio', label: 'Audio', icon: Volume2 },
+  { id: 'hud', label: 'HUD', icon: LayoutDashboard },
+  { id: 'controls', label: 'Controls', icon: Keyboard },
+  { id: 'data', label: 'Data', icon: Database },
+];
+
+/** The category shown when the screen opens: the last one looked at, or one another screen asked for. */
+let lastSection: Section = 'graphics';
+export function showSettingsSection(section: Section) {
+  lastSection = section;
+}
 
 const KEYS: [string, string][] = [
   ['W A S D', 'Move'],
@@ -30,6 +46,11 @@ export function SettingsPage() {
   const settings = useAppStore((s) => s.settings);
   const g = settings.graphics;
   const fileRef = useRef<HTMLInputElement>(null);
+  const [section, setSectionState] = useState<Section>(lastSection);
+  const setSection = (sec: Section) => {
+    lastSection = sec;
+    setSectionState(sec);
+  };
   const [msg, setMsg] = useState<string | null>(null);
   const [exported, setExported] = useState<string | null>(null);
   const device = useMemo(detectDevice, []);
@@ -44,8 +65,20 @@ export function SettingsPage() {
   return (
     <div>
       <PageHeader kicker="Options" title="Settings" />
-      <div className="grid gap-6 lg:grid-cols-2">
-        <ProfileCard />
+      <div className="grid gap-6 lg:grid-cols-[230px_minmax(0,1fr)]">
+        {/* the categories, as a game's options menu: one shows at a time */}
+        <nav aria-label="Settings categories" className="tal-rail">
+          {SECTIONS.map((sec, i) => (
+            <button key={sec.id} type="button" aria-current={sec.id === section ? 'page' : undefined} className="tal-rail-item" onClick={() => setSection(sec.id)}>
+              <span className="tabular w-5 text-xs text-dim">{String(i + 1).padStart(2, '0')}</span>
+              <sec.icon size={17} />
+              <span>{sec.label}</span>
+            </button>
+          ))}
+        </nav>
+        <div key={section} className="tal-rise min-w-0">
+        {section === 'profile' && <ProfileCard />}
+        {section === 'graphics' && (
         <Card title="Graphics">
           <Field label="Preset">
             <Segmented
@@ -199,7 +232,9 @@ export function SettingsPage() {
             <p className="mt-2 text-xs text-dim">WebGPU is attempted only when supported and falls back to WebGL 2 automatically. Shadows/effects/renderer apply on the next session.</p>
           </Field>
         </Card>
+        )}
 
+        {section === 'audio' && (
         <Card title="Audio">
           <Slider label="Master" value={settings.audio.master} min={0} max={1} step={0.01} onChange={(v) => setA({ master: v })} format={(v) => `${Math.round(v * 100)}%`} />
           <Slider label="Weapons" value={settings.audio.weapons} min={0} max={1} step={0.01} onChange={(v) => setA({ weapons: v })} format={(v) => `${Math.round(v * 100)}%`} />
@@ -208,7 +243,9 @@ export function SettingsPage() {
           <Toggle label="Hit & headshot sounds" checked={settings.audio.hitSounds} onChange={(v) => setA({ hitSounds: v })} />
           <p className="mt-2 text-xs text-dim">All sounds are synthesised in the browser (Web Audio). Enemy shots and footsteps are positional (HRTF) and muffled behind walls.</p>
         </Card>
+        )}
 
+        {section === 'hud' && (
         <Card title="HUD">
           <div className="grid gap-x-6 md:grid-cols-2">
             <Toggle label="FPS counter" checked={settings.hud.showFps} onChange={(v) => setH({ showFps: v })} />
@@ -233,7 +270,9 @@ export function SettingsPage() {
             />
           </div>
         </Card>
+        )}
 
+        {section === 'controls' && (
         <Card title="Controls">
           <div className="divide-y divide-line text-sm">
             {KEYS.map(([k, v]) => (
@@ -245,8 +284,10 @@ export function SettingsPage() {
           </div>
           <p className="mt-3 text-xs text-dim">Optimised for keyboard and mouse on desktop Chrome/Edge (Firefox works where Pointer Lock raw input is unsupported). Mobile is not supported.</p>
         </Card>
+        )}
 
-        <Card title="Data" className="lg:col-span-2">
+        {section === 'data' && (
+        <Card title="Data">
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
@@ -324,6 +365,8 @@ export function SettingsPage() {
           )}
           <p className="mt-3 text-xs text-dim">Settings, crosshair presets and session history are stored locally in this browser (localStorage).</p>
         </Card>
+        )}
+        </div>
       </div>
     </div>
   );
@@ -338,7 +381,7 @@ function ProfileCard() {
   const clean = sanitizeName(draft);
   const changed = clean !== null && clean !== sanitizeName(name);
   return (
-    <Card title="Profile" className="lg:col-span-2">
+    <Card title="Profile">
       <form
         className="flex flex-wrap items-end gap-4"
         onSubmit={(e) => {

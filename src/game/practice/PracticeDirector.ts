@@ -96,6 +96,8 @@ export interface DirectorDeps {
   tracker: SessionTracker;
   /** Builds the on-screen body for a new bot (null = headless, e.g. tests). */
   createVisual: ((id: number) => BotView) | null;
+  /** Told when a bot is handed a gun, so its body can show that gun (optional). */
+  onBotWeapon?: (bot: Bot) => void;
   rng: () => number;
 }
 
@@ -218,6 +220,12 @@ export class PracticeDirector {
     return false;
   }
 
+  /** Hand a bot one of the session's guns. */
+  private arm(bot: Bot, rng: () => number) {
+    bot.setWeapon(WEAPONS[this.pickWeapon(rng)]);
+    this.d.onBotWeapon?.(bot);
+  }
+
   private makeBot(): Bot {
     const visual = this.d.createVisual ? this.d.createVisual(Bot.nextId) : null;
     const bot = new Bot(this.d.config.tuning, visual);
@@ -252,7 +260,7 @@ export class PracticeDirector {
       spots: this.spots,
     });
     bot.reset();
-    bot.setWeapon(WEAPONS[this.pickWeapon(ctx.rng)]);
+    this.arm(bot, ctx.rng);
     bot.brain = brain;
     brain.start(bot, ctx);
     bot.visual?.setVisible(true);
@@ -287,7 +295,7 @@ export class PracticeDirector {
     const eye = ctx.player.eye();
     const [x, y, z] = this.dmSpawnPoint(ctx, eye, false);
     bot.reset();
-    bot.setWeapon(WEAPONS[this.pickWeapon(ctx.rng)]);
+    this.arm(bot, ctx.rng);
     bot.brain = new DeathmatchBehavior();
     bot.place(x, y, z, ctx.rng() * Math.PI * 2);
     bot.preAimed = false;
@@ -308,7 +316,7 @@ export class PracticeDirector {
       const [x, y, z] = post.cover;
       const yaw = Math.atan2(sp.pos[0] - x, sp.pos[2] - z);
       bot.reset();
-      bot.setWeapon(WEAPONS[this.pickWeapon(ctx.rng)]);
+      this.arm(bot, ctx.rng);
       bot.brain = new DeathmatchBehavior({ x, z, yaw });
       bot.place(x, y, z, yaw);
       bot.preAimed = true;

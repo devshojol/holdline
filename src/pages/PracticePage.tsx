@@ -1,5 +1,6 @@
 import { Copy, Lock, Play, SlidersHorizontal } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
+import { WeaponIcon } from '../components/WeaponIcon';
 import type { BotBehavior, BotTuning, BotWeapons, Difficulty, PracticeConfig, PracticeMode, Side, WeaponId } from '../types';
 import { store, useAppStore } from '../hooks/useAppStore';
 import { Badge, Button, Card, Field, PageHeader, Segmented, Slider, Toggle, cx } from '../components/ui';
@@ -10,6 +11,24 @@ import { BEHAVIOR_INFO, DIFFICULTY_LABEL, MODE_INFO, fmtDuration } from '../util
 import { PRIMARY_WEAPONS, SECONDARY_WEAPONS, WEAPONS } from '../game/weapons/weaponConfigs';
 import { spotUsableFrom } from '../game/practice/PracticeDirector';
 import { exportSetupCode, importSetupCode } from '../utils/setupCode';
+
+/** Guns to choose from, each with its picture. */
+function GunPicker({ ids, value, onChange }: { ids: readonly WeaponId[]; value: WeaponId; onChange: (id: WeaponId) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+      {ids.map((id) => {
+        const w = WEAPONS[id];
+        const on = id === value;
+        return (
+          <button key={id} type="button" aria-pressed={on} onClick={() => onChange(id)} className="tal-gun" style={{ '--gun': w.color } as CSSProperties}>
+            <WeaponIcon id={id} className="h-7 w-full" color={on ? w.color : 'currentColor'} />
+            <span className="font-display text-sm font-bold uppercase tracking-wider">{w.name}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function usableSpotIds(cfg: PracticeConfig): Set<string> {
   const def = getMapDefinition(cfg.mapId);
@@ -86,17 +105,19 @@ export function PracticePage() {
         <div className="space-y-5">
           <Card title="1 · Map">
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-              {MAP_SUMMARIES.map((m) => (
+              {MAP_SUMMARIES.map((m, i) => (
                 <button
                   key={m.id}
                   disabled={!m.playable}
                   onClick={() => update({ mapId: m.id })}
+                  data-active={m.id === cfg.mapId}
                   className={cx(
-                    'border p-3 text-left transition-colors',
+                    'tal-tile border p-3 text-left',
                     m.id === cfg.mapId ? 'border-accent bg-accent/10' : 'border-line bg-bg/50 hover:border-mute',
                     !m.playable && 'cursor-not-allowed opacity-45 hover:border-line',
                   )}
                 >
+                  <div className="tabular font-display text-[11px] font-bold tracking-widest text-dim">{String(i + 1).padStart(2, '0')}</div>
                   <div className="font-display text-lg font-bold uppercase leading-tight">{m.playable ? m.name : m.inspiredBy}</div>
                   <div className="text-xs text-mute">{m.playable ? `${m.inspiredBy}-inspired` : 'Not built yet'}</div>
                   {!m.playable && <Lock size={12} className="mt-1 text-dim" />}
@@ -178,10 +199,10 @@ export function PracticePage() {
           <Card title="4 · Loadout">
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Primary (key 1)">
-                <Segmented value={cfg.primary} onChange={(v: WeaponId) => update({ primary: v })} options={PRIMARY_WEAPONS.map((w) => ({ value: w, label: WEAPONS[w].name }))} />
+                <GunPicker ids={PRIMARY_WEAPONS} value={cfg.primary} onChange={(v) => update({ primary: v })} />
               </Field>
               <Field label="Sidearm (key 2)">
-                <Segmented value={cfg.secondary} onChange={(v: WeaponId) => update({ secondary: v })} options={SECONDARY_WEAPONS.map((w) => ({ value: w, label: WEAPONS[w].name }))} />
+                <GunPicker ids={SECONDARY_WEAPONS} value={cfg.secondary} onChange={(v) => update({ secondary: v })} />
               </Field>
             </div>
           </Card>
