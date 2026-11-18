@@ -81,15 +81,9 @@ export class ArmsTemplate {
    */
   static async loadAnimated(scene: Scene): Promise<ArmsTemplate> {
     if (__LOCAL_MODELS__) {
-      const [{ ArmsRigTemplate }, { PistolRigTemplate }] = await Promise.all([import('./AnimatedArms'), import('./PistolArms')]);
-      const [rig, pistolRig] = await Promise.all([
-        ArmsRigTemplate.load(scene),
-        PistolRigTemplate.load(scene).catch((err) => {
-          console.warn('[viewmodel] pistol arms unavailable — the rifle arms hold the sidearms', err);
-          return null;
-        }),
-      ]);
-      return new ArmsTemplate(null, rig, pistolRig);
+      // There is no pistol arms pack in the game (PistolArms.ts can drive one): the rifle arms hold the sidearms.
+      const { ArmsRigTemplate } = await import('./AnimatedArms');
+      return new ArmsTemplate(null, await ArmsRigTemplate.load(scene), null);
     }
     throw new Error('the animated arms are not part of this build');
   }

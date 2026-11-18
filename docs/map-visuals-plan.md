@@ -1,6 +1,6 @@
 # Plan: realistic map visuals
 
-The next piece of work. The goal is maps that look like places in Valorant instead of coloured boxes,
+The next piece of work. The goal is maps that look like real places instead of coloured boxes,
 without changing how they play.
 
 ## Where we are
@@ -17,9 +17,9 @@ without changing how they play.
 
 So every map reads as the same box kit in a different colour, with flat lighting.
 
-## What "like Valorant" means
+## The look we are after
 
-Valorant's maps are stylised, not photoreal. What makes them look the way they do:
+Stylised, not photoreal, the way modern tactical shooters build their maps. What makes that look:
 
 1. **Clean, readable shapes.** Big flat surfaces, crisp bevelled edges, very little noise at head height.
 2. **Hand-painted materials.** Soft gradients and large brush shapes, restrained normal detail, matte
@@ -160,7 +160,7 @@ open questions below before the other seven maps are touched.
 
 ## Open questions to settle first
 
-1. **Style target:** stylised and clean like Valorant (this plan), or closer to photoreal?
+1. **Style target:** stylised and clean (this plan), or closer to photoreal?
 2. **Where assets come from:** generated in code plus CC0 libraries (no modelling tools needed), or
    props modelled in Blender for the project?
 3. **Download budget:** how much may one map add? This plan assumes about 5–8 MB per theme on Medium

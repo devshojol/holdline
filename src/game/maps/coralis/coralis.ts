@@ -1,7 +1,7 @@
 /**
- * "Coralis" — an original, Breeze-inspired tropical island fort.
- * A huge, open A site around a stepped pyramid, a wide A Main with the A Hall shortcut,
- * an open mid with pillars and the B Window, and a bending B Main ("Elbow") into a compact B site.
+ * "Coralis" — an original tropical island fort.
+ * A huge, open A site around a stepped obelisk, a wide A Main with the A Hall shortcut,
+ * an open mid with pillars and the B Window, and a bending B Main ("Bend") into a compact B site.
  */
 import { GridBuilder } from '../GridMap';
 import type { MapDefinition } from '../MapData';
@@ -21,7 +21,7 @@ function grid(): string[] {
   g.rect(24, 5, 27, 17, '.'); // mid top corridor
   g.rect(34, 2, 35, 6, '.');
 
-  // A site — wide and open, stepped pyramid in the middle
+  // A site — wide and open, stepped obelisk in the middle
   g.rect(2, 6, 17, 20, '.');
   g.rect(8, 11, 9, 12, 'D');
   g.set(10, 11, 'C').set(7, 13, 'C');
@@ -46,7 +46,7 @@ function grid(): string[] {
   g.rect(29, 20, 29, 21, 'D');
   g.set(21, 21, 'c');
   g.rect(23, 33, 28, 40, '.');
-  // B Window (mid → elbow)
+  // B Window (mid → bend)
   g.rect(32, 18, 37, 20, '.');
 
   // B site (compact)
@@ -56,7 +56,7 @@ function grid(): string[] {
   g.set(38, 13, 'C');
   g.set(47, 8, 'P');
   g.set(43, 15, 'c');
-  // B Main with elbow: north leg → west turn → south leg to lobby
+  // B Main with bend: north leg → west turn → south leg to lobby
   g.rect(38, 17, 41, 23, '.');
   g.rect(38, 24, 48, 26, '.');
   g.rect(44, 27, 48, 33, '.');
@@ -84,7 +84,7 @@ const locations = withGeneratedSpots(
     location({
       id: 'a-main',
       name: 'A Main',
-      description: 'Wide A Main into the huge open A site and its stepped pyramid. Long-range duels.',
+      description: 'Wide A Main into the huge open A site and its stepped obelisk. Long-range duels.',
       focus: focus(1, 4, 21, 35),
       attack: [spawn('a-main-mid', 'A Main', 6, 26, 0), spawn('a-main-exit', 'A Main exit', 6, 22, 0)],
       defend: [spawnAt('a-site', 'A site', 12, 9, 6, 21), spawnAt('a-site-left', 'A left', 5, 10, 6, 21)],
@@ -100,9 +100,9 @@ const locations = withGeneratedSpots(
     location({
       id: 'b-main',
       name: 'B Main',
-      description: 'Round the B Elbow into a compact B site with the double stack.',
+      description: 'Round the B Bend into a compact B site with the double stack.',
       focus: focus(31, 4, 50, 35),
-      attack: [spawn('b-elbow', 'B Elbow', 39.5, 22.5, 0), spawnAt('b-main-turn', 'B Main turn', 42, 25, 39.5, 15)],
+      attack: [spawn('b-bend', 'B Bend', 39.5, 22.5, 0), spawnAt('b-main-turn', 'B Main turn', 42, 25, 39.5, 15)],
       defend: [spawnAt('b-site', 'B site', 44, 10, 39.5, 18), spawnAt('b-site-back', 'B back', 47, 14, 39.5, 18)],
     }),
   ],
@@ -112,15 +112,15 @@ const locations = withGeneratedSpots(
 export const coralis: MapDefinition = {
   id: 'coralis',
   name: 'Coralis',
-  inspiredBy: 'Breeze',
+  setting: 'Island fort',
   theme: 'Open tropical island fort',
   description:
-    'Original Breeze-inspired open layout: a huge A site around a stepped pyramid, a wide A Main with the A Hall shortcut, an open pillared mid, and a bending B Main into a tight B site.',
+    'Original open layout: a huge A site around a stepped obelisk, a wide A Main with the A Hall shortcut, an open pillared mid, and a bending B Main into a tight B site.',
   grid: grid(),
   zoneOf,
   callouts: [
     { name: 'A Site', c: 10, r: 16 },
-    { name: 'A Pyramid', c: 8.5, r: 11.5 },
+    { name: 'A Obelisk', c: 8.5, r: 11.5 },
     { name: 'A Main', c: 6, r: 28 },
     { name: 'A Hall', c: 15, r: 25 },
     { name: 'A Lobby', c: 8, r: 37 },
@@ -128,7 +128,7 @@ export const coralis: MapDefinition = {
     { name: 'Mid Top', c: 25.5, r: 10 },
     { name: 'B Window', c: 35, r: 19 },
     { name: 'B Site', c: 42, r: 12 },
-    { name: 'B Elbow', c: 40, r: 21 },
+    { name: 'B Bend', c: 40, r: 21 },
     { name: 'B Main', c: 46, r: 30 },
     { name: 'B Lobby', c: 43, r: 37.5 },
     { name: 'Defender Spawn', c: 25.5, r: 2.5 },

@@ -50,7 +50,7 @@ export interface SkinSpec {
 const SKIN_SPECS: Partial<Record<WeaponId, SkinSpec>> = {
   // Kestrel
   vandal: {
-    file: 'models/weapons/vandal.glb',
+    file: 'models/weapons/kestrel.glb',
     yaw: 0,
     length: 0.9104,
     grip: [-0.1, -0.082],
@@ -61,7 +61,7 @@ const SKIN_SPECS: Partial<Record<WeaponId, SkinSpec>> = {
   },
   // Halcyon
   phantom: {
-    file: 'models/weapons/phantom.glb',
+    file: 'models/weapons/halcyon.glb',
     yaw: 0,
     length: 0.9274,
     grip: [-0.1, -0.076],
@@ -73,7 +73,7 @@ const SKIN_SPECS: Partial<Record<WeaponId, SkinSpec>> = {
   },
   // Hornet
   spectre: {
-    file: 'models/weapons/spectre.glb',
+    file: 'models/weapons/hornet.glb',
     yaw: 0,
     length: 0.6854,
     viewLength: 0.68,
@@ -85,7 +85,7 @@ const SKIN_SPECS: Partial<Record<WeaponId, SkinSpec>> = {
   },
   // Arbiter
   guardian: {
-    file: 'models/weapons/guardian.glb',
+    file: 'models/weapons/arbiter.glb',
     yaw: 0,
     length: 1.1124,
     viewLength: 1.1,
@@ -97,7 +97,7 @@ const SKIN_SPECS: Partial<Record<WeaponId, SkinSpec>> = {
   },
   // Monarch
   operator: {
-    file: 'models/weapons/operator.glb',
+    file: 'models/weapons/monarch.glb',
     yaw: 0,
     length: 1.3024,
     viewLength: 1.2,
@@ -111,7 +111,7 @@ const SKIN_SPECS: Partial<Record<WeaponId, SkinSpec>> = {
   },
   // Pilot
   classic: {
-    file: 'models/weapons/classic.glb',
+    file: 'models/weapons/pilot.glb',
     yaw: 0,
     length: 0.2087,
     viewLength: 0.31,
@@ -123,7 +123,7 @@ const SKIN_SPECS: Partial<Record<WeaponId, SkinSpec>> = {
   },
   // Whisper
   ghost: {
-    file: 'models/weapons/ghost.glb',
+    file: 'models/weapons/whisper.glb',
     yaw: 0,
     length: 0.4133,
     viewLength: 0.55,
@@ -135,7 +135,7 @@ const SKIN_SPECS: Partial<Record<WeaponId, SkinSpec>> = {
   },
   // Magnate
   sheriff: {
-    file: 'models/weapons/sheriff.glb',
+    file: 'models/weapons/magnate.glb',
     yaw: 0,
     length: 0.2689,
     grip: [-0.09, -0.076],

@@ -491,7 +491,7 @@
    },
    {
     "id": "mid-a-5",
-    "name": "Garage corner (right)",
+    "name": "Workshop corner (right)",
     "cover": [
      10.06,
      0,
@@ -505,7 +505,7 @@
    },
    {
     "id": "mid-a-6",
-    "name": "Garage corner (right) 2",
+    "name": "Workshop corner (right) 2",
     "cover": [
      10.55,
      0,
@@ -647,10 +647,10 @@
    }
   ]
  },
- "garage": {
+ "workshop": {
   "attack": [
    {
-    "id": "garage-a-1",
+    "id": "workshop-a-1",
     "name": "C Site corner (right)",
     "cover": [
      31.4,
@@ -664,7 +664,7 @@
     "maxPeek": 2.65
    },
    {
-    "id": "garage-a-2",
+    "id": "workshop-a-2",
     "name": "C Site box",
     "cover": [
      23.45,
@@ -678,7 +678,7 @@
     "maxPeek": 2.75
    },
    {
-    "id": "garage-a-3",
+    "id": "workshop-a-3",
     "name": "C Site corner",
     "cover": [
      26.45,
@@ -692,7 +692,7 @@
     "maxPeek": 3
    },
    {
-    "id": "garage-a-4",
+    "id": "workshop-a-4",
     "name": "C Site box 2",
     "cover": [
      19.06,
@@ -706,7 +706,7 @@
     "maxPeek": 2.95
    },
    {
-    "id": "garage-a-5",
+    "id": "workshop-a-5",
     "name": "C Site corner (right) 2",
     "cover": [
      20.05,
@@ -720,7 +720,7 @@
     "maxPeek": 2.8
    },
    {
-    "id": "garage-a-6",
+    "id": "workshop-a-6",
     "name": "C Site corner (left)",
     "cover": [
      16,
@@ -734,7 +734,7 @@
     "maxPeek": 2.7
    },
    {
-    "id": "garage-a-7",
+    "id": "workshop-a-7",
     "name": "C Site corner 2",
     "cover": [
      20.45,
@@ -748,8 +748,8 @@
     "maxPeek": 2.75
    },
    {
-    "id": "garage-a-8",
-    "name": "Garage corner (left)",
+    "id": "workshop-a-8",
+    "name": "Workshop corner (left)",
     "cover": [
      12.44,
      0,
@@ -764,8 +764,8 @@
   ],
   "defend": [
    {
-    "id": "garage-d-1",
-    "name": "Garage corner",
+    "id": "workshop-d-1",
+    "name": "Workshop corner",
     "cover": [
      19.06,
      0,
@@ -778,8 +778,8 @@
     "maxPeek": 2.75
    },
    {
-    "id": "garage-d-2",
-    "name": "Garage box",
+    "id": "workshop-d-2",
+    "name": "Workshop box",
     "cover": [
      15.55,
      0,
@@ -792,8 +792,8 @@
     "maxPeek": 2.75
    },
    {
-    "id": "garage-d-3",
-    "name": "Garage corner 2",
+    "id": "workshop-d-3",
+    "name": "Workshop corner 2",
     "cover": [
      15.5,
      0,
@@ -806,7 +806,7 @@
     "maxPeek": 2.9
    },
    {
-    "id": "garage-d-4",
+    "id": "workshop-d-4",
     "name": "C Site corner (left)",
     "cover": [
      28.94,
@@ -820,7 +820,7 @@
     "maxPeek": 3
    },
    {
-    "id": "garage-d-5",
+    "id": "workshop-d-5",
     "name": "C Site box",
     "cover": [
      20.9,
@@ -834,8 +834,8 @@
     "maxPeek": 2.65
    },
    {
-    "id": "garage-d-6",
-    "name": "Garage corner 3",
+    "id": "workshop-d-6",
+    "name": "Workshop corner 3",
     "cover": [
      15.1,
      0,
@@ -848,7 +848,7 @@
     "maxPeek": 2.65
    },
    {
-    "id": "garage-d-7",
+    "id": "workshop-d-7",
     "name": "C Long corner (left)",
     "cover": [
      35.56,
@@ -995,7 +995,7 @@
    },
    {
     "id": "c-long-d-2",
-    "name": "Garage corner (right)",
+    "name": "Workshop corner (right)",
     "cover": [
      12.44,
      0,
@@ -1023,7 +1023,7 @@
    },
    {
     "id": "c-long-d-4",
-    "name": "Garage corner (right) 2",
+    "name": "Workshop corner (right) 2",
     "cover": [
      15.5,
      0,

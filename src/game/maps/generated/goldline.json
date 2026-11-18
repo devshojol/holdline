@@ -247,7 +247,7 @@
    },
    {
     "id": "mid-a-4",
-    "name": "Market corner (right)",
+    "name": "Arcade corner (right)",
     "cover": [
      6.95,
      0,
@@ -333,7 +333,7 @@
    },
    {
     "id": "mid-d-2",
-    "name": "Market box",
+    "name": "Arcade box",
     "cover": [
      3.5,
      0,
@@ -389,7 +389,7 @@
    },
    {
     "id": "mid-d-6",
-    "name": "Market box (right)",
+    "name": "Arcade box (right)",
     "cover": [
      -3.55,
      0,
@@ -403,7 +403,7 @@
    },
    {
     "id": "mid-d-7",
-    "name": "Market corner",
+    "name": "Arcade corner",
     "cover": [
      3.05,
      0,
@@ -577,7 +577,7 @@
    },
    {
     "id": "b-main-d-3",
-    "name": "Boba box (right)",
+    "name": "Noodles box (right)",
     "cover": [
      26.9,
      0,
@@ -633,7 +633,7 @@
    },
    {
     "id": "b-main-d-7",
-    "name": "Boba corner",
+    "name": "Noodles corner",
     "cover": [
      32.56,
      0,

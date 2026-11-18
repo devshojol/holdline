@@ -91,6 +91,37 @@ function serverUrl(): string {
   return '';
 }
 
+const KEEP_AWAKE_MS = 10 * 60 * 1000;
+let keepAwakeStarted = false;
+
+/**
+ * Keep the game server awake while the site is open. The free host puts the server to sleep after 15 minutes
+ * with no traffic and takes about a minute to wake it, which a player would feel as multiplayer hanging on
+ * "connecting". So: one request to the server's health check as soon as the site loads (waking it before
+ * anyone opens Multiplayer), then one every ten minutes while the page is visible, and one when the page
+ * comes back into view after longer than that. Nothing is sent when there is no configured server
+ * (development, the single-file build), and the server still sleeps once nobody has the site open.
+ */
+export function keepServerAwake() {
+  const configured = import.meta.env.VITE_MP_SERVER;
+  if (keepAwakeStarted || !configured || typeof window === 'undefined') return;
+  keepAwakeStarted = true;
+  const url = configured.replace(/^ws/, 'http'); // wss://host → https://host: the health check answers there
+  let last = 0;
+  const ping = () => {
+    last = Date.now();
+    // no-cors: only the request matters, not reading the answer
+    fetch(url, { mode: 'no-cors', cache: 'no-store' }).catch(() => undefined);
+  };
+  ping();
+  window.setInterval(() => {
+    if (document.visibilityState === 'visible') ping();
+  }, KEEP_AWAKE_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && Date.now() - last > KEEP_AWAKE_MS) ping();
+  });
+}
+
 function inviteFromUrl(): string | null {
   if (typeof location === 'undefined') return null;
   return normalizeRoomCode(new URLSearchParams(location.search).get('room'));

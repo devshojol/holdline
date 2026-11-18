@@ -36,7 +36,7 @@ export function MapsPage() {
             </div>
             <div className="mt-2 flex items-baseline justify-between gap-2 px-1">
               <span className="font-display text-lg font-bold uppercase">{m.name}</span>
-              <span className="text-xs text-mute">{m.inspiredBy}-inspired</span>
+              <span className="text-xs text-mute">{m.setting}-inspired</span>
             </div>
             <div className="px-1 text-xs text-dim">{m.theme}</div>
           </button>
@@ -44,7 +44,7 @@ export function MapsPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <Card title={`${def.name}: ${def.inspiredBy}-inspired`} right={<Badge tone="ok">{def.locations.length} locations</Badge>}>
+        <Card title={`${def.name}: ${def.setting}-inspired`} right={<Badge tone="ok">{def.locations.length} locations</Badge>}>
           <p className="mb-4 max-w-3xl text-sm text-mute">{def.description}</p>
           <div className="aspect-[52/48] w-full border border-line">
             <MapPreview mapId={def.id} locationId={location.id} side={side} focus={false} className="h-full w-full" />

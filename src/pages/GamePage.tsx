@@ -274,7 +274,7 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
               <TriangleAlert /> Can't start the 3D engine
             </div>
             <p className="mt-3 text-mute">{error}</p>
-            <p className="mt-2 text-sm text-dim">Tactical Aim Lab needs WebGL 2 (or WebGL). Make sure hardware acceleration is enabled in your browser settings.</p>
+            <p className="mt-2 text-sm text-dim">Holdline needs WebGL 2 (or WebGL). Make sure hardware acceleration is enabled in your browser settings.</p>
             <Button className="mt-5" onClick={() => store.stopPlaying()}>
               Back to menu
             </Button>

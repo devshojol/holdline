@@ -1,25 +1,25 @@
-# Tactical Aim Lab
+# Holdline
 
-A browser-based 3D aim-practice lab inspired by Valorant. Open it in Chrome, pick a map and a spot to hold, set your sensitivity and crosshair, choose a weapon and fight AI bots that peek, swing, spray and reposition the way real players do. Or play Deathmatch against other people, in a private room with friends or a quick match. No install, no account: practice runs entirely in the page, and multiplayer adds one small game server.
+A browser-based 3D aim trainer for tactical shooters. Open it in Chrome, pick a map and a spot to hold, set your sensitivity and crosshair, choose a weapon and fight AI bots that peek, swing, spray and reposition the way real players do. Or play Deathmatch against other people, in a private room with friends or a quick match. No install, no account: practice runs entirely in the page, and multiplayer adds one small game server.
 
-![Holding A Main on Vellora with the Vandal](docs/screenshots/gameplay.png)
+![Holding A Main on Vellora with the Kestrel](docs/screenshots/gameplay.png)
 
-It's a free, non-commercial fan project and isn't affiliated with Riot Games. The maps, textures, simple guns and fallback bots are original and generated at runtime. The agent, gun-skin and arm models are optional community fan art (licences and credits at the end and in `public/models/README.md`).
+Everything in it is original or freely licensed: the maps, textures, guns, camouflage and gear are made in code, the soldiers' bodies and faces come from MakeHuman (CC0), and the sound recordings are CC0. Sources and licences are at the end and in `public/models/README.md` and `public/sounds/README.md`.
 
 ---
 
 ## 1. What we're trying to build
 
-Most aim trainers drill clicking on dots. In a real Valorant round the hard part is different: you hold an angle, an enemy jiggles to bait your shot, shoulder-peeks, swings wide or sprays from a crouch, and you have to react with the right crosshair placement, a counter-strafe and a controlled first bullet. **The goal of Tactical Aim Lab is to recreate those duels** so they can be practised over and over, measured, and improved.
+Most aim trainers drill clicking on dots. In a real round of a tactical shooter the hard part is different: you hold an angle, an enemy jiggles to bait your shot, shoulder-peeks, swings wide or sprays from a crouch, and you have to react with the right crosshair placement, a counter-strafe and a controlled first bullet. **The goal of Holdline is to recreate those duels** so they can be practised over and over, measured, and improved.
 
 What that means in practice:
 
 - **Bots that play like people.** The bots are the core of the project. They hide behind real cover, peek in different styles (jiggle, shoulder bait, wide swing, crouch spray, ADAD), have human reaction times and aim error, stop before shooting, tap at range and spray up close, run out of bullets and reload, take cover when hurt and re-peek.
-- **The game feel has to match.** The sensitivity scale is Valorant's (0.07° per mouse count), movement speeds, counter-strafing, first-shot accuracy, running inaccuracy and spray patterns follow the same rules, so practice carries over.
-- **Real locations.** Eight original maps are laid out like the competitive maps they're inspired by, each with practice locations (A Main, Mid, B Long…), attack and defend spawns, and enemy positions that are proven to be peekable.
+- **The game feel has to match.** Look sensitivity is 0.07° per mouse count (a scale several tactical shooters share, so settings carry over), and movement speeds, counter-strafing, first-shot accuracy, running inaccuracy and spray patterns follow the rules of the genre.
+- **Real locations.** Eight original maps in the two- and three-site layouts of competitive play, each with practice locations (A Main, Mid, B Long…), attack and defend spawns, and enemy positions that are proven to be peekable.
 - **Measurable progress.** Every shot is recorded: accuracy, headshot rate, reaction time, time to kill, first-shot versus spray accuracy, per-weapon results, with a report after each session and charts over days and weeks.
 - **Runs anywhere a browser runs.** No download, no anti-cheat, no game client. It can even be built into one self-contained HTML file.
-- **Clean assets.** Nothing is extracted from the game. Geometry, textures and sounds are made in code; optional models are licensed community work, and recordings are only ones the owner has the rights to.
+- **Clean assets.** Nothing comes from another game. Geometry, textures, guns and gear are made in code; the soldiers and every recording are CC0.
 
 ## 2. Run it
 
@@ -53,7 +53,7 @@ MAPS='[{"id":"vellora","locations":["a-main","mid","b-main"]}]' \
 | Crouch                                                      | Ctrl or C                         |
 | Jump                                                        | Space                             |
 | Fire                                                        | Left mouse                        |
-| Aim down sights / Operator scope / 3-round burst (Classic)  | Right mouse                       |
+| Aim down sights / Monarch scope / 3-round burst (Pilot)  | Right mouse                       |
 | Reload                                                      | R                                 |
 | Primary / sidearm                                           | 1 / 2, or the mouse wheel to swap |
 | Weapon menu (change primary and sidearm mid-session)        | B                                 |
@@ -128,22 +128,22 @@ React only receives throttled HUD snapshots (about 12 per second) and discrete e
 
 - `PlayerController` models acceleration and friction rather than instant velocity. Running speed is 5.4 m/s; walking and crouching scale from it. Releasing a key applies a strong counter-strafe friction, so stopping from full speed to "accurate" speed takes under 80 ms (unit test).
 - The player is an upright box moved kinematically against the map's merged boxes (`CollisionWorld`): wall sliding, 0.4 m step-up, ground snapping on stairs, and a ceiling check before standing up from a crouch.
-- Look uses Valorant's scale (sensitivity × 0.07° per count), with separate horizontal, vertical and ADS multipliers and invert Y. The Sensitivity page converts from other games and shows eDPI and cm/360°.
+- Look turns 0.07° per mouse count at sensitivity 1, with separate horizontal, vertical and ADS multipliers and invert Y. The Sensitivity page converts from other games and shows eDPI and cm/360°.
 
 ### 3.5 Weapons
 
-- Eight weapons live in `src/game/weapons/weaponConfigs.ts`. Primaries: Vandal (9.75 rounds/s, 25 rounds, 160/40/34 head/body/legs at every range), Phantom (11 rounds/s, 30 rounds, suppressed, damage falls off at 15 m and 30 m), Spectre (suppressed SMG, 13.33 rounds/s, accurate on the move), Guardian (semi-automatic, 195/65/49) and Operator (bolt-action sniper, 255/150/120, one shot every 1.67 s, 5 rounds). Sidearms: Classic (right-click burst), Ghost (suppressed, 15 rounds) and Sheriff.
-- **The Operator** behaves like Valorant's. Right click cycles the scope: 2.5×, 5×, off. After each shot the scope drops while the bolt is worked and comes back by itself at the same zoom (a right click meanwhile cancels that); the last round goes straight into the reload, and reloading or switching weapon leaves the scope. It is only accurate fully scoped and standing still, has no crosshair unscoped, and scoped look speed is divided by the zoom so the picture moves at the same speed at both levels (times the scoped-sensitivity multiplier). The scope is drawn on the 2D overlay.
-- `WeaponSystem` handles firing on a carried sub-frame cooldown (so the fire rate is exact at any frame rate), spread (base, crouch, running, in the air, and firing error that grows per shot), hand-authored recoil patterns with recovery, ADS (1.1× to 1.5× by gun), the Operator's scope levels and bolt cycle, bursts, reloads, auto-reload and equip times.
+- Eight weapons live in `src/game/weapons/weaponConfigs.ts`. Primaries: Kestrel (9.75 rounds/s, 25 rounds, 160/40/34 head/body/legs at every range), Halcyon (11 rounds/s, 30 rounds, suppressed, damage falls off at 15 m and 30 m), Hornet (suppressed SMG, 13.33 rounds/s, accurate on the move), Arbiter (semi-automatic, 195/65/49) and Monarch (bolt-action sniper, 255/150/120, one shot every 1.67 s, 5 rounds). Sidearms: Pilot (right-click burst), Whisper (suppressed, 15 rounds) and Magnate.
+- **The Monarch** is a bolt-action sniper rifle. Right click cycles the scope: 2.5×, 5×, off. After each shot the scope drops while the bolt is worked and comes back by itself at the same zoom (a right click meanwhile cancels that); the last round goes straight into the reload, and reloading or switching weapon leaves the scope. It is only accurate fully scoped and standing still, has no crosshair unscoped, and scoped look speed is divided by the zoom so the picture moves at the same speed at both levels (times the scoped-sensitivity multiplier). The scope is drawn on the 2D overlay.
+- `WeaponSystem` handles firing on a carried sub-frame cooldown (so the fire rate is exact at any frame rate), spread (base, crouch, running, in the air, and firing error that grows per shot), hand-authored recoil patterns with recovery, ADS (1.1× to 1.5× by gun), the Monarch's scope levels and bolt cycle, bursts, reloads, auto-reload and equip times.
 - Shots are hitscan: a ray from the eye through the spread cone is tested against the world and each bot's hitboxes (head, body, legs, following crouch). The closest hit wins, so walls stop bullets.
-- Reload times match Valorant's (Classic 1.75 s, Ghost 1.5 s, Sheriff 2.25 s, Spectre 2.25 s, Guardian, Phantom and Vandal 2.5 s, Operator 3.7 s). The reload animation and its sound cues last the whole reload, ending as the gun can fire again.
+- Reload times: Pilot 1.75 s, Whisper 1.5 s, Magnate 2.25 s, Hornet 2.25 s, Arbiter, Halcyon and Kestrel 2.5 s, Monarch 3.7 s. The reload animation and its sound cues last the whole reload, ending as the gun can fire again.
 - **Weapon menu.** B pauses the session and opens a menu of every primary and sidearm; picking one swaps it into its slot with a full magazine (`GameEngine.setWeapon`, loading the gun's model on demand), and B again returns to the fight. The choice becomes the default loadout for the next session.
-- **Gun models.** All eight guns have a Valorant skin GLB (`WeaponSkins.ts`). Each is placed from grip, handguard, muzzle and sight points measured on the model, so the hands, muzzle flash, tracers and sights line up. Where the model keeps them as separate parts, the magazine comes out on reload and the Operator's bolt lifts and slides after each shot. The "simple guns" setting and the single-file build use guns built from boxes in `ViewModel.ts`.
+- **Gun models.** All eight guns have their own GLB model (`WeaponSkins.ts`), built in Blender by `tools/blender/make_weapons.py`. Each is placed from grip, handguard, muzzle and sight points measured on the model, so the hands, muzzle flash, tracers and sights line up. Where the model keeps them as separate parts, the magazine comes out on reload and the Monarch's bolt lifts and slides after each shot. The "simple guns" setting and the single-file build use guns built from boxes in `ViewModel.ts`.
 - **First-person arms** (Settings → Graphics → First-person arms):
-  - _Animated_ (default): an animation pack of gloved arms. `AnimatedArms.ts` evaluates its Draw, Fire, Reload and Reload_Empty clips from game state every frame; the game's gun rides the pack's weapon joint and the magazine follows the pack's magazine joints. The rig is turned so the barrel points at the crosshair, and ADS blends the rig to centre the sights. Sidearms use a second pack (`PistolArms.ts`): the same arms in a two-handed pistol hold with their own draw, shoot and reload clips. Working the Operator's bolt is a procedural reach of the right hand on top of the rifle clips.
+  - _Animated_ (default): an animation pack of gloved arms. `AnimatedArms.ts` evaluates its Draw, Fire, Reload and Reload_Empty clips from game state every frame; the game's gun rides the pack's weapon joint and the magazine follows the pack's magazine joints. The rig is turned so the barrel points at the crosshair, and ADS blends the rig to centre the sights. Sidearms use a second pack (`PistolArms.ts`): the same arms in a two-handed pistol hold with their own draw, shoot and reload clips. Working the Monarch's bolt is a procedural reach of the right hand on top of the rifle clips.
   - _Rigged arms_: a static arm model that `ArmModel.ts` cuts up and skins in code at load (forearm, hand and finger bones), then poses with IK every frame.
   - _Simple_: block hands. The single-file build uses arms built from simple shapes.
-- Effects: muzzle flash with a light, tracers (not on the suppressed Phantom), wall decals, sparks, hit puffs and view kick, all from pooled objects (`rendering/Effects.ts`).
+- Effects: muzzle flash with a light, tracers (not on the suppressed Halcyon), wall decals, sparks, hit puffs and view kick, all from pooled objects (`rendering/Effects.ts`).
 
 ### 3.6 Bots
 
@@ -167,16 +167,16 @@ A bot is one `Bot` entity (state, perception, aim, shooting, movement) plus a _b
   GEN_SPOTS=1 npx vitest run tests/tools/gen-spots.test.ts
   ```
 
-| Map        | Inspired by | Practice locations                                                     |
+| Map        | Setting     | Practice locations                                                     |
 | ---------- | ----------- | ---------------------------------------------------------------------- |
-| Vellora    | Ascent      | A Main, Mid, B Main                                                    |
-| Dunehold   | Bind        | A Short (via Showers), A Long, Hookah (door + window), B Long          |
-| Sanctum    | Haven       | A Long, A Short, Mid, Garage, C Long (three sites)                     |
-| Kitsune    | Split       | A Main (under A Heaven), Mid (raised Mid Top), B Main (under B Heaven) |
-| Tamarind   | Lotus       | A Main, B Main, C Main over the C Mound (three sites)                  |
-| Permafrost | Icebox      | A Main, Mid (Boiler), B Main into container mazes                      |
-| Coralis    | Breeze      | A Main into a huge open site, Mid, B Main through the B Elbow          |
-| Goldline   | Sunset      | A Main via the A Elbow, Mid (Market/Courtyard), B Main                 |
+| Vellora    | Hill-town piazza   | A Main, Mid, B Main                                                    |
+| Dunehold   | Desert bazaar      | A Short (via Baths), A Long, Teahouse (door + window), B Long          |
+| Sanctum    | Temple compound    | A Long, A Short, Mid, Workshop, C Long (three sites)                   |
+| Kitsune    | Neon back streets  | A Main (under A Balcony), Mid (raised Mid Top), B Main (under B Balcony) |
+| Tamarind   | Jungle ruins       | A Main, B Main, C Main over the C Rise (three sites)                   |
+| Permafrost | Arctic port        | A Main, Mid (Furnace), B Main into container mazes                     |
+| Coralis    | Island fort        | A Main into a huge open site, Mid, B Main through the B Bend           |
+| Goldline   | Evening boulevard  | A Main via the A Bend, Mid (Arcade/Courtyard), B Main                  |
 
 ### 3.8 Practice modes and statistics
 
@@ -229,12 +229,12 @@ Deathmatch against other people, up to 10 in a match. Full detail, including how
 - `npm run build` produces `dist/` for any static host (the project deploys to Vercel). Built with `VITE_MP_SERVER` set to the game server's address, the site has multiplayer; without it the Multiplayer page says the mode is unavailable.
 - `npm run server:build` bundles the game server into `dist-server/index.cjs`; the `Dockerfile` builds the same into an image. It runs on Render (`render.yaml`).
 - `npm run build:single` builds with `vite.single.config.ts` and inlines all JS, CSS and the favicon into one HTML file. That build sets `__LOCAL_MODELS__` to false, so it never loads GLB models or recordings: bots are training dummies, arms are built from shapes and all sounds are synthesised.
-- `scripts/compress-models.mjs` shrinks every GLB in a folder (welding, quantized vertex data, trimmed animation keyframes). It simplifies the Phantom on every run, so point it at a folder holding only the new files rather than at all of `public/models`.
-- Model preparation is scripted with glTF-Transform: `scripts/prepare-agent-model.mjs` (agent models), `scripts/prepare-weapon-skin.mjs` (gun skins), `scripts/prepare-fp-arms.mjs` and `scripts/prepare-fp-arms-pistol.mjs` (first-person arms). `scripts/extract-gun-samples.py` and `extract-gun-samples-2.py` cut single shots out of longer recordings. The scripts run from a scratch folder that has the tools installed (see each file's header).
+- `scripts/compress-models.mjs` shrinks every GLB in a folder (welding, quantized vertex data, trimmed animation keyframes). It simplifies the Halcyon on every run, so point it at a folder holding only the new files rather than at all of `public/models`.
+- Models are built in Blender from code: `tools/blender/make_weapons.py` (guns) and `tools/blender/make_bots.py` (soldiers, with the MPFB add-on), run through `tools/blender/bl.py`. `scripts/prepare-fp-arms.mjs` prepares the first-person arms and `scripts/compress-models.mjs` compresses models. Sounds are cut by `tools/audio/make_gun_sounds.py` and `tools/audio/make_foley.py`.
 
 ### 3.14 Testing and debugging
 
-- `npm test` checks the collision world, hitboxes, weapons (fire rate at any step size, first-shot accuracy, spray climb, recoil recovery, running inaccuracy and counter-strafe recovery), the Operator's scope and bolt cycle, sensitivity maths, crosshair codes, the spray trainer, audio clean-up, device detection, bots (magazine and reload, range discipline, aiming at the visible part, a full deathmatch simulation, turning on a shooter) and every map: closed border, spawns in free space on the ground, at least 3 peekable enemy positions per spawn, every callout reachable. Multiplayer is covered too: the message codec, room and queue rules, client prediction against the real server match at several latencies, lag compensation, damage and scoring.
+- `npm test` checks the collision world, hitboxes, weapons (fire rate at any step size, first-shot accuracy, spray climb, recoil recovery, running inaccuracy and counter-strafe recovery), the Monarch's scope and bolt cycle, sensitivity maths, crosshair codes, the spray trainer, audio clean-up, device detection, bots (magazine and reload, range discipline, aiming at the visible part, a full deathmatch simulation, turning on a shooter) and every map: closed border, spawns in free space on the ground, at least 3 peekable enemy positions per spawn, every callout reachable. Multiplayer is covered too: the message codec, room and queue rules, client prediction against the real server match at several latencies, lag compensation, damage and scoring.
 - `scripts/e2e.mjs` and `scripts/e2e-maps.mjs` drive a real browser session.
 - In a running game, `window.__TAL__.debug` exposes helpers such as `state()`, `teleport()`, `setView()`, `aimAtBot()`, `hitboxes(true)`, `timeScale()`, `godMode()` and `spectate(botIndex)` (watch a bot from outside to check its animation).
 
@@ -246,11 +246,11 @@ Deathmatch against other people, up to 10 in a match. Full detail, including how
 
 ## 4. Known issues and limits
 
-- The animation packs have no ADS or walking animations: ADS moves the whole rig. Rifle reloads were authored for an M4, so on skins without a separate magazine the left hand mimes the change. The pistol arms pack is under the Sketchfab Standard licence, not Creative Commons: check its terms before publishing it.
+- The animation packs have no ADS or walking animations: ADS moves the whole rig. Rifle reloads were authored for an M4, so on skins without a separate magazine the left hand mimes the change. There is no pistol arms pack: the rifle arms hold the sidearms.
 - Bots don't fight each other in Deathmatch, their reloads make no sound, and all their animation is procedural (no motion-captured clips, no ragdoll). The agent model's face, cloth, hair and fingers don't move.
 - Navigation is grid A\*, not a Recast navmesh.
 - The minimap doesn't show height.
-- The Operator's scope is click-to-cycle only (no hold-to-scope option).
+- The Monarch's scope is click-to-cycle only (no hold-to-scope option).
 - Statistics are kept in localStorage (300 sessions), not IndexedDB. Multiplayer matches aren't recorded in them.
 - Multiplayer: the free game server sleeps when nobody is playing, and Team Deathmatch has no team colours yet. Two people on two machines haven't been tried (testing used bots).
 - WebGPU and real-GPU frame rates haven't been measured; automated runs use software rendering. Use the Potato or Low preset on weak machines.
@@ -258,7 +258,7 @@ Deathmatch against other people, up to 10 in a match. Full detail, including how
 
 ## 5. What we can do next
 
-**Next up: realistic map visuals.** The maps are still flat-shaded boxes with procedural textures. The plan for making them look like Valorant's maps, in phases that each ship on their own, is in [`docs/map-visuals-plan.md`](docs/map-visuals-plan.md).
+**Next up: realistic map visuals.** The maps are still flat-shaded boxes with procedural textures. The plan for giving them real architecture and props, in phases that each ship on their own, is in [`docs/map-visuals-plan.md`](docs/map-visuals-plan.md).
 
 **Training content (most value for players)**
 
@@ -276,7 +276,7 @@ Deathmatch against other people, up to 10 in a match. Full detail, including how
 
 **Weapons and maps**
 
-- A hold-to-scope option for the Operator; magazines that drop out on reload for every gun skin.
+- A hold-to-scope option for the Monarch; magazines that drop out on reload for every gun skin.
 
 **Technology**
 
@@ -292,11 +292,11 @@ Deathmatch against other people, up to 10 in a match. Full detail, including how
 
 ## 6. Credits
 
-Links, licences and the changes made to each model are in `public/models/README.md`.
+Details, links and licences are in `public/models/README.md` and `public/sounds/README.md`.
 
-- Bot model: "MIKS / Valorant Agent" by neumann, CC BY 4.0.
-- Gun skins: "Gaia Vandal (Orange)" and "Prime Classic | Valorant" by ILilMitch, "Phantom - Reaver (White Variant) Valorant" by MisterM4n, "Valorant Sheriff" by sn00p, "Spectre Sentinel of Light - Valorant" by Kairos. and "KURONAMI Operator - Valorant Skin" by neumann, all CC BY 4.0; "Hush Ghost - Valorant" by Jp André, CC BY-NC 4.0; "Valorant guardian - standard skin" by Swierszcz93, CC BY-SA.
-- First-person arms: "M4 - FPS Weapon Animations Pack (v.1)" by BarcodeGames and "First-Person Arm & Hand - Fingerless Gloves" by Exactly, CC BY 4.0; "Mark 23 Animated (Free)" by BarcodeGames, Sketchfab Standard licence.
-- The agent and skin designs belong to Riot Games, which does not endorse or sponsor this project. Keep the project free and non-commercial while it includes them.
-- Gun, footstep, reload and kill recordings were supplied by the project owner (`public/sounds/`).
-- Everything else (maps, textures, simple guns, the training-dummy bots, synthesised sounds and the code) is original to this project.
+- **Soldiers:** bodies, faces, hair, clothes and boots generated with MPFB, the MakeHuman add-on for Blender, from the "MakeHuman system assets" pack (CC0). Camouflage, vest, pouches, pads and headgear are original.
+- **Guns:** original models, built from code in Blender.
+- **First-person arms:** "M4 - FPS Weapon Animations Pack (v.1)" by BarcodeGames and "First-Person Arm & Hand - Fingerless Gloves" by Exactly, both CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).
+- **Gunshots:** the Freesound pack "Real Gun Sounds" by areniporgen (CC0).
+- **Footsteps, reloads, handling, hits and kills:** CC0 recordings from opengameart.org, listed in `public/sounds/README.md`.
+- Everything else (maps, textures, the fallback guns and bots, synthesised sounds and the code) is original to this project.

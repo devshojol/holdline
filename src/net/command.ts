@@ -24,7 +24,7 @@ export interface Command {
   speed: number;
 }
 
-/** The range `Command.speed` can really take: the slowest is the Operator scoped in, the fastest a sidearm. */
+/** The range `Command.speed` can really take: the slowest is the Monarch scoped in, the fastest a sidearm. */
 export const MIN_SPEED_MULT = 0.7;
 export const MAX_SPEED_MULT = 1.04;
 /** Views are kept within a few turns of zero; anything far outside is not a real view direction. */

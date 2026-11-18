@@ -1,7 +1,7 @@
 /**
- * "Dunehold" — an original, Bind-inspired desert bazaar.
- * Two sites and no mid: A is reached by A Long or by A Short through Showers;
- * B is reached by B Long or through the Hookah room, which has a window onto the site.
+ * "Dunehold" — an original desert bazaar.
+ * Two sites and no mid: A is reached by A Long or by A Short through Baths;
+ * B is reached by B Long or through the Teahouse room, which has a window onto the site.
  */
 import { GridBuilder } from '../GridMap';
 import type { MapDefinition } from '../MapData';
@@ -28,9 +28,9 @@ function grid(): string[] {
   g.set(3, 14, 'C').set(4, 14, 'c');
   g.set(14, 15, 'C');
 
-  // A Short → Showers → A Lobby
+  // A Short → Baths → A Lobby
   g.rect(13, 18, 15, 24, '.');
-  g.rect(9, 24, 16, 28, '.'); // showers
+  g.rect(9, 24, 16, 28, '.'); // baths
   g.set(10, 25, 'P').set(10, 27, 'P');
   g.rect(12, 29, 14, 33, '.');
 
@@ -47,7 +47,7 @@ function grid(): string[] {
   g.rect(12, 41, 40, 46, '.');
   g.set(20, 43, 'C').set(32, 44, 'C');
 
-  // B Lobby (market) → attacker spawn
+  // B Lobby (arcade) → attacker spawn
   g.rect(33, 34, 49, 38, '.');
   g.set(41, 36, 'C').set(47, 35, 'c');
   g.rect(36, 39, 39, 40, '.');
@@ -56,12 +56,12 @@ function grid(): string[] {
   g.rect(45, 18, 49, 33, '.');
   g.set(46, 26, 'C').set(49, 22, 'c');
 
-  // B Short → Hookah room → door + window onto B site
+  // B Short → Teahouse room → door + window onto B site
   g.rect(34, 28, 37, 33, '.');
   g.rect(33, 20, 41, 27, '.');
   g.set(39, 23, 'c');
-  g.rect(36, 18, 38, 19, '.'); // hookah door
-  g.rect(40, 18, 41, 19, 'w'); // hookah window
+  g.rect(36, 18, 38, 19, '.'); // teahouse door
+  g.rect(40, 18, 41, 19, 'w'); // teahouse window
 
   // B site
   g.rect(32, 6, 49, 17, '.');
@@ -86,7 +86,7 @@ const locations = withGeneratedSpots(
     location({
       id: 'a-short',
       name: 'A Short',
-      description: 'Tight A Short corridor out of Showers, straight into the truck and crates on A site.',
+      description: 'Tight A Short corridor out of Baths, straight into the truck and crates on A site.',
       focus: focus(1, 4, 20, 34),
       attack: [spawn('a-short-in', 'A Short', 14, 21.5, 0), spawn('a-short-exit', 'Short exit', 14, 19.6, 0)],
       defend: [spawnAt('a-short-site', 'A site (truck side)', 12, 9, 14, 19), spawnAt('a-short-crates', 'Behind crates', 7, 11, 14, 19)],
@@ -100,17 +100,17 @@ const locations = withGeneratedSpots(
       defend: [spawnAt('a-long-site', 'A site', 9, 8, 3.5, 20), spawnAt('a-long-default', 'A default', 14, 11, 3.5, 20)],
     }),
     location({
-      id: 'hookah',
-      name: 'Hookah',
-      description: 'The Hookah room: a door and a window onto B site, held from boxes and the stack.',
+      id: 'teahouse',
+      name: 'Teahouse',
+      description: 'The Teahouse room: a door and a window onto B site, held from boxes and the stack.',
       focus: focus(30, 4, 50, 34),
-      attack: [spawn('hookah-door', 'Hookah door', 37, 21, 0), spawnAt('hookah-room', 'Hookah room', 35, 23, 37, 15)],
-      defend: [spawnAt('hookah-b-stack', 'B stack', 40, 8, 37, 19), spawnAt('hookah-b-left', 'B left', 34, 10, 37, 19)],
+      attack: [spawn('teahouse-door', 'Teahouse door', 37, 21, 0), spawnAt('teahouse-room', 'Teahouse room', 35, 23, 37, 15)],
+      defend: [spawnAt('teahouse-b-stack', 'B stack', 40, 8, 37, 19), spawnAt('teahouse-b-left', 'B left', 34, 10, 37, 19)],
     }),
     location({
       id: 'b-long',
       name: 'B Long',
-      description: 'Long east lane into B site past the Hookah window.',
+      description: 'Long east lane into B site past the Teahouse window.',
       focus: focus(30, 4, 50, 35),
       attack: [spawn('b-long-mid', 'B Long', 47, 25, 0), spawn('b-long-exit', 'Long exit', 47, 21, 0)],
       defend: [spawnAt('b-long-site', 'B site', 43, 9, 47, 20), spawnAt('b-long-boxes', 'B boxes', 40, 14, 47, 20)],
@@ -122,23 +122,23 @@ const locations = withGeneratedSpots(
 export const dunehold: MapDefinition = {
   id: 'dunehold',
   name: 'Dunehold',
-  inspiredBy: 'Bind',
+  setting: 'Desert bazaar',
   theme: 'Desert bazaar, two sites, no mid',
   description:
-    'Original Bind-inspired layout: A Short through Showers and A Long on the west, the Hookah room with its site window and B Long on the east. There is no mid, so you rotate through spawn.',
+    'Original layout: A Short through Baths and A Long on the west, the Teahouse room with its site window and B Long on the east. There is no mid, so you rotate through spawn.',
   grid: grid(),
   zoneOf,
   callouts: [
     { name: 'A Site', c: 9, r: 10.5 },
     { name: 'A Short', c: 14, r: 20.5 },
-    { name: 'Showers', c: 13, r: 26 },
+    { name: 'Baths', c: 13, r: 26 },
     { name: 'A Long', c: 3.5, r: 27 },
     { name: 'A Lobby', c: 9, r: 37 },
-    { name: 'Hookah', c: 37, r: 24 },
+    { name: 'Teahouse', c: 37, r: 24 },
     { name: 'B Short', c: 35.5, r: 31 },
     { name: 'B Long', c: 47, r: 29 },
     { name: 'B Site', c: 41, r: 12.5 },
-    { name: 'Market', c: 41, r: 37.5 },
+    { name: 'Arcade', c: 41, r: 37.5 },
     { name: 'Defender Spawn', c: 26, r: 2.5 },
     { name: 'Attacker Spawn', c: 26, r: 44 },
   ],

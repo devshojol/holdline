@@ -1,8 +1,8 @@
 {
-  "name": "tactical-aim-lab",
+  "name": "holdline",
   "private": true,
   "version": "0.1.0",
-  "description": "Browser-based tactical FPS aim practice lab (Valorant-inspired). Babylon.js + React + TypeScript.",
+  "description": "Holdline: a browser aim trainer where bots peek, swing and spray like real players. Babylon.js + React + TypeScript.",
   "type": "module",
   "scripts": {
     "dev": "vite",

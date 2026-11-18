@@ -1,27 +1,27 @@
 {
-  "vandal": [
-    "vandal-1.wav"
+  "kestrel": [
+    "kestrel-1.wav"
   ],
-  "phantom": [
-    "phantom-1.wav"
+  "halcyon": [
+    "halcyon-1.wav"
   ],
-  "classic": [
-    "classic-1.wav"
+  "pilot": [
+    "pilot-1.wav"
   ],
-  "sheriff": [
-    "sheriff-1.wav"
+  "magnate": [
+    "magnate-1.wav"
   ],
-  "spectre": [
-    "spectre-1.wav"
+  "hornet": [
+    "hornet-1.wav"
   ],
-  "guardian": [
-    "guardian-1.wav"
+  "arbiter": [
+    "arbiter-1.wav"
   ],
-  "operator": [
-    "operator-1.wav"
+  "monarch": [
+    "monarch-1.wav"
   ],
-  "ghost": [
-    "ghost-1.wav"
+  "whisper": [
+    "whisper-1.wav"
   ],
   "footstep": [
     "step-1.wav",
@@ -34,18 +34,18 @@
   "reload": [
     "reload-rifle.wav"
   ],
-  "reload-vandal": [],
-  "reload-phantom": [],
-  "reload-classic": [
+  "reload-kestrel": [],
+  "reload-halcyon": [],
+  "reload-pilot": [
     "reload-pistol.wav"
   ],
-  "reload-sheriff": [
+  "reload-magnate": [
     "reload-pistol.wav"
   ],
-  "reload-spectre": [],
-  "reload-guardian": [],
-  "reload-operator": [],
-  "reload-ghost": [
+  "reload-hornet": [],
+  "reload-arbiter": [],
+  "reload-monarch": [],
+  "reload-whisper": [
     "reload-pistol.wav"
   ],
   "headshot": [
@@ -66,26 +66,26 @@
   "kill5": [
     "kill-5.wav"
   ],
-  "vandal-kill1": [],
-  "vandal-kill2": [],
-  "vandal-kill3": [],
-  "vandal-kill4": [],
-  "vandal-kill5": [],
-  "phantom-kill1": [],
-  "phantom-kill2": [],
-  "phantom-kill3": [],
-  "phantom-kill4": [],
-  "phantom-kill5": [],
-  "classic-kill1": [],
-  "classic-kill2": [],
-  "classic-kill3": [],
-  "classic-kill4": [],
-  "classic-kill5": [],
-  "sheriff-kill1": [],
-  "sheriff-kill2": [],
-  "sheriff-kill3": [],
-  "sheriff-kill4": [],
-  "sheriff-kill5": [],
+  "kestrel-kill1": [],
+  "kestrel-kill2": [],
+  "kestrel-kill3": [],
+  "kestrel-kill4": [],
+  "kestrel-kill5": [],
+  "halcyon-kill1": [],
+  "halcyon-kill2": [],
+  "halcyon-kill3": [],
+  "halcyon-kill4": [],
+  "halcyon-kill5": [],
+  "pilot-kill1": [],
+  "pilot-kill2": [],
+  "pilot-kill3": [],
+  "pilot-kill4": [],
+  "pilot-kill5": [],
+  "magnate-kill1": [],
+  "magnate-kill2": [],
+  "magnate-kill3": [],
+  "magnate-kill4": [],
+  "magnate-kill5": [],
   "jump": [
     "jump-1.wav"
   ],

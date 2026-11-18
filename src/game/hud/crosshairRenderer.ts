@@ -8,7 +8,7 @@ export interface CrosshairErrors {
 }
 
 /**
- * Draw a Valorant-style crosshair into a 2D canvas (screen-space HUD).
+ * Draw the crosshair into a 2D canvas (screen-space HUD).
  * `scale` maps crosshair "pixels" to device pixels (devicePixelRatio).
  */
 export function drawCrosshair(

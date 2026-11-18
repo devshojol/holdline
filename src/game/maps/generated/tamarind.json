@@ -45,7 +45,7 @@
    },
    {
     "id": "a-main-a-4",
-    "name": "A Rubble box (left)",
+    "name": "A Ruins box (left)",
     "cover": [
      -33.5,
      0,
@@ -59,7 +59,7 @@
    },
    {
     "id": "a-main-a-5",
-    "name": "A Rubble corner (right)",
+    "name": "A Ruins corner (right)",
     "cover": [
      -23.5,
      0,
@@ -117,7 +117,7 @@
   "defend": [
    {
     "id": "a-main-d-1",
-    "name": "A Rubble box (right)",
+    "name": "A Ruins box (right)",
     "cover": [
      -34.94,
      0,
@@ -361,7 +361,7 @@
    },
    {
     "id": "b-main-d-5",
-    "name": "C Mound corner (left)",
+    "name": "C Rise corner (left)",
     "cover": [
      25.94,
      0.4,
@@ -421,7 +421,7 @@
   "attack": [
    {
     "id": "c-main-a-1",
-    "name": "C Mound corner (left)",
+    "name": "C Rise corner (left)",
     "cover": [
      25,
      0,
@@ -435,7 +435,7 @@
    },
    {
     "id": "c-main-a-2",
-    "name": "C Mound corner (left) 2",
+    "name": "C Rise corner (left) 2",
     "cover": [
      26.5,
      0.4,
@@ -449,7 +449,7 @@
    },
    {
     "id": "c-main-a-3",
-    "name": "C Mound corner (right)",
+    "name": "C Rise corner (right)",
     "cover": [
      35.05,
      0,
@@ -535,7 +535,7 @@
   "defend": [
    {
     "id": "c-main-d-1",
-    "name": "C Mound box",
+    "name": "C Rise box",
     "cover": [
      27.5,
      0,
@@ -563,7 +563,7 @@
    },
    {
     "id": "c-main-d-3",
-    "name": "C Mound corner (left)",
+    "name": "C Rise corner (left)",
     "cover": [
      35.56,
      0,

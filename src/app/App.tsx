@@ -65,13 +65,13 @@ function Backdrop() {
 
 function Brand() {
   return (
-    <button onClick={() => store.go('home')} className="flex shrink-0 items-center gap-3 px-4 md:px-6" aria-label="Tactical Aim Lab, main menu">
+    <button onClick={() => store.go('home')} className="flex shrink-0 items-center gap-3 px-4 md:px-6" aria-label="Holdline, main menu">
       <span className="relative grid h-9 w-9 place-items-center border border-accent/70 bg-accent/15">
         <Crosshair size={20} className="text-accent" />
       </span>
       <span className="text-left leading-none">
-        <span className="block font-display text-lg font-bold uppercase tracking-[0.14em] text-ink">Tactical</span>
-        <span className="block font-display text-[11px] font-semibold uppercase tracking-[0.42em] text-accent">Aim Lab</span>
+        <span className="block font-display text-lg font-bold uppercase tracking-[0.14em] text-ink">Holdline</span>
+        <span className="block font-display text-[11px] font-semibold uppercase tracking-[0.42em] text-accent">Aim trainer</span>
       </span>
     </button>
   );

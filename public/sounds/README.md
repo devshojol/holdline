@@ -8,7 +8,7 @@ that slot. An empty list keeps the synthesised one.
 
 | Key | Plays when | Synthesised fallback |
 | --- | --- | --- |
-| `vandal`, `phantom`, `spectre`, `guardian`, `operator`, `classic`, `ghost`, `sheriff` | that gun fires | layered shot per weapon |
+| `kestrel`, `halcyon`, `hornet`, `arbiter`, `monarch`, `pilot`, `whisper`, `magnate` | that gun fires | layered shot per weapon |
 | `footstep` | the player or a bot takes a step. Every take has its background stripped, its low end boosted and its level brought up, and a wooden and a metal version are made from it for steps on crates and containers | six scuffs per surface |
 | `jump` | you jump | shoe push-off with a clothes-and-gear rustle |
 | `land` | you land (louder after a bigger drop), together with a step for the surface | deep double thud with a scuff |

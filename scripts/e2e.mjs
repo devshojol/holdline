@@ -137,7 +137,7 @@ await dbg('mouse', [1000, 0]);
 await wait(100);
 s = await state();
 const turned = ((s.player.yaw - yaw0) * 180) / Math.PI;
-check('mouse look applies Valorant-scale sensitivity', Math.abs(turned - 1000 * 0.4 * 0.07) < 0.5, `turned=${turned.toFixed(2)}°`);
+check('mouse look applies the sensitivity scale', Math.abs(turned - 1000 * 0.4 * 0.07) < 0.5, `turned=${turned.toFixed(2)}°`);
 await dbg('setView', [0, 0]);
 
 // Wait for a bot to become visible, then flick + fire

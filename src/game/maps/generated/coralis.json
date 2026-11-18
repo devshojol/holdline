@@ -3,7 +3,7 @@
   "attack": [
    {
     "id": "a-main-a-1",
-    "name": "A Pyramid corner (right)",
+    "name": "A Obelisk corner (right)",
     "cover": [
      -16.6,
      0,
@@ -17,7 +17,7 @@
    },
    {
     "id": "a-main-a-2",
-    "name": "A Pyramid corner",
+    "name": "A Obelisk corner",
     "cover": [
      -33.55,
      0,
@@ -31,7 +31,7 @@
    },
    {
     "id": "a-main-a-3",
-    "name": "A Pyramid box",
+    "name": "A Obelisk box",
     "cover": [
      -27.95,
      0,
@@ -59,7 +59,7 @@
    },
    {
     "id": "a-main-a-5",
-    "name": "A Pyramid corner 2",
+    "name": "A Obelisk corner 2",
     "cover": [
      -27.55,
      0,
@@ -73,7 +73,7 @@
    },
    {
     "id": "a-main-a-6",
-    "name": "A Pyramid box (right)",
+    "name": "A Obelisk box (right)",
     "cover": [
      -22.55,
      0,
@@ -87,7 +87,7 @@
    },
    {
     "id": "a-main-a-7",
-    "name": "A Pyramid corner (right) 2",
+    "name": "A Obelisk corner (right) 2",
     "cover": [
      -14.05,
      0,
@@ -101,7 +101,7 @@
    },
    {
     "id": "a-main-a-8",
-    "name": "A Pyramid corner (right) 3",
+    "name": "A Obelisk corner (right) 3",
     "cover": [
      -20.5,
      0,
@@ -521,7 +521,7 @@
   "defend": [
    {
     "id": "b-main-d-1",
-    "name": "B Elbow corner",
+    "name": "B Bend corner",
     "cover": [
      23.56,
      0,

@@ -8,7 +8,7 @@
  *   3. Body – the low-mid "punch" of the blast (200–600 Hz).
  *   4. Sub thump – chest-felt low end with a falling pitch.
  *   5. Mechanical action – bolt carrier / slide / cylinder: short metallic modal ringing.
- *   6. Suppressor gas hiss (Phantom only).
+ *   6. Suppressor gas hiss (Halcyon only).
  *   7. Early reflections – slap-back from nearby walls (stereo, low-passed).
  *   8. Reverb tail – convolution with a synthetic outdoor/urban impulse response.
  * Everything goes through soft saturation and a fast compressor, like a close-mic'd recording.
@@ -39,7 +39,7 @@ export interface GunProfile {
 }
 
 const GUN_PROFILES: Record<GunSoundId, GunProfile> = {
-  // Vandal — heavy 7.62-style rifle: hard crack, big low-mid punch, rattly action, long city tail.
+  // Kestrel — heavy 7.62-style rifle: hard crack, big low-mid punch, rattly action, long city tail.
   'rifle-heavy': {
     length: 1.7,
     crack: { gain: 1.0, hp: 2200, width: 0.00055, decay: 0.006 },
@@ -60,7 +60,7 @@ const GUN_PROFILES: Record<GunSoundId, GunProfile> = {
     reverb: { wet: 0.6, seconds: 1.7, decay: 0.42, damp: 5200 },
     peak: 0.97,
   },
-  // Phantom — suppressed rifle: muffled thump, prominent bolt clatter, short hiss, small tail.
+  // Halcyon — suppressed rifle: muffled thump, prominent bolt clatter, short hiss, small tail.
   'rifle-suppressed': {
     length: 1.1,
     crack: { gain: 0.22, hp: 3200, width: 0.0004, decay: 0.003 },
@@ -80,7 +80,7 @@ const GUN_PROFILES: Record<GunSoundId, GunProfile> = {
     reverb: { wet: 0.2, seconds: 1.0, decay: 0.24, damp: 3800 },
     peak: 0.78,
   },
-  // Classic — 9 mm-style pistol: snappy, brighter, shorter body, light slide click.
+  // Pilot — 9 mm-style pistol: snappy, brighter, shorter body, light slide click.
   'pistol-light': {
     length: 1.3,
     crack: { gain: 0.85, hp: 2800, width: 0.0004, decay: 0.004 },
@@ -97,7 +97,7 @@ const GUN_PROFILES: Record<GunSoundId, GunProfile> = {
     reverb: { wet: 0.45, seconds: 1.3, decay: 0.32, damp: 5600 },
     peak: 0.85,
   },
-  // Sheriff — heavy revolver: huge boom, deep thump, cylinder clank, long echoing tail.
+  // Magnate — heavy revolver: huge boom, deep thump, cylinder clank, long echoing tail.
   'pistol-heavy': {
     length: 2.2,
     crack: { gain: 1.1, hp: 1900, width: 0.0007, decay: 0.008 },
@@ -115,7 +115,7 @@ const GUN_PROFILES: Record<GunSoundId, GunProfile> = {
     reverb: { wet: 0.6, seconds: 2.1, decay: 0.52, damp: 4600 },
     peak: 0.98,
   },
-  // Guardian — marksman rifle: sharper and drier than the Vandal, one heavy action clack per shot.
+  // Arbiter — marksman rifle: sharper and drier than the Kestrel, one heavy action clack per shot.
   'rifle-dmr': {
     length: 1.8,
     crack: { gain: 1.1, hp: 2500, width: 0.0005, decay: 0.006 },
@@ -133,7 +133,7 @@ const GUN_PROFILES: Record<GunSoundId, GunProfile> = {
     reverb: { wet: 0.6, seconds: 1.8, decay: 0.45, damp: 5000 },
     peak: 0.97,
   },
-  // Spectre — suppressed SMG: short dry tick with a fast, light bolt; almost no tail so it stays clean at 13 shots a second.
+  // Hornet — suppressed SMG: short dry tick with a fast, light bolt; almost no tail so it stays clean at 13 shots a second.
   'smg-suppressed': {
     length: 0.8,
     crack: { gain: 0.2, hp: 3600, width: 0.00035, decay: 0.0025 },
@@ -153,7 +153,7 @@ const GUN_PROFILES: Record<GunSoundId, GunProfile> = {
     reverb: { wet: 0.14, seconds: 0.8, decay: 0.18, damp: 3600 },
     peak: 0.72,
   },
-  // Operator — sniper: the loudest shot, very deep, with a long rolling echo and a late bolt.
+  // Monarch — sniper: the loudest shot, very deep, with a long rolling echo and a late bolt.
   sniper: {
     length: 2.8,
     crack: { gain: 1.25, hp: 1700, width: 0.0008, decay: 0.01 },
@@ -172,7 +172,7 @@ const GUN_PROFILES: Record<GunSoundId, GunProfile> = {
     reverb: { wet: 0.7, seconds: 2.7, decay: 0.68, damp: 4200 },
     peak: 0.99,
   },
-  // Ghost — suppressed pistol: a small bright snap, slide click, no tail.
+  // Whisper — suppressed pistol: a small bright snap, slide click, no tail.
   'pistol-suppressed': {
     length: 0.8,
     crack: { gain: 0.18, hp: 3800, width: 0.0003, decay: 0.0025 },

@@ -74,9 +74,8 @@ export function HomePage() {
         <div className="mb-6">
           <div className="font-display text-xs font-semibold uppercase tracking-[0.4em] text-accent">Tactical shooter training</div>
           <h1 className="tal-title-in mt-1 font-display text-6xl font-extrabold uppercase leading-[0.86] tracking-[0.04em] text-ink xl:text-7xl">
-            Tactical
-            <br />
-            <span className="text-accent">Aim Lab</span>
+            Hold
+            <span className="text-accent">line</span>
           </h1>
           <p className="mt-3 max-w-xs text-sm text-mute">Win the gunfight before the round.</p>
         </div>

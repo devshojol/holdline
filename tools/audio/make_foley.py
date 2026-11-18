@@ -66,7 +66,7 @@ manifest["land"] = [make("land-1", [(STONE.format("L2"), 0, 0.33, "asetrate=4410
 # reloads: the rifle magazine change for long guns, the handgun's for the sidearms
 manifest["reload"] = [make("reload-rifle", [("assaultriflereload1_0.wav", 0.2, 1.3, None, 0, 0)], peak=-4)]
 pistol = make("reload-pistol", [("reload.wav", 0.05, 1.4, None, 0, 0)], peak=-4)
-for gun in ("classic", "ghost", "sheriff"):
+for gun in ("pilot", "whisper", "magnate"):
     manifest[f"reload-{gun}"] = [pistol]
 # the bolt of the sniper rifle. The game plays this once to open it and once to close it, so each take is one movement
 manifest["bolt"] = [make("bolt-1", [("equipmentclicks.wav", 1.9, 0.24, None, 0, 0)], peak=-4),

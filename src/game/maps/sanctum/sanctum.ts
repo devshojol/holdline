@@ -1,7 +1,7 @@
 /**
- * "Sanctum" — an original, Haven-inspired hillside monastery with three sites.
+ * "Sanctum" — an original hillside monastery with three sites.
  * A (west) via A Long and the narrow A Short sewer, B (centre) from the mid courtyard,
- * C (east) via C Long or through Garage from mid.
+ * C (east) via C Long or through Workshop from mid.
  */
 import { GridBuilder } from '../GridMap';
 import type { MapDefinition } from '../MapData';
@@ -54,7 +54,7 @@ function grid(): string[] {
   g.rect(25, 12, 26, 12, 'C');
   g.set(20, 14, 'c');
 
-  // Garage (mid → C)
+  // Workshop (mid → C)
   g.rect(34, 19, 40, 26, '.');
   g.set(36, 22, 'C');
   g.rect(33, 23, 33, 25, '.');
@@ -111,12 +111,12 @@ const locations = withGeneratedSpots(
       defend: [spawn('mid-b-main', 'B Main doors', 25.5, 18, 180), spawn('mid-b-site', 'B site', 24.5, 15, 180)],
     }),
     location({
-      id: 'garage',
-      name: 'Garage',
-      description: 'Garage door into C site, crossfired from C boxes and the stack.',
+      id: 'workshop',
+      name: 'Workshop',
+      description: 'Workshop door into C site, crossfired from C boxes and the stack.',
       focus: focus(31, 4, 50, 28),
-      attack: [spawnAt('garage-door', 'Garage door', 36, 20, 37.5, 15), spawnAt('garage-in', 'Inside Garage', 38, 23, 37.5, 15)],
-      defend: [spawnAt('garage-c-site', 'C site', 42, 11, 37.5, 18), spawnAt('garage-c-left', 'C left', 39, 9, 37.5, 18)],
+      attack: [spawnAt('workshop-door', 'Workshop door', 36, 20, 37.5, 15), spawnAt('workshop-in', 'Inside Workshop', 38, 23, 37.5, 15)],
+      defend: [spawnAt('workshop-c-site', 'C site', 42, 11, 37.5, 18), spawnAt('workshop-c-left', 'C left', 39, 9, 37.5, 18)],
     }),
     location({
       id: 'c-long',
@@ -133,10 +133,10 @@ const locations = withGeneratedSpots(
 export const sanctum: MapDefinition = {
   id: 'sanctum',
   name: 'Sanctum',
-  inspiredBy: 'Haven',
+  setting: 'Temple compound',
   theme: 'Hillside monastery, three sites',
   description:
-    'Original Haven-inspired three-site layout: A Long and the A Short sewer on the west, a central B site above the mid courtyard, and Garage and C Long leading to C.',
+    'Original three-site layout: A Long and the A Short sewer on the west, a central B site above the mid courtyard, and Workshop and C Long leading to C.',
   grid: grid(),
   zoneOf,
   callouts: [
@@ -147,7 +147,7 @@ export const sanctum: MapDefinition = {
     { name: 'B Site', c: 25.5, r: 9 },
     { name: 'Mid', c: 25.5, r: 29 },
     { name: 'Mid Bottom', c: 25.5, r: 37 },
-    { name: 'Garage', c: 37, r: 24 },
+    { name: 'Workshop', c: 37, r: 24 },
     { name: 'C Site', c: 43, r: 10 },
     { name: 'C Long', c: 47, r: 28 },
     { name: 'C Lobby', c: 43, r: 37.5 },

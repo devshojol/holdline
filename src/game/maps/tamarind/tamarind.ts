@@ -1,7 +1,7 @@
 /**
- * "Tamarind" — an original, Lotus-inspired jungle temple with three sites.
- * A (west) with a rubble mound, a low central B courtyard, and C (east) behind the C Mound.
- * The A Root and the A and C links let you rotate between sites.
+ * "Tamarind" — an original jungle temple with three sites.
+ * A (west) with a ruins rise, a low central B courtyard, and C (east) behind the C Rise.
+ * The A Vines and the A and C links let you rotate between sites.
  */
 import { GridBuilder } from '../GridMap';
 import type { MapDefinition } from '../MapData';
@@ -21,7 +21,7 @@ function grid(): string[] {
   g.rect(24, 5, 27, 11, '.');
   g.rect(34, 2, 36, 6, '.');
 
-  // A site with rubble mound
+  // A site with ruins rise
   g.rect(2, 5, 14, 15, '.');
   g.rect(3, 6, 7, 9, '1');
   g.rect(4, 7, 6, 8, '2');
@@ -36,7 +36,7 @@ function grid(): string[] {
   g.rect(2, 34, 12, 39, '.');
   g.set(10, 36, 'C');
   g.rect(10, 40, 13, 40, '.');
-  // A Root: A Main ↔ B Main
+  // A Vines: A Main ↔ B Main
   g.rect(8, 24, 22, 26, '.');
   g.set(15, 25, 'P');
   // A Link: A site ↔ B site
@@ -60,7 +60,7 @@ function grid(): string[] {
   g.set(46, 11, 'C');
   g.set(39, 12, 'P');
   g.set(44, 14, 'C');
-  // C Mound (walkable hill) + side path, C Main, C Lobby
+  // C Rise (walkable hill) + side path, C Main, C Lobby
   g.rect(43, 16, 47, 19, '1');
   g.rect(44, 17, 46, 18, '2');
   g.rect(48, 16, 49, 19, '.');
@@ -89,7 +89,7 @@ const locations = withGeneratedSpots(
     location({
       id: 'a-main',
       name: 'A Main',
-      description: 'A Main into a temple site with a rubble mound, pillars and the twin stacks.',
+      description: 'A Main into a temple site with a ruins rise, pillars and the twin stacks.',
       focus: focus(1, 3, 20, 35),
       attack: [spawn('a-main-mid', 'A Main', 5.5, 22, 0), spawn('a-main-exit', 'A Main exit', 5.5, 18, 0)],
       defend: [spawnAt('a-site', 'A site', 9, 10, 5.5, 17), spawnAt('a-site-right', 'A right', 12, 11, 5.5, 17)],
@@ -105,9 +105,9 @@ const locations = withGeneratedSpots(
     location({
       id: 'c-main',
       name: 'C Main',
-      description: 'Over the C Mound into C site: high ground, a pillar and the back stacks.',
+      description: 'Over the C Rise into C site: high ground, a pillar and the back stacks.',
       focus: focus(31, 3, 50, 35),
-      attack: [spawn('c-main-mid', 'C Main', 46, 27, 0), spawn('c-main-mound', 'Before mound', 46, 22, 0)],
+      attack: [spawn('c-main-mid', 'C Main', 46, 27, 0), spawn('c-main-rise', 'Before rise', 46, 22, 0)],
       defend: [spawnAt('c-site', 'C site', 43, 10, 46, 18), spawnAt('c-site-left', 'C left', 40, 7, 46, 18)],
     }),
   ],
@@ -117,24 +117,24 @@ const locations = withGeneratedSpots(
 export const tamarind: MapDefinition = {
   id: 'tamarind',
   name: 'Tamarind',
-  inspiredBy: 'Lotus',
+  setting: 'Jungle ruins',
   theme: 'Jungle temple ruins, three sites',
   description:
-    'Original Lotus-inspired three-site layout: A rubble and A Root on the west, a sunken central B courtyard, and the walkable C Mound guarding C site.',
+    'Original three-site layout: A ruins and A Vines on the west, a sunken central B courtyard, and the walkable C Rise guarding C site.',
   grid: grid(),
   zoneOf,
   callouts: [
     { name: 'A Site', c: 9, r: 11 },
-    { name: 'A Rubble', c: 5, r: 7.5 },
+    { name: 'A Ruins', c: 5, r: 7.5 },
     { name: 'A Main', c: 5.5, r: 28 },
-    { name: 'A Root', c: 12, r: 25 },
+    { name: 'A Vines', c: 12, r: 25 },
     { name: 'A Link', c: 17, r: 14 },
     { name: 'A Lobby', c: 6, r: 37 },
     { name: 'B Site', c: 25.5, r: 17 },
     { name: 'B Main', c: 25.5, r: 33 },
     { name: 'C Link', c: 34, r: 15 },
     { name: 'C Site', c: 44, r: 10 },
-    { name: 'C Mound', c: 45, r: 17.5 },
+    { name: 'C Rise', c: 45, r: 17.5 },
     { name: 'C Main', c: 46, r: 28 },
     { name: 'C Lobby', c: 43, r: 37 },
     { name: 'Defender Spawn', c: 25.5, r: 2.5 },

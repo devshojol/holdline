@@ -3,8 +3,8 @@ import type { Vec2, WeaponConfig, WeaponId } from '../../types';
 /*
  * Weapon tuning approximates the public behaviour of the referenced tactical-shooter weapons
  * (fire rate, magazine, damage by range, first-shot accuracy). Recoil patterns are original
- * hand-authored curves that reproduce the *feel* of each gun: Vandal climbs hard then sways,
- * Phantom climbs gentler with a wider late sway, pistols kick per tap.
+ * hand-authored curves that reproduce the *feel* of each gun: Kestrel climbs hard then sways,
+ * Halcyon climbs gentler with a wider late sway, pistols kick per tap.
  */
 
 const VANDAL_PATTERN: Vec2[] = [
@@ -150,8 +150,8 @@ const OPERATOR_PATTERN: Vec2[] = [
   [0.2, 5.4],
 ];
 
-// Reload times follow Valorant's published values: Classic 1.75 s, Ghost 1.5 s, Sheriff 2.25 s, Spectre 2.25 s,
-// Guardian 2.5 s, Phantom 2.5 s, Vandal 2.5 s, Operator 3.7 s.
+// Reload times: Pilot 1.75 s, Whisper 1.5 s, Magnate 2.25 s, Hornet 2.25 s,
+// Arbiter 2.5 s, Halcyon 2.5 s, Kestrel 2.5 s, Monarch 3.7 s.
 export const WEAPONS: Record<WeaponId, WeaponConfig> = {
   vandal: {
     id: 'vandal',
@@ -356,7 +356,7 @@ export const WEAPONS: Record<WeaponId, WeaponConfig> = {
     altFire: 'ads',
     ads: { zoom: 2.5, zoom2: 5, moveSpeedMult: 0.76, fireRateMult: 1, transitionTime: 0.3, scope: true },
     boltAction: true,
-    // Valorant: 5.13 m/s with the Operator out against 5.4 m/s with a rifle
+    // 5.13 m/s with the sniper rifle out against 5.4 m/s with a rifle
     runSpeedMult: 0.95,
     tracer: true,
     sound: 'sniper',

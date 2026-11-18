@@ -8,8 +8,8 @@
   --color-ink: #ece8e1;
   --color-mute: #8a96a5;
   --color-dim: #5b6776;
-  --color-accent: #ff4655;
-  --color-accent2: #ff8a5c;
+  --color-accent: #f5a524;
+  --color-accent2: #ffd166;
   --color-ok: #3ddc97;
   --color-warn: #f2c14e;
   --color-info: #5cc8ff;
@@ -55,7 +55,7 @@ body {
 
 .bg-grid {
   background-image:
-    radial-gradient(900px 520px at 88% -8%, rgba(255, 70, 85, 0.1), transparent 62%),
+    radial-gradient(900px 520px at 88% -8%, rgba(245, 165, 36, 0.1), transparent 62%),
     radial-gradient(700px 480px at -6% 104%, rgba(92, 200, 255, 0.05), transparent 60%),
     linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
@@ -121,7 +121,7 @@ body {
     transform 0.08s;
 }
 .tal-primary:hover:not(:disabled) {
-  filter: drop-shadow(0 0 14px rgba(255, 70, 85, 0.45));
+  filter: drop-shadow(0 0 14px rgba(245, 165, 36, 0.45));
 }
 
 /* Selectable tiles (modes, weapons, maps). */
@@ -149,7 +149,7 @@ body {
   outline-offset: 2px;
 }
 ::selection {
-  background: rgba(255, 70, 85, 0.35);
+  background: rgba(245, 165, 36, 0.35);
 }
 
 @keyframes tal-load {
@@ -208,7 +208,7 @@ input[type='range'].tal-range::-webkit-slider-thumb {
   transition: box-shadow 0.15s;
 }
 input[type='range'].tal-range:hover::-webkit-slider-thumb {
-  box-shadow: 0 0 0 5px rgba(255, 70, 85, 0.18);
+  box-shadow: 0 0 0 5px rgba(245, 165, 36, 0.18);
 }
 input[type='range'].tal-range::-moz-range-thumb {
   width: 12px;
@@ -279,7 +279,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
   overflow: hidden;
   pointer-events: none;
   background:
-    radial-gradient(90% 70% at 78% 8%, rgba(255, 70, 85, 0.16), transparent 60%),
+    radial-gradient(90% 70% at 78% 8%, rgba(245, 165, 36, 0.16), transparent 60%),
     radial-gradient(70% 60% at 8% 96%, rgba(92, 200, 255, 0.08), transparent 62%),
     linear-gradient(180deg, #0c1119 0%, #080c12 55%, #05070b 100%);
 }
@@ -290,7 +290,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
   bottom: -12%;
   height: 62%;
   background-image:
-    linear-gradient(rgba(255, 70, 85, 0.22) 1px, transparent 1px),
+    linear-gradient(rgba(245, 165, 36, 0.22) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
   background-size: 64px 64px;
   transform: perspective(520px) rotateX(64deg);
@@ -318,7 +318,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
   width: 12%;
   animation-duration: 19s;
   animation-delay: -6s;
-  background: linear-gradient(90deg, transparent, rgba(255, 70, 85, 0.07), transparent);
+  background: linear-gradient(90deg, transparent, rgba(245, 165, 36, 0.07), transparent);
 }
 @keyframes tal-beam {
   from {
@@ -334,7 +334,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
   left: var(--x);
   width: var(--s);
   height: var(--s);
-  background: #ff8a5c;
+  background: #ffd166;
   box-shadow: 0 0 8px 1px rgba(255, 110, 80, 0.8);
   opacity: 0;
   animation: tal-spark var(--d) linear var(--w) infinite;
@@ -376,7 +376,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
   right: 0;
   bottom: -1px;
   height: 1px;
-  background: linear-gradient(90deg, var(--color-accent), rgba(255, 70, 85, 0) 42%);
+  background: linear-gradient(90deg, var(--color-accent), rgba(245, 165, 36, 0) 42%);
 }
 .tal-tab {
   position: relative;
@@ -403,7 +403,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
   bottom: 0;
   height: 3px;
   background: var(--color-accent);
-  box-shadow: 0 0 14px 1px rgba(255, 70, 85, 0.7);
+  box-shadow: 0 0 14px 1px rgba(245, 165, 36, 0.7);
   transform: scaleX(0);
   transform-origin: 0 50%;
   transition: transform 0.2s ease-out;
@@ -414,7 +414,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
 }
 .tal-tab[aria-current='page'] {
   color: #fff;
-  background: linear-gradient(180deg, transparent, rgba(255, 70, 85, 0.13));
+  background: linear-gradient(180deg, transparent, rgba(245, 165, 36, 0.13));
 }
 .tal-tab[aria-current='page']::after {
   transform: scaleX(1);
@@ -488,7 +488,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
 .tal-menu-item:focus-visible {
   transform: translateX(8px);
   border-left-color: var(--color-accent);
-  background: linear-gradient(90deg, rgba(255, 70, 85, 0.3), rgba(20, 28, 38, 0.4));
+  background: linear-gradient(90deg, rgba(245, 165, 36, 0.3), rgba(20, 28, 38, 0.4));
 }
 .tal-menu-item:hover:not(:disabled)::after {
   transform: translateX(120%);
@@ -500,7 +500,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
   color: #fff;
   border-left-color: #fff;
   background: linear-gradient(90deg, var(--color-accent), #c22b3a);
-  box-shadow: 0 0 34px -6px rgba(255, 70, 85, 0.75);
+  box-shadow: 0 0 34px -6px rgba(245, 165, 36, 0.75);
 }
 .tal-menu-item[data-primary='true']:hover:not(:disabled) {
   background: linear-gradient(90deg, #ff5d6a, #d63343);
@@ -561,7 +561,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
 .tal-panel-head {
   margin: -1.25rem -1.25rem 1rem;
   padding: 0.6rem 1.25rem;
-  background: linear-gradient(90deg, rgba(255, 70, 85, 0.14), rgba(255, 255, 255, 0.02) 55%, transparent);
+  background: linear-gradient(90deg, rgba(245, 165, 36, 0.14), rgba(255, 255, 255, 0.02) 55%, transparent);
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
@@ -655,7 +655,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
 }
 .tal-slot[data-me='true'] {
   border-top-color: var(--color-accent);
-  background: linear-gradient(180deg, rgba(255, 70, 85, 0.2), rgba(12, 17, 24, 0.9) 70%);
+  background: linear-gradient(180deg, rgba(245, 165, 36, 0.2), rgba(12, 17, 24, 0.9) 70%);
 }
 .tal-slot[data-ready='true'] {
   border-top-color: var(--color-ok);
@@ -705,14 +705,14 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
   width: min(300px, 70vw);
   aspect-ratio: 1;
   border-radius: 50%;
-  border: 1px solid rgba(255, 70, 85, 0.45);
+  border: 1px solid rgba(245, 165, 36, 0.45);
   background:
-    radial-gradient(circle, transparent 0 32%, rgba(255, 70, 85, 0.22) 32.4% 33%, transparent 33.4% 65%, rgba(255, 70, 85, 0.18) 65.4% 66%, transparent 66.4%),
-    linear-gradient(rgba(255, 70, 85, 0.16), rgba(255, 70, 85, 0.16)) 50% 50% / 1px 100% no-repeat,
-    linear-gradient(rgba(255, 70, 85, 0.16), rgba(255, 70, 85, 0.16)) 50% 50% / 100% 1px no-repeat,
-    radial-gradient(circle, rgba(255, 70, 85, 0.1), rgba(8, 12, 17, 0.85) 70%);
+    radial-gradient(circle, transparent 0 32%, rgba(245, 165, 36, 0.22) 32.4% 33%, transparent 33.4% 65%, rgba(245, 165, 36, 0.18) 65.4% 66%, transparent 66.4%),
+    linear-gradient(rgba(245, 165, 36, 0.16), rgba(245, 165, 36, 0.16)) 50% 50% / 1px 100% no-repeat,
+    linear-gradient(rgba(245, 165, 36, 0.16), rgba(245, 165, 36, 0.16)) 50% 50% / 100% 1px no-repeat,
+    radial-gradient(circle, rgba(245, 165, 36, 0.1), rgba(8, 12, 17, 0.85) 70%);
   box-shadow:
-    0 0 60px -12px rgba(255, 70, 85, 0.5),
+    0 0 60px -12px rgba(245, 165, 36, 0.5),
     inset 0 0 40px rgba(0, 0, 0, 0.6);
 }
 .tal-radar::before {
@@ -720,7 +720,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: conic-gradient(from 0deg, rgba(255, 70, 85, 0.55), rgba(255, 70, 85, 0) 22%, transparent 100%);
+  background: conic-gradient(from 0deg, rgba(245, 165, 36, 0.55), rgba(245, 165, 36, 0) 22%, transparent 100%);
   animation: tal-sweep 2.6s linear infinite;
 }
 .tal-radar::after {
@@ -728,7 +728,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 2px solid rgba(255, 70, 85, 0.6);
+  border: 2px solid rgba(245, 165, 36, 0.6);
   animation: tal-ping 2.6s ease-out infinite;
 }
 @keyframes tal-sweep {
@@ -986,7 +986,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
 .tal-mode[data-primary='true'] {
   border-top-color: var(--color-accent);
   background:
-    radial-gradient(90% 70% at 100% 0%, rgba(255, 70, 85, 0.22), transparent 70%),
+    radial-gradient(90% 70% at 100% 0%, rgba(245, 165, 36, 0.22), transparent 70%),
     linear-gradient(160deg, rgba(24, 33, 45, 0.94), rgba(11, 16, 23, 0.9));
 }
 .tal-mode-index {
@@ -1008,7 +1008,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
   padding: 2rem 2rem 2.25rem;
   text-align: center;
   background:
-    radial-gradient(80% 60% at 50% 0%, rgba(255, 70, 85, 0.2), transparent 70%),
+    radial-gradient(80% 60% at 50% 0%, rgba(245, 165, 36, 0.2), transparent 70%),
     rgba(13, 19, 27, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-top: 3px solid var(--color-accent);
@@ -1030,7 +1030,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
 }
 .tal-callsign-input:focus {
   border-color: var(--color-accent);
-  box-shadow: 0 0 22px -6px rgba(255, 70, 85, 0.8);
+  box-shadow: 0 0 22px -6px rgba(245, 165, 36, 0.8);
 }
 
 /* Options: one of several choices, as a row of angled chips */
@@ -1059,7 +1059,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
 .tal-chip[aria-pressed='true'] {
   color: #fff;
   border-color: var(--color-accent);
-  background: linear-gradient(180deg, rgba(255, 70, 85, 0.34), rgba(255, 70, 85, 0.12));
+  background: linear-gradient(180deg, rgba(245, 165, 36, 0.34), rgba(245, 165, 36, 0.12));
   box-shadow: inset 0 -2px 0 var(--color-accent);
 }
 .tal-chip:disabled {
@@ -1105,12 +1105,12 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
 }
 .tal-switch[aria-checked='true'] {
   border-color: var(--color-accent);
-  background: rgba(255, 70, 85, 0.2);
+  background: rgba(245, 165, 36, 0.2);
 }
 .tal-switch[aria-checked='true'] .tal-switch-knob {
   left: calc(100% - 1.1rem - 3px);
   background: var(--color-accent);
-  box-shadow: 0 0 10px rgba(255, 70, 85, 0.8);
+  box-shadow: 0 0 10px rgba(245, 165, 36, 0.8);
 }
 .tal-switch[aria-checked='true'] .tal-switch-text {
   inset: 0 auto 0 0.5rem;
@@ -1153,7 +1153,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
 .tal-stat[data-accent='true'] {
   border-top-color: var(--color-accent);
   background:
-    radial-gradient(90% 80% at 100% 0%, rgba(255, 70, 85, 0.2), transparent 70%),
+    radial-gradient(90% 80% at 100% 0%, rgba(245, 165, 36, 0.2), transparent 70%),
     linear-gradient(160deg, rgba(24, 33, 45, 0.85), rgba(10, 15, 21, 0.75));
 }
 
@@ -1200,7 +1200,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
   color: #fff;
   border-left-color: #fff;
   background: linear-gradient(90deg, var(--color-accent), rgba(194, 43, 58, 0.55));
-  box-shadow: 0 0 26px -8px rgba(255, 70, 85, 0.8);
+  box-shadow: 0 0 26px -8px rgba(245, 165, 36, 0.8);
 }
 
 /* A gun to pick, with its picture */

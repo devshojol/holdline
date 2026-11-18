@@ -31,7 +31,7 @@ const KEYS: [string, string][] = [
   ['W A S D', 'Move'],
   ['Mouse', 'Aim'],
   ['Left click', 'Fire'],
-  ['Right click', 'Aim down sights (rifles, Sheriff) · burst (Classic)'],
+  ['Right click', 'Aim down sights (rifles, Magnate) · burst (Pilot)'],
   ['R', 'Reload'],
   ['Shift (hold)', 'Walk — silent and more accurate'],
   ['Ctrl / C (hold)', 'Crouch (use C when not fullscreen — Ctrl+W closes browser tabs)'],
@@ -182,7 +182,7 @@ export function SettingsPage() {
                 ]}
               />
               <p className="mt-2 text-xs text-dim">
-                Skins: 3D models for all eight guns (Miks bots carry the Vandal). Simple: guns built from basic shapes, lighter on slow machines. Applies on
+                Skins: 3D models for all eight guns (the soldiers carry the Kestrel). Simple: guns built from basic shapes, lighter on slow machines. Applies on
                 the next session.
               </p>
             </Field>
@@ -299,7 +299,7 @@ export function SettingsPage() {
                   const blob = new Blob([json], { type: 'application/json' });
                   const a = document.createElement('a');
                   a.href = URL.createObjectURL(blob);
-                  a.download = 'tactical-aim-lab-settings.json';
+                  a.download = 'holdline-settings.json';
                   a.click();
                   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
                 } catch {

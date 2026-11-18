@@ -1,8 +1,8 @@
 /**
- * "Kitsune" — an original, Split-inspired vertical city.
- * Raised A site reached by ramps from A Main with an A Heaven overlook, a raised Mid Top
- * reached by stairs from Mid Bottom (with Vents to A and Mail to B), and a low B site
- * overlooked by B Heaven.
+ * "Kitsune" — an original vertical city.
+ * Raised A site reached by ramps from A Main with an A Balcony overlook, a raised Mid Top
+ * reached by stairs from Mid Bottom (with Ducts to A and Depot to B), and a low B site
+ * overlooked by B Balcony.
  */
 import { GridBuilder } from '../GridMap';
 import type { MapDefinition } from '../MapData';
@@ -19,7 +19,7 @@ function grid(): string[] {
   g.rect(19, 1, 32, 4, '.');
   g.set(25, 2, 'c');
 
-  // A Heaven (2.4 m) with stairs from spawn, parapet with a drop gap
+  // A Balcony (2.4 m) with stairs from spawn, parapet with a drop gap
   g.rect(3, 3, 13, 5, '6');
   for (const [c, h] of [
     [14, '5'],
@@ -46,7 +46,7 @@ function grid(): string[] {
   g.set(9, 36, 'C');
   g.rect(10, 40, 12, 40, '.');
 
-  // Vents: A site ↔ Mid Top (both 0.8 m)
+  // Ducts: A site ↔ Mid Top (both 0.8 m)
   g.rect(15, 11, 18, 12, '2');
 
   // Mid Top (0.8 m) with stairs down to Mid Bottom
@@ -62,12 +62,12 @@ function grid(): string[] {
   g.rect(24, 5, 27, 12, '2');
   g.rect(24, 5, 27, 5, '1');
 
-  // Mail: Mid Top → B site (steps down)
+  // Depot: Mid Top → B site (steps down)
   g.rect(33, 13, 33, 15, '2');
   g.rect(34, 13, 34, 15, '1');
   g.rect(35, 13, 35, 15, '.');
 
-  // B Heaven (2.4 m) with stairs from spawn
+  // B Balcony (2.4 m) with stairs from spawn
   g.rect(38, 3, 48, 5, '6');
   for (const [c, h] of [
     [33, '1'],
@@ -114,7 +114,7 @@ const locations = withGeneratedSpots(
     location({
       id: 'a-main',
       name: 'A Main',
-      description: 'Push up the A ramps onto a raised site watched from A Heaven.',
+      description: 'Push up the A ramps onto a raised site watched from A Balcony.',
       focus: focus(1, 2, 19, 34),
       attack: [spawn('a-main-mid', 'A Main', 6, 25, 0), spawn('a-ramp', 'A Ramp', 6, 20.5, 0)],
       defend: [spawnAt('a-site', 'A site', 10, 11, 6, 19, 0.8), spawnAt('a-site-left', 'A left', 3, 12, 6, 19, 0.8)],
@@ -122,7 +122,7 @@ const locations = withGeneratedSpots(
     location({
       id: 'mid',
       name: 'Mid',
-      description: 'Take Mid Top from below: stairs, a column and the mail-room stacks.',
+      description: 'Take Mid Top from below: stairs, a column and the depot-room stacks.',
       focus: focus(14, 4, 37, 41),
       attack: [spawn('mid-bottom', 'Mid Bottom', 25.5, 32, 0), spawn('mid-stairs', 'Mid stairs', 25.5, 28.5, 0)],
       defend: [spawn('mid-top', 'Mid Top', 25.5, 15, 180, 0.8), spawnAt('mid-top-left', 'Mid Top (left)', 23, 14, 25.5, 27, 0.8)],
@@ -130,7 +130,7 @@ const locations = withGeneratedSpots(
     location({
       id: 'b-main',
       name: 'B Main',
-      description: 'B Main into a low site under B Heaven — watch the heaven parapet and the stacks.',
+      description: 'B Main into a low site under B Balcony — watch the balcony parapet and the stacks.',
       focus: focus(31, 2, 50, 35),
       attack: [spawn('b-main-mid', 'B Main', 45, 25, 0), spawn('b-main-exit', 'B Main exit', 45, 20.5, 0)],
       defend: [spawnAt('b-site', 'B site', 42, 12, 45, 19), spawnAt('b-site-left', 'B left', 37, 9, 45, 19)],
@@ -142,23 +142,23 @@ const locations = withGeneratedSpots(
 export const kitsune: MapDefinition = {
   id: 'kitsune',
   name: 'Kitsune',
-  inspiredBy: 'Split',
+  setting: 'Neon back streets',
   theme: 'Vertical neon city',
   description:
-    'Original Split-inspired vertical layout: A ramps up to a raised site under A Heaven, a raised Mid Top reached by stairs with Vents and Mail side routes, and B Heaven over B site.',
+    'Original vertical layout: A ramps up to a raised site under A Balcony, a raised Mid Top reached by stairs with Ducts and Depot side routes, and B Balcony over B site.',
   grid: grid(),
   zoneOf,
   callouts: [
     { name: 'A Site', c: 8, r: 13 },
-    { name: 'A Heaven', c: 9, r: 4 },
+    { name: 'A Balcony', c: 9, r: 4 },
     { name: 'A Ramps', c: 6, r: 19 },
     { name: 'A Main', c: 6, r: 28 },
     { name: 'A Lobby', c: 6, r: 37 },
-    { name: 'Vents', c: 16.5, r: 11.5 },
+    { name: 'Ducts', c: 16.5, r: 11.5 },
     { name: 'Mid Top', c: 25.5, r: 20 },
     { name: 'Mid Bottom', c: 25.5, r: 33 },
-    { name: 'Mail', c: 34, r: 14 },
-    { name: 'B Heaven', c: 43, r: 4 },
+    { name: 'Depot', c: 34, r: 14 },
+    { name: 'B Balcony', c: 43, r: 4 },
     { name: 'B Site', c: 43, r: 12 },
     { name: 'B Main', c: 45, r: 28 },
     { name: 'B Lobby', c: 43, r: 37 },

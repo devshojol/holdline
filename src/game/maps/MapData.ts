@@ -77,7 +77,7 @@ export interface MapPalette {
 export interface MapDefinition {
   id: string;
   name: string;
-  inspiredBy: string;
+  setting: string;
   theme: string;
   description: string;
   grid: string[];

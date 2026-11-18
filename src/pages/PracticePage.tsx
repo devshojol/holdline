@@ -118,8 +118,8 @@ export function PracticePage() {
                   )}
                 >
                   <div className="tabular font-display text-[11px] font-bold tracking-widest text-dim">{String(i + 1).padStart(2, '0')}</div>
-                  <div className="font-display text-lg font-bold uppercase leading-tight">{m.playable ? m.name : m.inspiredBy}</div>
-                  <div className="text-xs text-mute">{m.playable ? `${m.inspiredBy}-inspired` : 'Not built yet'}</div>
+                  <div className="font-display text-lg font-bold uppercase leading-tight">{m.playable ? m.name : m.setting}</div>
+                  <div className="text-xs text-mute">{m.playable ? m.setting : 'Not built yet'}</div>
                   {!m.playable && <Lock size={12} className="mt-1 text-dim" />}
                 </button>
               ))}
@@ -262,8 +262,8 @@ export function PracticePage() {
                   onChange={(v: BotWeapons) => update({ botWeapons: v })}
                   options={[
                     { value: 'mixed', label: 'Mixed', title: 'Rifles, SMG, marksman rifle and sidearms (no sniper)' },
-                    { value: 'rifles', label: 'Rifles', title: 'Vandal and Phantom only' },
-                    { value: 'pistols', label: 'Sidearms', title: 'Classic, Ghost and Sheriff' },
+                    { value: 'rifles', label: 'Rifles', title: 'Kestrel and Halcyon only' },
+                    { value: 'pistols', label: 'Sidearms', title: 'Pilot, Whisper and Magnate' },
                     { value: 'mirror', label: 'Same as mine', title: 'Your primary weapon' },
                   ]}
                 />
@@ -279,7 +279,7 @@ export function PracticePage() {
               />
             </div>
             <p className="mb-3 text-xs text-dim">
-              Headshot chance is how often a bot aims for your head when it spots you (a Vandal headshot kills in one bullet); at "Never" bots deal no headshot
+              Headshot chance is how often a bot aims for your head when it spots you (a Kestrel headshot kills in one bullet); at "Never" bots deal no headshot
               damage. Bot damage scales every hit you take. "Bots firing at once" makes the others hold fire until a slot frees up. Changing a slider switches the
               difficulty to Custom.
             </p>

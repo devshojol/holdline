@@ -78,7 +78,7 @@ export class PlayerController {
     this.eyeLag = 0;
   }
 
-  /** Raw mouse counts → camera rotation using Valorant-scale sensitivity (0.07°/count). */
+  /** Raw mouse counts → camera rotation at 0.07° per count per unit of sensitivity. */
   /**
    * `zoom`: a scope's magnification. Scoped look speed is divided by it, so at a scoped multiplier of 1
    * the picture moves across the screen as fast as it does unscoped, at either zoom level.

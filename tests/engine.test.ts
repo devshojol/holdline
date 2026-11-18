@@ -167,7 +167,7 @@ describe('crosshair codes', () => {
 });
 
 describe('spray trainer', () => {
-  // Fire a full Vandal magazine; `control` (0..1) is how much of the recoil the aim cancels.
+  // Fire a full Kestrel magazine; `control` (0..1) is how much of the recoil the aim cancels.
   async function spray(control: number) {
     const { SprayTrainer } = await import('../src/game/practice/SprayTrainer');
     const w = world();
@@ -236,7 +236,7 @@ describe('weapon roster', () => {
     }
   });
 
-  it('the Operator is only accurate when scoped and kills with a body shot', () => {
+  it('the Monarch is only accurate when scoped and kills with a body shot', () => {
     const w = world();
     const player = new PlayerController(w);
     player.spawn(0, 0, 0, 90);
@@ -248,7 +248,7 @@ describe('weapon roster', () => {
     expect(damageAt(WEAPONS.operator, 40).body).toBeGreaterThanOrEqual(150);
   });
 
-  it('the Operator scope cycles 2.5× → 5× → off, drops while the bolt is worked and comes back by itself', () => {
+  it('the Monarch scope cycles 2.5× → 5× → off, drops while the bolt is worked and comes back by itself', () => {
     const w = world();
     const player = new PlayerController(w);
     player.spawn(0, 0, 0, 90);

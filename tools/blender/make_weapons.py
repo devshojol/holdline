@@ -599,14 +599,14 @@ def build(gun_id):
     zmin, zmax = min(v.z for v in los), max(v.z for v in los)
     ymin, ymax = min(v.y for v in los), max(v.y for v in los)
     bpy.context.view_layer.update()
-    render_side_view(os.path.join(OUT_DBG, gun_id + ".png"), zmin, zmax, ymin, ymax)
+    render_side_view(os.path.join(OUT_DBG, title.lower() + ".png"), zmin, zmax, ymin, ymax)
     for o in bpy.data.objects:
         o.select_set(o in objs)
-    bpy.ops.export_scene.gltf(filepath=os.path.join(OUT_GLB, gun_id + ".glb"), export_format="GLB", use_selection=True,
+    bpy.ops.export_scene.gltf(filepath=os.path.join(OUT_GLB, title.lower() + ".glb"), export_format="GLB", use_selection=True,
                               export_yup=True, export_apply=True, export_animations=False, export_cameras=False, export_lights=False,
                               export_vertex_color="MATERIAL", export_image_format="WEBP")
     tris = sum(len(o.data.loop_triangles) or sum(len(p.vertices) - 2 for p in o.data.polygons) for o in objs)
-    spec = dict(file=f"models/weapons/{gun_id}.glb", name=title, yaw=0, length=round(zmax - zmin, 4), **spec)
+    spec = dict(file=f"models/weapons/{title.lower()}.glb", name=title, yaw=0, length=round(zmax - zmin, 4), **spec)
     print(f"{gun_id:9s} {title:8s} length {zmax - zmin:.3f} m  z {zmin:.3f}..{zmax:.3f}  tris {tris}")
     return spec
 

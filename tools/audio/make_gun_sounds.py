@@ -26,14 +26,14 @@ OUT = os.path.join(ROOT, "public", "sounds")
 # The fade is for the film-style recordings that hold almost full level for a second or more: left alone they
 # would pile up in automatic fire. It only turns the ring down over time; the sound itself is untouched.
 GUNS = {
-    "vandal": ("m4a1", 0.04, 0.9, -1.0, None, 26),                     # Kestrel: 5.56 carbine, long open-air ring
-    "phantom": ("p226-suppressed", 0.765, 0.6, -5.0, "lowpass=f=3600", 0),  # Halcyon: suppressed, the duller of the two
-    "spectre": ("p90", 2.972, 0.42, -2.5, None, 0),                      # Hornet: the last round of a burst, so it ends naturally
-    "guardian": ("usp45", 0.04, 1.1, -1.0, None, 0),                     # Arbiter: a hard .45 bang with a medium ring
-    "operator": ("tac50-suppressed", 0.015, 2.2, -0.3, None, 10),         # Monarch: a .50 rifle, the longest and heaviest
-    "classic": ("asp-9mm", 0.04, 0.9, -2.5, None, 0),                    # Pilot: 9 mm pistol
-    "ghost": ("p226-suppressed", 1.47, 0.6, -6.0, "highpass=f=180", 0),  # Whisper: suppressed 9 mm pistol
-    "sheriff": ("colt-1911", 0.02, 1.0, -1.0, None, 20),                  # Magnate: .45, a big boom
+    "kestrel": ("m4a1", 0.04, 0.9, -1.0, None, 26),                     # Kestrel: 5.56 carbine, long open-air ring
+    "halcyon": ("p226-suppressed", 0.765, 0.6, -5.0, "lowpass=f=3600", 0),  # Halcyon: suppressed, the duller of the two
+    "hornet": ("p90", 2.972, 0.42, -2.5, None, 0),                      # Hornet: the last round of a burst, so it ends naturally
+    "arbiter": ("usp45", 0.04, 1.1, -1.0, None, 0),                     # Arbiter: a hard .45 bang with a medium ring
+    "monarch": ("tac50-suppressed", 0.015, 2.2, -0.3, None, 10),         # Monarch: a .50 rifle, the longest and heaviest
+    "pilot": ("asp-9mm", 0.04, 0.9, -2.5, None, 0),                    # Pilot: 9 mm pistol
+    "whisper": ("p226-suppressed", 1.47, 0.6, -6.0, "highpass=f=180", 0),  # Whisper: suppressed 9 mm pistol
+    "magnate": ("colt-1911", 0.02, 1.0, -1.0, None, 20),                  # Magnate: .45, a big boom
 }
 
 

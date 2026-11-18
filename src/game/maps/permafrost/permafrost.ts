@@ -1,7 +1,7 @@
 /**
- * "Permafrost" — an original, Icebox-inspired arctic container yard.
- * Both sites are mazes of stacked shipping containers. Mid runs through the Boiler yard,
- * with the Kitchen leading to B and a link to A.
+ * "Permafrost" — an original arctic container yard.
+ * Both sites are mazes of stacked shipping containers. Mid runs through the Furnace yard,
+ * with the Canteen leading to B and a link to A.
  */
 import { GridBuilder } from '../GridMap';
 import type { MapDefinition } from '../MapData';
@@ -37,15 +37,15 @@ function grid(): string[] {
   g.rect(5, 36, 6, 36, 'D');
   g.rect(10, 40, 13, 40, '.');
 
-  // Mid: boiler yard, A link, Kitchen to B, mid bottom
+  // Mid: furnace yard, A link, Canteen to B, mid bottom
   g.rect(20, 13, 31, 30, '.');
-  g.rect(24, 22, 25, 23, 'D'); // boiler
+  g.rect(24, 22, 25, 23, 'D'); // furnace
   g.set(21, 17, 'C');
   g.set(29, 26, 'C');
   g.rect(28, 15, 29, 15, 'D');
   g.set(22, 28, 'c');
   g.rect(17, 13, 19, 15, '.'); // A link
-  g.rect(32, 14, 35, 19, '.'); // kitchen
+  g.rect(32, 14, 35, 19, '.'); // canteen
   g.set(33, 18, 'c');
   g.rect(23, 31, 28, 40, '.');
 
@@ -92,15 +92,15 @@ const locations = withGeneratedSpots(
     location({
       id: 'mid',
       name: 'Mid',
-      description: 'Boiler yard: hold or take mid around the boiler stack and crates.',
+      description: 'Furnace yard: hold or take mid around the furnace stack and crates.',
       focus: focus(15, 4, 37, 41),
-      attack: [spawn('mid-bottom', 'Mid Bottom', 25.5, 34, 0), spawn('mid-yard', 'Boiler yard', 25.5, 30.5, 0)],
+      attack: [spawn('mid-bottom', 'Mid Bottom', 25.5, 34, 0), spawn('mid-yard', 'Furnace yard', 25.5, 30.5, 0)],
       defend: [spawn('mid-top', 'Mid Top', 25.5, 14.5, 180), spawnAt('mid-top-left', 'Mid Top (left)', 22, 14, 25.5, 30)],
     }),
     location({
       id: 'b-main',
       name: 'B Main',
-      description: 'B Green into the yellow container stacks on B site.',
+      description: 'B Crane into the yellow container stacks on B site.',
       focus: focus(31, 3, 50, 35),
       attack: [spawn('b-main-mid', 'B Main', 45, 26, 0), spawn('b-main-exit', 'B Main exit', 45, 21, 0)],
       defend: [spawnAt('b-site', 'B site', 41, 10, 45, 19), spawnAt('b-site-back', 'B back', 48, 9, 45, 19)],
@@ -112,10 +112,10 @@ const locations = withGeneratedSpots(
 export const permafrost: MapDefinition = {
   id: 'permafrost',
   name: 'Permafrost',
-  inspiredBy: 'Icebox',
+  setting: 'Arctic port',
   theme: 'Arctic container yard',
   description:
-    'Original Icebox-inspired layout: container mazes on both sites, a boiler yard in mid, and a Kitchen leading to B.',
+    'Original layout: container mazes on both sites, a furnace yard in mid, and a Canteen leading to B.',
   grid: grid(),
   zoneOf,
   callouts: [
@@ -123,13 +123,13 @@ export const permafrost: MapDefinition = {
     { name: 'A Main', c: 6, r: 28 },
     { name: 'A Lobby', c: 7, r: 38 },
     { name: 'A Link', c: 18, r: 14 },
-    { name: 'Boiler', c: 25.5, r: 25 },
+    { name: 'Furnace', c: 25.5, r: 25 },
     { name: 'Mid Top', c: 25.5, r: 15 },
     { name: 'Mid Bottom', c: 25.5, r: 35 },
-    { name: 'Kitchen', c: 34, r: 16.5 },
+    { name: 'Canteen', c: 34, r: 16.5 },
     { name: 'B Site', c: 42, r: 13 },
-    { name: 'B Yellow', c: 42.5, r: 10 },
-    { name: 'B Green', c: 45, r: 28 },
+    { name: 'B Crates', c: 42.5, r: 10 },
+    { name: 'B Crane', c: 45, r: 28 },
     { name: 'B Lobby', c: 44, r: 38 },
     { name: 'Defender Spawn', c: 25.5, r: 2.5 },
     { name: 'Attacker Spawn', c: 26, r: 44 },

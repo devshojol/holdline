@@ -88,12 +88,12 @@ export function SensitivityPage() {
         <div className="space-y-5">
           <Card title="Mouse">
             <div className="grid gap-x-6 md:grid-cols-2">
-              <Slider label="In-game sensitivity (Valorant scale)" value={s.sensitivity} min={0.01} max={5} step={0.001} onChange={(v) => set({ sensitivity: v })} />
+              <Slider label="In-game sensitivity" value={s.sensitivity} min={0.01} max={5} step={0.001} onChange={(v) => set({ sensitivity: v })} />
               <Slider label="Mouse DPI" value={s.dpi} min={100} max={6400} step={50} onChange={(v) => set({ dpi: Math.round(v) })} />
               <Slider label="Horizontal multiplier" value={s.horizontalMult} min={0.1} max={3} step={0.01} onChange={(v) => set({ horizontalMult: v })} />
               <Slider label="Vertical multiplier" value={s.verticalMult} min={0.1} max={3} step={0.01} onChange={(v) => set({ verticalMult: v })} />
               <Slider label="ADS sensitivity multiplier" value={s.adsMult} min={0.1} max={3} step={0.01} onChange={(v) => set({ adsMult: v })} hint="Applied while aiming down sights" />
-              <Slider label="Scoped sensitivity multiplier" value={s.scopedMult} min={0.1} max={3} step={0.01} onChange={(v) => set({ scopedMult: v })} hint="Applies while the Operator's scope is up. At 1 the picture moves across the screen as fast as unscoped, at both zoom levels" />
+              <Slider label="Scoped sensitivity multiplier" value={s.scopedMult} min={0.1} max={3} step={0.01} onChange={(v) => set({ scopedMult: v })} hint="Applies while the Monarch's scope is up. At 1 the picture moves across the screen as fast as unscoped, at both zoom levels" />
             </div>
             <div className="grid gap-x-6 md:grid-cols-2">
               <Toggle label="Invert Y axis" checked={s.invertY} onChange={(v) => set({ invertY: v })} />
@@ -107,7 +107,7 @@ export function SensitivityPage() {
           </Card>
           <Card title="Import from another game">
             <p className="mb-3 text-sm text-mute">
-              Valorant players: enter your in-game sensitivity directly above — this lab uses the same 0.07°/count scale, so it is 1:1. For other games, convert here:
+              Holdline turns 0.07° per mouse count at sensitivity 1. If your game uses the same scale, enter your sensitivity directly above. For other games, convert here:
             </p>
             <div className="flex flex-wrap items-end gap-3">
               <label className="text-sm">

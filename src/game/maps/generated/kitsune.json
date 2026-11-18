@@ -45,7 +45,7 @@
    },
    {
     "id": "a-main-a-4",
-    "name": "A Heaven corner",
+    "name": "A Balcony corner",
     "cover": [
      -26.05,
      2.4000000000000004,
@@ -59,7 +59,7 @@
    },
    {
     "id": "a-main-a-5",
-    "name": "A Heaven stack (right)",
+    "name": "A Balcony stack (right)",
     "cover": [
      -20.45,
      0.8,
@@ -73,7 +73,7 @@
    },
    {
     "id": "a-main-a-6",
-    "name": "A Heaven ledge",
+    "name": "A Balcony ledge",
     "cover": [
      -29.95,
      0.8,
@@ -101,7 +101,7 @@
    },
    {
     "id": "a-main-a-8",
-    "name": "A Heaven corner (left)",
+    "name": "A Balcony corner (left)",
     "cover": [
      -35.05,
      0.8,
@@ -187,7 +187,7 @@
    },
    {
     "id": "a-main-d-6",
-    "name": "Vents corner (left)",
+    "name": "Ducts corner (left)",
     "cover": [
      -16.94,
      0.8,
@@ -219,7 +219,7 @@
   "attack": [
    {
     "id": "mid-a-1",
-    "name": "Vents pillar (left)",
+    "name": "Ducts pillar (left)",
     "cover": [
      -6.5,
      0.8,
@@ -247,7 +247,7 @@
    },
    {
     "id": "mid-a-3",
-    "name": "Mail corner",
+    "name": "Depot corner",
     "cover": [
      3.95,
      0.8,
@@ -289,7 +289,7 @@
    },
    {
     "id": "mid-a-6",
-    "name": "Vents corner (left)",
+    "name": "Ducts corner (left)",
     "cover": [
      -7.6,
      0.8,
@@ -303,7 +303,7 @@
    },
    {
     "id": "mid-a-7",
-    "name": "Mail corner (right)",
+    "name": "Depot corner (right)",
     "cover": [
      10.6,
      0.8,
@@ -449,7 +449,7 @@
    },
    {
     "id": "b-main-a-2",
-    "name": "B Heaven ledge",
+    "name": "B Balcony ledge",
     "cover": [
      28.4,
      0,
@@ -491,7 +491,7 @@
    },
    {
     "id": "b-main-a-5",
-    "name": "B Heaven ledge 2",
+    "name": "B Balcony ledge 2",
     "cover": [
      33.5,
      0,
@@ -505,7 +505,7 @@
    },
    {
     "id": "b-main-a-6",
-    "name": "B Heaven pillar",
+    "name": "B Balcony pillar",
     "cover": [
      27.1,
      2.4000000000000004,
@@ -519,7 +519,7 @@
    },
    {
     "id": "b-main-a-7",
-    "name": "B Heaven corner (left)",
+    "name": "B Balcony corner (left)",
     "cover": [
      20.45,
      2.4000000000000004,
@@ -533,7 +533,7 @@
    },
    {
     "id": "b-main-a-8",
-    "name": "B Heaven ledge (left)",
+    "name": "B Balcony ledge (left)",
     "cover": [
      21.95,
      0,
@@ -633,7 +633,7 @@
    },
    {
     "id": "b-main-d-7",
-    "name": "Mail pillar (right)",
+    "name": "Depot pillar (right)",
     "cover": [
      19.4,
      0,

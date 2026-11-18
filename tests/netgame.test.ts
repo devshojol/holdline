@@ -262,7 +262,7 @@ describe('combat', () => {
 
   it('deals the weapon’s damage for the zone hit and tells shooter, victim and bystanders', () => {
     const d = duel();
-    d.fire(1.1); // body: 40 from a Vandal
+    d.fire(1.1); // body: 40 from a Kestrel
     expect(d.health('target')).toBe(150 - 40);
     expect(d.events('shooter')).toEqual([{ type: 'hit', seq: 1, victim: 'target', zone: 'body', damage: 40, killed: false }]);
     const seen = d.events('target');
@@ -343,7 +343,7 @@ describe('combat', () => {
     d.match.shot('shooter', 'junk', d.now());
     d.match.shot('shooter', { seq: 1, weapon: 'vandal', origin: [0, 0, 0], dir: [0, 0, 0], viewTime: 0 }, d.now());
     expect(d.health('target')).toBe(150);
-    // 30 Vandal bullets in the same instant: only the few a burst allows get through (40 each)
+    // 30 Kestrel bullets in the same instant: only the few a burst allows get through (40 each)
     for (let i = 0; i < 30; i++) d.fire(0.4);
     const dealt = 150 - d.health('target');
     expect(dealt).toBeGreaterThan(0);
@@ -366,7 +366,7 @@ describe('combat', () => {
     hs.fire(1.62);
     expect(hs.events('shooter').at(-1)).toMatchObject({ type: 'kill' });
     const pistols = duel({ weapons: 'sidearms' });
-    pistols.fire(1.62); // the Vandal is not allowed in this room
+    pistols.fire(1.62); // the Kestrel is not allowed in this room
     expect(pistols.health('target')).toBe(150);
     pistols.fire(1.1, {}, 'classic');
     expect(pistols.health('target')).toBeLessThan(150);

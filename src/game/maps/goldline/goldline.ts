@@ -1,7 +1,7 @@
 /**
- * "Goldline" — an original, Sunset-inspired city block at golden hour.
- * A Main bends through the A Elbow, mid runs from the Market up into a fountain courtyard
- * with alleys to both sites, and B Main comes up past the Boba shop.
+ * "Goldline" — an original city block at golden hour.
+ * A Main bends through the A Bend, mid runs from the Arcade up into a fountain courtyard
+ * with alleys to both sites, and B Main comes up past the Noodles shop.
  */
 import { GridBuilder } from '../GridMap';
 import type { MapDefinition } from '../MapData';
@@ -28,7 +28,7 @@ function grid(): string[] {
   g.set(4, 14, 'P');
   g.set(14, 8, 'C');
   g.set(9, 15, 'c');
-  // A Main → A Elbow → A Lobby
+  // A Main → A Bend → A Lobby
   g.rect(5, 17, 8, 28, '.');
   g.set(8, 22, 'C');
   g.rect(5, 29, 14, 31, '.');
@@ -38,14 +38,14 @@ function grid(): string[] {
   // A Alley (A site ↔ courtyard)
   g.rect(16, 12, 20, 14, '.');
 
-  // Mid courtyard with fountain, Market, mid bottom
+  // Mid courtyard with fountain, Arcade, mid bottom
   g.rect(21, 10, 30, 20, '.');
   g.rect(25, 14, 26, 14, 'D'); // fountain
   g.set(22, 18, 'C');
   g.set(29, 11, 'C');
   g.set(29, 18, 'c');
   g.rect(24, 21, 27, 21, '.');
-  g.rect(21, 22, 30, 28, '.'); // market
+  g.rect(21, 22, 30, 28, '.'); // arcade
   g.set(23, 25, 'C').set(28, 24, 'C');
   g.rect(24, 29, 27, 40, '.');
   // B link from courtyard
@@ -58,7 +58,7 @@ function grid(): string[] {
   g.set(37, 12, 'C');
   g.set(47, 8, 'P');
   g.set(43, 15, 'c');
-  // B Main (Boba) → B Market/Lobby
+  // B Main (Noodles) → B Arcade/Lobby
   g.rect(43, 17, 47, 30, '.');
   g.set(43, 24, 'C');
   g.rect(37, 31, 49, 39, '.');
@@ -84,7 +84,7 @@ const locations = withGeneratedSpots(
     location({
       id: 'a-main',
       name: 'A Main',
-      description: 'Round the A Elbow and up A Main into a site of stacks and boxes.',
+      description: 'Round the A Bend and up A Main into a site of stacks and boxes.',
       focus: focus(1, 4, 21, 40),
       attack: [spawn('a-main-mid', 'A Main', 6.5, 24, 0), spawn('a-main-exit', 'A Main exit', 6.5, 19, 0)],
       defend: [spawnAt('a-site', 'A site', 10, 10, 6.5, 18), spawnAt('a-site-right', 'A right', 13, 14, 6.5, 18)],
@@ -92,15 +92,15 @@ const locations = withGeneratedSpots(
     location({
       id: 'mid',
       name: 'Mid',
-      description: 'Market and the fountain courtyard, with alleys branching to A and B.',
+      description: 'Arcade and the fountain courtyard, with alleys branching to A and B.',
       focus: focus(14, 4, 37, 41),
-      attack: [spawn('mid-market', 'Market', 25.5, 25, 0), spawn('mid-market-back', 'Market back', 25.5, 27.5, 0)],
+      attack: [spawn('mid-arcade', 'Arcade', 25.5, 25, 0), spawn('mid-arcade-back', 'Arcade back', 25.5, 27.5, 0)],
       defend: [spawnAt('mid-courtyard-left', 'Courtyard (left)', 22.5, 11, 25.5, 21), spawnAt('mid-courtyard-right', 'Courtyard (right)', 29, 13, 25.5, 21)],
     }),
     location({
       id: 'b-main',
       name: 'B Main',
-      description: 'B Main past the Boba shop into a wide B site.',
+      description: 'B Main past the Noodles shop into a wide B site.',
       focus: focus(31, 4, 50, 40),
       attack: [spawn('b-main-mid', 'B Main', 45, 25, 0), spawn('b-main-exit', 'B Main exit', 45, 20, 0)],
       defend: [spawnAt('b-site', 'B site', 42, 11, 45, 18), spawnAt('b-site-left', 'B left', 38, 9, 45, 18)],
@@ -112,24 +112,24 @@ const locations = withGeneratedSpots(
 export const goldline: MapDefinition = {
   id: 'goldline',
   name: 'Goldline',
-  inspiredBy: 'Sunset',
+  setting: 'Evening boulevard',
   theme: 'Golden-hour city streets',
   description:
-    'Original Sunset-inspired city block: A Main through the A Elbow, a Market and fountain courtyard in mid with alleys to both sites, and B Main past the Boba shop.',
+    'Original city block: A Main through the A Bend, a Arcade and fountain courtyard in mid with alleys to both sites, and B Main past the Noodles shop.',
   grid: grid(),
   zoneOf,
   callouts: [
     { name: 'A Site', c: 9, r: 11 },
     { name: 'A Main', c: 6.5, r: 23 },
-    { name: 'A Elbow', c: 9, r: 30 },
+    { name: 'A Bend', c: 9, r: 30 },
     { name: 'A Lobby', c: 14, r: 36 },
     { name: 'A Alley', c: 18, r: 13 },
     { name: 'Courtyard', c: 25.5, r: 17 },
-    { name: 'Market', c: 25.5, r: 26 },
+    { name: 'Arcade', c: 25.5, r: 26 },
     { name: 'Mid Bottom', c: 25.5, r: 35 },
     { name: 'B Link', c: 33, r: 13 },
     { name: 'B Site', c: 42, r: 12 },
-    { name: 'Boba', c: 45, r: 24 },
+    { name: 'Noodles', c: 45, r: 24 },
     { name: 'B Lobby', c: 43, r: 36 },
     { name: 'Defender Spawn', c: 25.5, r: 2.5 },
     { name: 'Attacker Spawn', c: 26, r: 44 },

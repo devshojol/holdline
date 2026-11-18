@@ -18,7 +18,7 @@ const WEAPON_RULE_LABEL: Record<WeaponRule, string> = {
   all: 'All',
   rifles: 'Rifles only',
   sidearms: 'Sidearms only',
-  'no-operator': 'No Operator',
+  'no-operator': 'No Monarch',
   single: 'One gun',
 };
 const TEAM_LABEL: Record<Team, string> = { a: 'Team A', b: 'Team B' };
@@ -321,7 +321,7 @@ function SettingsPanel({ settings, editable, players, fixed }: { settings: RoomS
               )}
             >
               <div className="font-display text-base font-bold uppercase leading-tight">{m.name}</div>
-              <div className="text-xs text-mute">{m.inspiredBy}-inspired</div>
+              <div className="text-xs text-mute">{m.setting}</div>
             </button>
           ))}
         </div>

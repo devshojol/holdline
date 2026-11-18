@@ -271,7 +271,7 @@ export class WeaponSystem {
     this.lastMovementError = sp.movement;
     this.lastFiringError = sp.firing;
 
-    // burst queue (Classic right click)
+    // burst queue (Pilot right click)
     if (this.burstQueue > 0) {
       this.burstTimer -= dt;
       if (this.burstTimer <= 0) {

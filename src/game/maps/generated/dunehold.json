@@ -145,7 +145,7 @@
    },
    {
     "id": "a-short-d-3",
-    "name": "Showers corner",
+    "name": "Baths corner",
     "cover": [
      -19.6,
      0,
@@ -459,10 +459,10 @@
    }
   ]
  },
- "hookah": {
+ "teahouse": {
   "attack": [
    {
-    "id": "hookah-a-1",
+    "id": "teahouse-a-1",
     "name": "B Site pillar (right)",
     "cover": [
      24.55,
@@ -476,7 +476,7 @@
     "maxPeek": 2.65
    },
    {
-    "id": "hookah-a-2",
+    "id": "teahouse-a-2",
     "name": "B Site stack (right)",
     "cover": [
      20.95,
@@ -490,7 +490,7 @@
     "maxPeek": 2.75
    },
    {
-    "id": "hookah-a-3",
+    "id": "teahouse-a-3",
     "name": "B Site corner",
     "cover": [
      18.95,
@@ -504,7 +504,7 @@
     "maxPeek": 2.95
    },
    {
-    "id": "hookah-a-4",
+    "id": "teahouse-a-4",
     "name": "B Site corner (right)",
     "cover": [
      28.4,
@@ -518,8 +518,8 @@
     "maxPeek": 3.6
    },
    {
-    "id": "hookah-a-5",
-    "name": "Hookah corner (left)",
+    "id": "teahouse-a-5",
+    "name": "Teahouse corner (left)",
     "cover": [
      14.95,
      0,
@@ -532,7 +532,7 @@
     "maxPeek": 2.8
    },
    {
-    "id": "hookah-a-6",
+    "id": "teahouse-a-6",
     "name": "B Site corner (right) 2",
     "cover": [
      20.5,
@@ -546,7 +546,7 @@
     "maxPeek": 2.95
    },
    {
-    "id": "hookah-a-7",
+    "id": "teahouse-a-7",
     "name": "B Site box (right)",
     "cover": [
      27.1,
@@ -560,7 +560,7 @@
     "maxPeek": 3.8
    },
    {
-    "id": "hookah-a-8",
+    "id": "teahouse-a-8",
     "name": "B Site corner (right) 3",
     "cover": [
      32,
@@ -576,7 +576,7 @@
   ],
   "defend": [
    {
-    "id": "hookah-d-1",
+    "id": "teahouse-d-1",
     "name": "B Site corner (left)",
     "cover": [
      28.94,
@@ -590,8 +590,8 @@
     "maxPeek": 2.6
    },
    {
-    "id": "hookah-d-2",
-    "name": "Hookah corner",
+    "id": "teahouse-d-2",
+    "name": "Teahouse corner",
     "cover": [
      20.45,
      0,
@@ -604,8 +604,8 @@
     "maxPeek": 2.8
    },
    {
-    "id": "hookah-d-3",
-    "name": "Hookah corner (left)",
+    "id": "teahouse-d-3",
+    "name": "Teahouse corner (left)",
     "cover": [
      20.05,
      0,
@@ -618,7 +618,7 @@
     "maxPeek": 2.85
    },
    {
-    "id": "hookah-d-4",
+    "id": "teahouse-d-4",
     "name": "B Site box (left)",
     "cover": [
      27.95,
@@ -632,7 +632,7 @@
     "maxPeek": 2.8
    },
    {
-    "id": "hookah-d-5",
+    "id": "teahouse-d-5",
     "name": "B Site box (left) 2",
     "cover": [
      34.94,
@@ -646,8 +646,8 @@
     "maxPeek": 2.65
    },
    {
-    "id": "hookah-d-6",
-    "name": "Hookah corner 2",
+    "id": "teahouse-d-6",
+    "name": "Teahouse corner 2",
     "cover": [
      14.9,
      0,
@@ -660,7 +660,7 @@
     "maxPeek": 3.05
    },
    {
-    "id": "hookah-d-7",
+    "id": "teahouse-d-7",
     "name": "B Long corner (left)",
     "cover": [
      35.56,
@@ -674,8 +674,8 @@
     "maxPeek": 2.6
    },
    {
-    "id": "hookah-d-8",
-    "name": "Hookah corner (left) 2",
+    "id": "teahouse-d-8",
+    "name": "Teahouse corner (left) 2",
     "cover": [
      23.56,
      0,
@@ -807,7 +807,7 @@
   "defend": [
    {
     "id": "b-long-d-1",
-    "name": "Hookah corner (right)",
+    "name": "Teahouse corner (right)",
     "cover": [
      20.45,
      0,
@@ -835,7 +835,7 @@
    },
    {
     "id": "b-long-d-3",
-    "name": "Hookah corner (right) 2",
+    "name": "Teahouse corner (right) 2",
     "cover": [
      10.94,
      0,
@@ -849,7 +849,7 @@
    },
    {
     "id": "b-long-d-4",
-    "name": "Hookah corner (right) 3",
+    "name": "Teahouse corner (right) 3",
     "cover": [
      14,
      0,
@@ -863,7 +863,7 @@
    },
    {
     "id": "b-long-d-5",
-    "name": "Hookah corner (right) 4",
+    "name": "Teahouse corner (right) 4",
     "cover": [
      19.6,
      0,

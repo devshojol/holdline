@@ -180,7 +180,7 @@ export const DEFAULT_PRACTICE: PracticeConfig = {
   infiniteAmmo: true,
 };
 
-/** Degrees of rotation per mouse count per unit of sensitivity (Valorant scale). */
+/** Degrees of rotation per mouse count per unit of sensitivity. */
 export const YAW_DEG_PER_COUNT = 0.07;
 
 export function edpi(dpi: number, sens: number) {

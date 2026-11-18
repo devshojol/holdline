@@ -187,7 +187,7 @@ export interface MapLocation {
 export interface MapSummary {
   id: string;
   name: string;
-  inspiredBy: string;
+  setting: string;
   theme: string;
   playable: boolean;
   locations: { id: string; name: string }[];
@@ -225,7 +225,7 @@ export interface PracticeConfig {
 /* ------------------------------------------------------------------ */
 
 export interface SensitivitySettings {
-  /** In-game sensitivity on the same scale as Valorant (0.07° per count). */
+  /** In-game sensitivity: 0.07° of turn per mouse count at 1.0. */
   sensitivity: number;
   dpi: number;
   horizontalMult: number;

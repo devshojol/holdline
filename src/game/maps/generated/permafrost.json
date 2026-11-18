@@ -233,7 +233,7 @@
   "attack": [
    {
     "id": "mid-a-1",
-    "name": "Boiler corner (right)",
+    "name": "Furnace corner (right)",
     "cover": [
      8.56,
      0,
@@ -247,7 +247,7 @@
    },
    {
     "id": "mid-a-2",
-    "name": "Boiler stack",
+    "name": "Furnace stack",
     "cover": [
      -0.5,
      0,
@@ -317,7 +317,7 @@
    },
    {
     "id": "mid-a-7",
-    "name": "Kitchen corner (right)",
+    "name": "Canteen corner (right)",
     "cover": [
      10,
      0,
@@ -331,7 +331,7 @@
    },
    {
     "id": "mid-a-8",
-    "name": "Boiler box (right)",
+    "name": "Furnace box (right)",
     "cover": [
      6.44,
      0,
@@ -347,7 +347,7 @@
   "defend": [
    {
     "id": "mid-d-1",
-    "name": "Boiler box (left)",
+    "name": "Furnace box (left)",
     "cover": [
      5,
      0,
@@ -361,7 +361,7 @@
    },
    {
     "id": "mid-d-2",
-    "name": "Boiler stack",
+    "name": "Furnace stack",
     "cover": [
      -0.55,
      0,
@@ -417,7 +417,7 @@
    },
    {
     "id": "mid-d-6",
-    "name": "Boiler corner (right)",
+    "name": "Furnace corner (right)",
     "cover": [
      -8.56,
      0,
@@ -435,7 +435,7 @@
   "attack": [
    {
     "id": "b-main-a-1",
-    "name": "B Yellow stack",
+    "name": "B Crates stack",
     "cover": [
      32.95,
      0,
@@ -477,7 +477,7 @@
    },
    {
     "id": "b-main-a-4",
-    "name": "B Yellow stack 2",
+    "name": "B Crates stack 2",
     "cover": [
      26.5,
      0,
@@ -491,7 +491,7 @@
    },
    {
     "id": "b-main-a-5",
-    "name": "B Yellow corner",
+    "name": "B Crates corner",
     "cover": [
      25.4,
      0,
@@ -505,7 +505,7 @@
    },
    {
     "id": "b-main-a-6",
-    "name": "B Yellow corner 2",
+    "name": "B Crates corner 2",
     "cover": [
      30.95,
      0,
@@ -533,7 +533,7 @@
    },
    {
     "id": "b-main-a-8",
-    "name": "B Yellow corner (left)",
+    "name": "B Crates corner (left)",
     "cover": [
      15.44,
      0,
@@ -563,7 +563,7 @@
    },
    {
     "id": "b-main-d-2",
-    "name": "Kitchen box (right)",
+    "name": "Canteen box (right)",
     "cover": [
      18.5,
      0,
@@ -591,7 +591,7 @@
    },
    {
     "id": "b-main-d-4",
-    "name": "Kitchen corner (right)",
+    "name": "Canteen corner (right)",
     "cover": [
      16.6,
      0,
@@ -605,7 +605,7 @@
    },
    {
     "id": "b-main-d-5",
-    "name": "Kitchen corner (right) 2",
+    "name": "Canteen corner (right) 2",
     "cover": [
      15.44,
      0,
@@ -619,7 +619,7 @@
    },
    {
     "id": "b-main-d-6",
-    "name": "B Green corner",
+    "name": "B Crane corner",
     "cover": [
      32.56,
      0,
@@ -633,7 +633,7 @@
    },
    {
     "id": "b-main-d-7",
-    "name": "Kitchen corner (right) 3",
+    "name": "Canteen corner (right) 3",
     "cover": [
      8.56,
      0,
@@ -647,7 +647,7 @@
    },
    {
     "id": "b-main-d-8",
-    "name": "B Yellow stack",
+    "name": "B Crates stack",
     "cover": [
      23.56,
      0,

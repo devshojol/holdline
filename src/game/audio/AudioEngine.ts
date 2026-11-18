@@ -9,14 +9,26 @@ import { makeImpulseResponse, renderAllGuns, type GunSoundId } from './gunSynth'
 
 /** Optional user-supplied recordings (public/sounds/manifest.json), keyed by weapon. */
 const SAMPLE_KEYS: Record<GunSoundId, string> = {
-  'rifle-heavy': 'vandal',
-  'rifle-suppressed': 'phantom',
-  'pistol-light': 'classic',
-  'pistol-heavy': 'sheriff',
-  'rifle-dmr': 'guardian',
-  'smg-suppressed': 'spectre',
-  sniper: 'operator',
-  'pistol-suppressed': 'ghost',
+  'rifle-heavy': 'kestrel',
+  'rifle-suppressed': 'halcyon',
+  'pistol-light': 'pilot',
+  'pistol-heavy': 'magnate',
+  'rifle-dmr': 'arbiter',
+  'smg-suppressed': 'hornet',
+  sniper: 'monarch',
+  'pistol-suppressed': 'whisper',
+};
+
+/** Weapon id → the gun's name, as used in the manifest's keys and the sound files' names. */
+const GUN_NAMES: Record<string, string> = {
+  vandal: 'kestrel',
+  phantom: 'halcyon',
+  spectre: 'hornet',
+  guardian: 'arbiter',
+  operator: 'monarch',
+  sheriff: 'magnate',
+  ghost: 'whisper',
+  classic: 'pilot',
 };
 
 /**
@@ -39,9 +51,9 @@ const EXTRA_KEYS: Record<string, string> = {
   hurt: 'hurt',
   ...Object.fromEntries([1, 2, 3, 4, 5].map((n) => [`kill${n}`, `kill${n}`])),
   ...Object.fromEntries(
-    ['vandal', 'phantom', 'spectre', 'guardian', 'operator', 'sheriff', 'ghost', 'classic'].flatMap((w) => [
-      [`reload-${w}`, `reload-${w}`],
-      ...[1, 2, 3, 4, 5].map((n) => [`${w}-kill${n}`, `${w}-kill${n}`]),
+    Object.entries(GUN_NAMES).flatMap(([w, gun]) => [
+      [`reload-${gun}`, `reload-${w}`],
+      ...[1, 2, 3, 4, 5].map((n) => [`${gun}-kill${n}`, `${w}-kill${n}`]),
     ]),
   ),
 };

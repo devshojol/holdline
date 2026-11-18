@@ -1,7 +1,7 @@
 /**
- * "Vellora" — an original, Ascent-inspired tactical layout.
+ * "Vellora" — an original tactical layout.
  *
- * Two bomb sites (A west, B east) joined by an open central courtyard with a market
+ * Two bomb sites (A west, B east) joined by an open central courtyard with a arcade
  * building towards B and a catwalk link towards A. Attackers spawn south, defenders north.
  * All geometry here is original and authored on the shared cell grid (see CELL in GridMap.ts).
  */
@@ -22,7 +22,7 @@ function buildGrid(): string[] {
   g.rect(21, 1, 32, 6, '.');
   g.set(25, 3, 'c').set(30, 3, 'c');
 
-  // --- A Heaven: raised platform overlooking A site, reached by stairs from defender spawn
+  // --- A Balcony: raised platform overlooking A site, reached by stairs from defender spawn
   g.rect(4, 4, 15, 7, '6');
   g.set(16, 5, '5').set(16, 6, '5');
   g.set(17, 5, '4').set(17, 6, '4');
@@ -30,7 +30,7 @@ function buildGrid(): string[] {
   g.set(19, 5, '2').set(19, 6, '2');
   g.set(20, 5, '1').set(20, 6, '1');
   g.set(9, 6, 'P').set(5, 6, 'P');
-  // Heaven parapet with a drop-down gap on the east end
+  // Balcony parapet with a drop-down gap on the east end
   g.rect(4, 8, 13, 8, 'r');
   g.rect(14, 8, 15, 8, '6');
 
@@ -75,7 +75,7 @@ function buildGrid(): string[] {
   g.rect(24, 7, 27, 14, '.');
   g.set(25, 10, 'C');
 
-  // --- Market (mid -> B)
+  // --- Arcade (mid -> B)
   g.rect(33, 16, 36, 22, '.');
   g.rect(32, 17, 32, 19, '.');
   g.rect(37, 19, 37, 21, '.');
@@ -159,7 +159,7 @@ const locations: MapLocation[] = [
   {
     id: 'a-main',
     name: 'A Main',
-    description: 'Narrow corridor into A site under the gaze of Heaven, Generator and Default.',
+    description: 'Narrow corridor into A site under the gaze of Balcony, Generator and Default.',
     focus: { minX: S.x(1) - 1, maxX: S.x(21) + 1, minZ: S.z(40), maxZ: S.z(3) },
     sides: {
       attack: {
@@ -170,7 +170,7 @@ const locations: MapLocation[] = [
         enemySpots: [
           spot('a-default', 'Default', 8, 13.85, W, 3.5),
           spot('a-generator', 'Generator', 12.5, 9.85, W, 4.5),
-          spot('a-heaven', 'Heaven', 9, 4.85, E, 3.5, 2.4),
+          spot('a-balcony', 'Balcony', 9, 4.85, E, 3.5, 2.4),
           spot('a-tree', 'Tree corner', 3, 16.35, E, 3.5),
           spot('a-pillar', 'Site pillar', 6, 10.85, E, 3),
         ],
@@ -179,7 +179,7 @@ const locations: MapLocation[] = [
         playerSpawns: [
           spawn('a-default-front', 'In front of Default', 7, 16.3, yawTo(7, 16.3, 6.5, 22)),
           spawn('a-pillar-def', 'Site pillar', 6, 12.8, yawTo(6, 12.8, 6.5, 22)),
-          spawn('a-heaven-def', 'Heaven', 11, 5.5, yawTo(11, 5.5, 6.5, 22), 2.4),
+          spawn('a-balcony-def', 'Balcony', 11, 5.5, yawTo(11, 5.5, 6.5, 22), 2.4),
         ],
         enemySpots: [
           spot('a-arch-left', 'Arch left corner', 4.4, 23.4, E, 4),
@@ -193,7 +193,7 @@ const locations: MapLocation[] = [
   {
     id: 'mid',
     name: 'Mid',
-    description: 'Open courtyard with Mid Box, the catwalk link to A and Market doors to B.',
+    description: 'Open courtyard with Mid Box, the catwalk link to A and Arcade doors to B.',
     focus: { minX: S.x(14) - 1, maxX: S.x(38) + 1, minZ: S.z(36), maxZ: S.z(5) },
     sides: {
       attack: {
@@ -203,7 +203,7 @@ const locations: MapLocation[] = [
         ],
         enemySpots: [
           spot('mid-box', 'Mid Box', 25, 19.85, W, 3.5),
-          spot('mid-market', 'Market door', 33.5, 19, W, 4),
+          spot('mid-arcade', 'Arcade door', 33.5, 19, W, 4),
           spot('mid-catwalk', 'Catwalk', 18.5, 16, E, 5),
           spot('mid-top-box', 'Mid Top box', 25, 8.85, E, 3),
           spot('mid-column', 'Courtyard column', 22, 16.85, W, 3),
@@ -218,7 +218,7 @@ const locations: MapLocation[] = [
           spot('mid-crate-l', 'Bottom-left crate', 23, 28.15, E, 3.5),
           spot('mid-stack-r', 'Bottom-right stack', 29, 28.15, W, 3.5),
           spot('mid-box-s', 'Mid Box (south)', 25, 22.15, W, 3.5),
-          spot('mid-market-atk', 'Market door', 33.5, 17, [-0.95, -0.32], 4.5),
+          spot('mid-arcade-atk', 'Arcade door', 33.5, 17, [-0.95, -0.32], 4.5),
         ],
       },
     },
@@ -226,7 +226,7 @@ const locations: MapLocation[] = [
   {
     id: 'b-main',
     name: 'B Main',
-    description: 'Straight B Main into a wide site: Default, Boathouse stack, pillar and Market exit.',
+    description: 'Straight B Main into a wide site: Default, Boathouse stack, pillar and Arcade exit.',
     focus: { minX: S.x(30) - 1, maxX: S.x(51) + 1, minZ: S.z(41), maxZ: S.z(5) },
     sides: {
       attack: {
@@ -249,7 +249,7 @@ const locations: MapLocation[] = [
         enemySpots: [
           spot('b-nook-w', 'B Main nook (west)', 42.5, 27.5, E, 5),
           spot('b-nook-e', 'B Main nook (east)', 47.75, 30.5, W, 5),
-          spot('b-market-atk', 'Market exit', 35, 20, E, 6),
+          spot('b-arcade-atk', 'Arcade exit', 35, 20, E, 6),
           spot('b-main-crate', 'B Main crate', 46, 30.15, W, 4),
         ],
       },
@@ -257,25 +257,25 @@ const locations: MapLocation[] = [
   },
 ];
 
-export const ascentMap: MapDefinition = {
+export const vellora: MapDefinition = {
   id: 'vellora',
   name: 'Vellora',
-  inspiredBy: 'Ascent',
+  setting: 'Hill-town piazza',
   theme: 'Sun-baked Mediterranean piazza',
   description:
-    'Original two-site layout inspired by Ascent: long A Main, raised Heaven, an open mid courtyard and a market building linking mid to B.',
+    'Original two-site layout inspired by Ascent: long A Main, raised Balcony, an open mid courtyard and a arcade building linking mid to B.',
   grid: buildGrid(),
   zoneOf,
   callouts: [
     { name: 'A Site', c: 9, r: 13.2 },
-    { name: 'A Heaven', c: 10.5, r: 5 },
+    { name: 'A Balcony', c: 10.5, r: 5 },
     { name: 'A Main', c: 6, r: 29.5 },
     { name: 'A Lobby', c: 7, r: 37 },
     { name: 'A Link', c: 17.5, r: 16 },
     { name: 'Mid', c: 25.5, r: 23.6 },
     { name: 'Mid Top', c: 25.5, r: 12 },
     { name: 'Mid Bottom', c: 25.5, r: 35 },
-    { name: 'Market', c: 34.5, r: 21 },
+    { name: 'Arcade', c: 34.5, r: 21 },
     { name: 'B Site', c: 44, r: 17 },
     { name: 'B Main', c: 45, r: 29 },
     { name: 'B Lobby', c: 43.5, r: 36.5 },

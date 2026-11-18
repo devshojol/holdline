@@ -313,7 +313,7 @@ Rules that apply to both:
 | Time limit          | 5, 10, 15, 20, 30 minutes                                               | 10 minutes  |
 | Kill limit          | Off, 20, 30, 40, 50, 75, 100                                            | 40          |
 | Max players         | 2 to 10                                                                 | 10          |
-| Weapons             | All, Rifles only, Sidearms only, No Operator, one chosen gun for everyone | All       |
+| Weapons             | All, Rifles only, Sidearms only, No Monarch, one chosen gun for everyone | All       |
 | Headshots only      | On / off (body and leg hits deal no damage)                             | Off         |
 | Infinite ammo       | On / off (no reserve limit; reloads still happen)                       | Off         |
 | Respawn delay       | 1, 3, 5 seconds                                                         | 3 seconds   |
@@ -465,12 +465,12 @@ pitch, crouch, speed). Movement looks smooth, and one lost snapshot is hidden.
 
 A remote player is drawn with the existing agent model (`AgentVisual`), which already builds its gait,
 crouch, aim pitch, recoil kick, reload and death fall from exactly those values. The gun shown should be
-the one the player holds, which is a known limit of the bot visuals today (they always show the Vandal).
+the one the player holds, which is a known limit of the bot visuals today (they always show the Kestrel).
 
 ### 6.4 Shooting: who decides a hit
 
 Shots stay hitscan. The client keeps the full `WeaponSystem` feel (fire rate, spread, recoil, ADS, the
-Operator's scope) and everything the shooter sees and hears happens immediately: sound, muzzle flash,
+Monarch's scope) and everything the shooter sees and hears happens immediately: sound, muzzle flash,
 tracer, wall impact.
 
 1. The client sends a **shot**: weapon, the command it was fired on, the eye position, the final
@@ -639,4 +639,4 @@ Testing along the way:
 5. **Accounts.** Not needed for anything above. They become necessary for skill-based matching, persistent
    stats across devices, friends lists and bans.
 6. **The fan-art models.** Multiplayer makes the project more public. The README already notes that some
-   models carry non-commercial or Sketchfab Standard licences; check them before promoting the mode.
+   models and recordings are now original or CC0 (see `public/models/README.md`); the first-person arms are CC BY 4.0 and need their credit kept.
