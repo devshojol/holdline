@@ -32,6 +32,8 @@ export interface MinimapOptions {
   fov: number;
   /** An objective to mark (the planted spike). */
   objective?: { x: number; z: number } | null;
+  /** Footsteps just heard: where, and how old (0 = now … 1 = about to go). Drawn as a ring that spreads and fades. */
+  sounds?: { x: number; z: number; age: number }[];
 }
 
 export class Minimap {
@@ -284,6 +286,21 @@ export class Minimap {
       ctx.stroke();
     }
 
+    // footsteps just heard: a ring at the spot, spreading and fading
+    for (const snd of o.sounds ?? []) {
+      const [sx, sy] = toScreen(snd.x, snd.z);
+      const fade = 1 - snd.age;
+      ctx.beginPath();
+      ctx.arc(sx, sy, (3 + 7 * snd.age) * dpr, 0, Math.PI * 2);
+      ctx.lineWidth = 1.6 * dpr;
+      ctx.strokeStyle = `rgba(255, 96, 60, ${(0.9 * fade).toFixed(3)})`;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(sx, sy, 2.2 * dpr, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 96, 60, ${(0.75 * fade).toFixed(3)})`;
+      ctx.fill();
+    }
+
     // enemies within range (always), visible ones emphasised
     for (const e of enemies) {
       if (!e.alive) continue;
@@ -295,12 +312,12 @@ export class Minimap {
         // halo around enemies in direct view
         ctx.beginPath();
         ctx.arc(sx, sy, r + 4 * dpr, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255,70,85,0.28)';
+        ctx.fillStyle = 'rgba(255,96,60,0.28)';
         ctx.fill();
       }
       ctx.beginPath();
       ctx.arc(sx, sy, r, 0, Math.PI * 2);
-      ctx.fillStyle = e.visible ? '#ff4655' : 'rgba(232,74,88,0.8)';
+      ctx.fillStyle = e.visible ? '#ff603c' : 'rgba(232,96,70,0.8)';
       ctx.fill();
       ctx.lineWidth = 1.5 * dpr;
       ctx.strokeStyle = e.visible ? '#ffffff' : 'rgba(40,0,6,0.85)';

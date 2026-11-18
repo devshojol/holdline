@@ -58,7 +58,9 @@ manifest = json.load(open(manifest_path))
 
 # footsteps: six soft boot steps, dull and low (the game makes the wood and metal versions from them).
 # The brighter steps on stone from the Fantozzi set were tried first and sounded too clicky.
-manifest["footstep"] = [make(f"step-{i + 1}", [(K.format(f"footstep0{n}"), 0, 0.24, "lowpass=f=3200", 0, 0)], peak=-6, fade=0.05) for i, n in enumerate((0, 1, 2, 3, 7, 8))]
+# The six dullest takes of the set, with the click taken off the front (a 6 ms fade in) and the top end rolled
+# off, so a step is a soft pat and not a tick.
+manifest["footstep"] = [make(f"step-{i + 1}", [(K.format(f"footstep0{n}"), 0, 0.26, "highpass=f=80,lowpass=f=1900,afade=t=in:st=0:d=0.006", 0, 0)], peak=-6, fade=0.1) for i, n in enumerate((4, 9, 2, 6, 1, 0))]
 # jump: cloth and a push off the ground. landing: a heavier, lower step with gear settling
 manifest["jump"] = [make("jump-1", [(K.format("cloth2"), 0.05, 0.3, None, 0, 0), (K.format("footstep05"), 0, 0.2, None, 0.02, -6)], peak=-9)]
 manifest["land"] = [make("land-1", [(STONE.format("L2"), 0, 0.33, "asetrate=44100*0.78,aresample=44100", 0, 0), (K.format("dropLeather"), 0.02, 0.3, None, 0.03, -5)], peak=-4)]

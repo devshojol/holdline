@@ -84,6 +84,13 @@ export interface PlayOptions {
   refDistance?: number;
   /** With `pos`: no echo. The sound is still placed, muffled by distance and walls, but has no reverb tail. */
   dry?: boolean;
+  /**
+   * With `pos`: place the sound the way a footstep should be heard, out to this many metres and silent beyond.
+   * Plain left/right panning, a level that falls steadily to nothing at the range, and a duller tone the
+   * further away, behind you or behind a wall. No 3D head filtering and no echo: on short, low sounds those
+   * smear the direction, and several walkers at once turn to mush.
+   */
+  hearRange?: number;
 }
 
 /** What a foot lands on. Each has its own set of step sounds. */
@@ -686,7 +693,35 @@ export class AudioEngine {
     const gain = ctx.createGain();
     gain.gain.value = opts.volume ?? 1;
     let node: AudioNode = src;
-    if (opts.pos && opts.clean) {
+    if (opts.pos && opts.hearRange) {
+      const dx = opts.pos[0] - this.listenerPos[0];
+      const dz = opts.pos[2] - this.listenerPos[2];
+      const dist = Math.hypot(dx, opts.pos[1] - this.listenerPos[1], dz);
+      if (dist >= opts.hearRange) return;
+      const flat = Math.hypot(dx, dz) || 1;
+      const sinY = Math.sin(this.listenerYaw);
+      const cosY = Math.cos(this.listenerYaw);
+      const side = (dx * cosY - dz * sinY) / flat; // +1 = right
+      const front = (dx * sinY + dz * cosY) / flat; // +1 = straight ahead, −1 = behind
+      const near = 1 - dist / opts.hearRange; // 1 beside you … 0 at the edge of hearing
+      gain.gain.value *= Math.pow(near, 1.5) * (opts.occluded ? 0.6 : 1) * (front < 0 ? 0.85 + 0.15 * (1 + front) : 1);
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      // bright up close and in front; duller with distance, behind you, and through a wall
+      let cutoff = 2400 + 7000 * near;
+      if (front < 0) cutoff *= 1 + 0.45 * front;
+      if (opts.occluded) cutoff = Math.min(cutoff, 1500);
+      lp.frequency.value = cutoff;
+      node.connect(lp);
+      node = lp;
+      if (ctx.createStereoPanner) {
+        const pan = ctx.createStereoPanner();
+        // a step right beside you is not hard left or right
+        pan.pan.value = Math.max(-1, Math.min(1, side * 0.92 * Math.min(1, flat / 1.5)));
+        node.connect(pan);
+        node = pan;
+      }
+    } else if (opts.pos && opts.clean) {
       // same sound as up close, just placed left/right and slightly quieter far away
       const dx = opts.pos[0] - this.listenerPos[0];
       const dz = opts.pos[2] - this.listenerPos[2];

@@ -149,6 +149,11 @@ interface RemotePlayer {
 
 /** How long a player who fired an unsuppressed gun stays on everyone's minimap. */
 const FIRE_REVEAL_SEC = 2.5;
+/** How far away a running enemy's footsteps can be heard (metres): in the open, and with a wall in between. */
+const STEP_HEAR_RANGE = 26;
+const STEP_HEAR_RANGE_WALLED = 16;
+/** How long a heard footstep stays marked on the minimap (seconds). */
+const STEP_MARK_SEC = 1.3;
 
 /** The keys that move the player: the only ones a command carries. */
 const MOVE_MASK = actionMask(['forward', 'back', 'left', 'right', 'walk', 'crouch']);
@@ -188,6 +193,8 @@ export class GameEngine {
   private armsTemplate: ArmsTemplate | null = null;
   private hitboxMeshes: Mesh[] | null = null;
   private minimap!: Minimap;
+  /** Enemy footsteps just heard, for the minimap: where, and when (performance.now()). */
+  private heardSteps: { x: number; z: number; at: number }[] = [];
   /** Spray-control mode only. */
   private spray: SprayTrainer | null = null;
   private sprayPattern: { id: WeaponId; points: [number, number][] } | null = null;
@@ -427,7 +434,7 @@ export class GameEngine {
         // alternate feet a little left and right; the sound follows what is underfoot
         this.stepFoot = -this.stepFoot;
         const surface = this.surfaceUnder(this.player.pos.x, this.player.pos.y, this.player.pos.z);
-        this.audio.play(stepSound(surface), { bus: 'foot', volume: 0.85, rate: 0.95 + Math.random() * 0.1, pan: this.stepFoot * 0.14, group: 'step-player' });
+        this.audio.play(stepSound(surface), { bus: 'foot', volume: 0.6, rate: 0.97 + Math.random() * 0.06, pan: this.stepFoot * 0.14, group: 'step-player' });
         this.director?.hear(this.ctx, this.player.pos.x, this.player.pos.z, 14);
       },
       onJump: () => this.audio.play('jump', { bus: 'foot', volume: 0.5 }),
@@ -546,21 +553,8 @@ export class GameEngine {
       mayFire: (bot) => this.director.mayFire(bot, this.time),
       graceUntil: 0,
       onBotFootstep: (bot) => {
-        const occluded = !this.map.world.segmentClear(bot.x, bot.y + 1.5, bot.z, ...this.player.eye());
         // each bot keeps its own slight pitch, so two sets of steps can be told apart
-        const voice = 0.93 + ((bot.id * 37) % 10) * 0.012;
-        this.audio.play(stepSound(this.surfaceUnder(bot.x, bot.y, bot.z)), {
-          pos: [bot.x, bot.y + 0.1, bot.z],
-          bus: 'foot',
-          // clearly quieter than your own steps and fading sooner: several enemies running at once were a
-          // constant thudding that buried everything else
-          volume: 0.55,
-          occluded,
-          rate: voice * (0.97 + Math.random() * 0.06),
-          refDistance: 3.5,
-          dry: true,
-          group: `step-bot-${bot.id}`,
-        });
+        this.enemyStep(bot.x, bot.y, bot.z, 0.93 + ((bot.id * 37) % 10) * 0.012, `step-bot-${bot.id}`);
       },
     };
     // multiplayer has no bots: the other bodies are players, placed by the server's snapshots
@@ -1206,6 +1200,35 @@ export class GameEngine {
     }
   }
 
+  /** The footsteps heard in the last moments, aged for the minimap; older ones are dropped. */
+  private heardStepMarks() {
+    const now = performance.now();
+    this.heardSteps = this.heardSteps.filter((h) => now - h.at < STEP_MARK_SEC * 1000);
+    return this.heardSteps.map((h) => ({ x: h.x, z: h.z, age: (now - h.at) / (STEP_MARK_SEC * 1000) }));
+  }
+
+  /**
+   * A running enemy takes a step at (x, y, z). If it is within earshot (less far through a wall) it is played
+   * from where it happened, and the spot is marked on the minimap for a moment: what you can hear, you can
+   * place. Steps out of earshot make no sound at all, so distant enemies don't add up to a background mush.
+   */
+  private enemyStep(x: number, y: number, z: number, voice: number, group: string) {
+    const eye = this.player.eye();
+    const occluded = !this.map.world.segmentClear(x, y + 1.5, z, eye[0], eye[1], eye[2]);
+    const range = occluded ? STEP_HEAR_RANGE_WALLED : STEP_HEAR_RANGE;
+    if (Math.hypot(x - eye[0], y - eye[1], z - eye[2]) >= range) return;
+    this.audio.play(stepSound(this.surfaceUnder(x, y, z)), {
+      pos: [x, y + 0.1, z],
+      bus: 'foot',
+      volume: 0.8,
+      occluded,
+      rate: voice * (0.98 + Math.random() * 0.04),
+      hearRange: range,
+      group,
+    });
+    this.heardSteps.push({ x, z, at: performance.now() });
+  }
+
   /** Multiplayer: the other players the minimap may show, which is those who fired an unsuppressed gun a moment ago. */
   private minimapRemotes() {
     const t = this.serverClock.time(performance.now()) - INTERP_DELAY_MS;
@@ -1326,7 +1349,6 @@ export class GameEngine {
 
     // other players are drawn a moment in the past, between two snapshots
     const t = this.serverClock.time(performance.now()) - INTERP_DELAY_MS;
-    const eye = this.player.eye();
     for (const r of this.remotes.values()) {
       const s = r.track.at(t);
       if (!s) continue;
@@ -1338,16 +1360,7 @@ export class GameEngine {
         r.stepTimer -= dt * (s.speed / RUN_SPEED);
         if (r.stepTimer <= 0) {
           r.stepTimer = 0.36;
-          this.audio.play(stepSound(this.surfaceUnder(s.x, s.y, s.z)), {
-            pos: [s.x, s.y + 0.1, s.z],
-            bus: 'foot',
-            volume: 0.55,
-            occluded: !this.map.world.segmentClear(s.x, s.y + 1.5, s.z, eye[0], eye[1], eye[2]),
-            rate: r.voice * (0.97 + Math.random() * 0.06),
-            refDistance: 3.5,
-            dry: true,
-            group: `step-remote-${r.voice}`,
-          });
+          this.enemyStep(s.x, s.y, s.z, r.voice, `step-remote-${r.voice}`);
         }
       } else r.stepTimer = Math.min(r.stepTimer, 0.12);
     }
@@ -1777,7 +1790,14 @@ export class GameEngine {
         { x: this.player.pos.x, z: this.player.pos.z, yaw: this.player.yaw, alive: this.player.alive },
         this.net ? this.minimapRemotes() : this.director.bots.map((b) => ({ x: b.x, z: b.z, alive: b.alive, visible: b.visibleToPlayer })),
         // in a match the only players listed are the ones who just fired, and they show at any distance
-        { size: 220, viewRange: 26, enemyRange: this.net ? 1e6 : this.settings.hud.minimapEnemyRange, fov: this.camera.fov, objective: this.director.spike },
+        {
+          size: 220,
+          viewRange: 26,
+          enemyRange: this.net ? 1e6 : this.settings.hud.minimapEnemyRange,
+          fov: this.camera.fov,
+          objective: this.director.spike,
+          sounds: this.heardStepMarks(),
+        },
       );
     }
 
