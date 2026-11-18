@@ -49,6 +49,8 @@ const EXTRA_KEYS: Record<string, string> = {
   dry: 'dry',
   hit: 'hit',
   hurt: 'hurt',
+  impact: 'impact',
+  whiz: 'whiz',
   ...Object.fromEntries([1, 2, 3, 4, 5].map((n) => [`kill${n}`, `kill${n}`])),
   ...Object.fromEntries(
     Object.entries(GUN_NAMES).flatMap(([w, gun]) => [

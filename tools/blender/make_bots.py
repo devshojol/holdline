@@ -221,7 +221,7 @@ def kit_textures(kit):
 
 # ---------------------------------------------------------------- the person
 def make_person(c, camo):
-    """One soldier from MPFB: body, face, hair, a work suit and boots, on a skeleton. Returns (skeleton, meshes,
+    """One soldier from MPFB: body, face, hair, a long-sleeved shirt, trousers and boots, on a skeleton. Returns (skeleton, meshes,
     eye positions). The suit is printed in `camo`."""
     from bl_ext.user_default.mpfb.services.humanservice import HumanService
     from bl_ext.user_default.mpfb.services.locationservice import LocationService
@@ -235,7 +235,7 @@ def make_person(c, camo):
     rig = HumanService.add_builtin_rig(base, "game_engine", import_weights=True)
     meshes = [base]
     for kind, name, typ in (("eyes", "low-poly", "Eyes"), ("eyebrows", c["brows"], "Eyebrows"), ("eyelashes", "eyelashes01", "Eyelashes"),
-                            ("hair", c.get("hair"), "Hair"), ("clothes", "male_worksuit01", "Clothes"), ("clothes", "shoes04", "Clothes")):
+                            ("hair", c.get("hair"), "Hair"), ("clothes", "male_casualsuit01", "Clothes"), ("clothes", "shoes04", "Clothes")):
         if name:
             meshes.append(HumanService.add_mhclo_asset(os.path.join(data, kind, name, name + ".mhclo"), base, asset_type=typ, material_type="GAMEENGINE", subdiv_levels=0))
     TargetService.bake_targets(base)
@@ -268,7 +268,7 @@ def make_person(c, camo):
             for node in nodes:
                 if node.type != "TEX_IMAGE" or not node.image:
                     continue
-                if "worksuit" in slot.material.name:         # the suit, printed in the soldier's camouflage
+                if "casualsuit" in slot.material.name:       # shirt and trousers, printed in the soldier's camouflage
                     node.image = camo
                     mapping = nodes.new("ShaderNodeMapping")
                     coords = nodes.new("ShaderNodeTexCoord")
@@ -296,6 +296,44 @@ def game_skeleton(rig, eyes):
     J.clear()
     for bone in rig.data.bones:
         J[bone.name] = tuple(B2G @ (rig.matrix_world @ bone.head_local))
+
+
+def close_hands(rig, body):
+    """Curl the fingers of both hands and make that the rest pose, so the hands close round the gun: the game
+    poses arms and legs but leaves fingers as they are. Each finger joint is turned towards the palm; the mesh
+    takes the curled shape and the skeleton's rest pose is set to match."""
+    bpy.context.view_layer.objects.active = rig
+    bpy.ops.object.mode_set(mode="POSE")
+    for side in ("l", "r"):
+        S = side.upper()
+        hand = rig.pose.bones[f"{S}_Hand"]
+        index, pinky = rig.pose.bones[f"index_01_{side}"], rig.pose.bones[f"pinky_01_{side}"]
+        along = (rig.pose.bones[f"{S}_Middle1"].head - hand.head).normalized()
+        across = (index.head - pinky.head).normalized()        # towards the thumb
+        palm = (along.cross(across) if side == "l" else across.cross(along)).normalized()
+        for finger, bends in (("index", (38, 62, 48)), ("middle", (42, 66, 50)), ("ring", (46, 68, 52)), ("pinky", (50, 70, 52)), ("thumb", (14, 22, 26))):
+            for n, deg in enumerate(bends, 1):
+                name = f"{S}_Middle1" if finger == "middle" and n == 1 else f"{finger}_0{n}_{side}"
+                bone = rig.pose.bones.get(name)
+                if bone is None:
+                    continue
+                direction = (bone.tail - bone.head).normalized()
+                # the thumb closes across the palm, towards the fingers
+                axis = direction.cross(palm if finger != "thumb" else (palm - across * 0.8).normalized())
+                if axis.length < 1e-5:
+                    continue
+                pivot = Matrix.Translation(bone.head)
+                bone.matrix = pivot @ Matrix.Rotation(math.radians(deg), 4, axis.normalized()) @ pivot.inverted() @ bone.matrix
+                bpy.context.view_layer.update()
+    bpy.ops.object.mode_set(mode="OBJECT")
+    for mod in [m for m in body.modifiers if m.type == "ARMATURE"]:  # bake the curl into the mesh
+        with bpy.context.temp_override(object=body, active_object=body, selected_objects=[body]):
+            bpy.ops.object.modifier_apply(modifier=mod.name)
+    bpy.context.view_layer.objects.active = rig
+    bpy.ops.object.mode_set(mode="POSE")
+    bpy.ops.pose.armature_apply(selected=False)                 # and make it the skeleton's rest pose
+    bpy.ops.object.mode_set(mode="OBJECT")
+    body.modifiers.new("rig", "ARMATURE").object = rig
 
 
 def measure(meshes):
@@ -417,6 +455,7 @@ def build(who):
     body.parent = rig
     if not any(mod.type == "ARMATURE" for mod in body.modifiers):
         body.modifiers.new("rig", "ARMATURE").object = rig
+    close_hands(rig, body)
     bpy.context.view_layer.update()
     eye = m["head"]["eye"]
     dbg = os.path.join(ROOT, "tools", "blender", "out")

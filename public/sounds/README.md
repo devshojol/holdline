@@ -70,7 +70,10 @@ Cut by `tools/audio/make_foley.py` from these CC0 uploads on opengameart.org (no
 | The grunt when you are hit | "15 vocal male strain/hurt/pain/jump sounds" | `/content/15-vocal-male-strainhurtpainjump-sounds` |
 
 A kill is a heavy body impact with a low metal knock that climbs one step with each kill in a streak (`kill1` … `kill5`).
-Bullets hitting walls and passing close by have no recording and stay synthesised.
+Bullets hitting walls (`impact`) use a sharp crack from the "37 hits/punches" set, sometimes with a ricochet from
+"bullet ricochet.wav" by aust_paul (<https://freesound.org/people/aust_paul/sounds/30932/>, CC0). Bullets passing
+close by (`whiz`) use "Fly-by whiz SFX (subsonic)" by modusmogulus
+(<https://freesound.org/people/modusmogulus/sounds/789222/>, CC0).
 
 ## Notes
 

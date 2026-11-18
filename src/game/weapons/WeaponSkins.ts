@@ -75,8 +75,8 @@ const SKIN_SPECS: Partial<Record<WeaponId, SkinSpec>> = {
   spectre: {
     file: 'models/weapons/hornet.glb',
     yaw: 0,
-    length: 0.6854,
-    viewLength: 0.68,
+    length: 0.5234,
+    viewLength: 0.56,
     grip: [-0.104, -0.094],
     handguard: [-0.038, 0.19],
     muzzle: [0.0, 0.3255],

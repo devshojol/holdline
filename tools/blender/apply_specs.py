@@ -4,7 +4,7 @@ import json, os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 specs = json.load(open(os.path.join(ROOT, "tools/blender/out/specs.json")))
-VIEW = {"spectre": 0.68, "guardian": 1.1, "operator": 1.2, "ghost": 0.55, "classic": 0.31}  # first-person lengths (m)
+VIEW = {"spectre": 0.56, "guardian": 1.1, "operator": 1.2, "ghost": 0.55, "classic": 0.31}  # first-person lengths (m)
 ORDER = ["vandal", "phantom", "spectre", "guardian", "operator", "classic", "ghost", "sheriff"]
 fmt = lambda p: "null" if p is None else f"[{round(p[0], 4)}, {round(p[1], 4)}]"
 out = ["// Our own guns, modelled from code in Blender (tools/blender/make_weapons.py): barrel along +Z, in metres.",

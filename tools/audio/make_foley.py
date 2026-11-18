@@ -11,6 +11,8 @@ The folder holds these downloads from opengameart.org, the archives unpacked int
   equipmentclicks.wav              /content/equipment-clicks-ii                      bolt-action rifle being cocked
   independent_nu_ljudbank-hits_and_punches.7z  /content/37-hitspunches               body hits
   slightscreams.7z                 /content/15-vocal-male-strainhurtpainjump-sounds  short pain and effort voices
+  flyby-whiz.ogg                   freesound.org/people/modusmogulus/sounds/789222/   a fly-by, recorded from a whip
+  bullet-ricochet.ogg              freesound.org/people/aust_paul/sounds/30932/       four ricochets off a hard surface
 All are CC0. Every clip is written mono, 44.1 kHz, peak-normalised, and listed in public/sounds/manifest.json.
 Needs ffmpeg.
 """
@@ -88,5 +90,12 @@ for n, rate in enumerate((1.0, 1.122, 1.26, 1.335, 1.498), 1):
 # being hit: an impact and a short grunt
 manifest["hurt"] = [make(f"hurt-{i + 1}", [(HIT.format(h), hs, 0.3, LOW, 0, 0), (VOICE.format(v), vs, vl, None, 0.05, -5)], peak=-4)
                     for i, (h, hs, v, vs, vl) in enumerate((("33", 0.11, "11", 0.06, 0.27), ("37", 0.11, "08", 0.04, 0.36), ("30", 0.12, "12", 0.11, 0.26)))]
+# a bullet hitting a wall: a sharp crack with the low end taken off, and now and then a ricochet whining away.
+# The game plays these faster for metal and slower for wood.
+CRACK = "highpass=f=350"
+manifest["impact"] = [make(f"impact-{i + 1}", [(HIT.format(n), start, 0.16, CRACK, 0, 0)], peak=-6, fade=0.08) for i, (n, start) in enumerate((("10", 0.04), ("11", 0.16), ("09", 0.13)))]
+manifest["impact"].append(make("impact-4", [(HIT.format("10"), 0.04, 0.12, CRACK, 0, -2), ("bullet-ricochet.ogg", 0.985, 0.5, None, 0.02, -6)], peak=-7, fade=0.2))
+# a bullet passing close by
+manifest["whiz"] = [make("whiz-1", [("flyby-whiz.ogg", 0.02, 0.42, None, 0, 0)], peak=-6, fade=0.15)]
 json.dump(manifest, open(manifest_path, "w"), indent=2)
 print("written:", ", ".join(k for k in ("footstep", "jump", "land", "reload", "reload-classic", "bolt", "equip", "dry", "hit", "headshot", "kill1", "hurt")))

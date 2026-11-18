@@ -111,5 +111,14 @@
     "hurt-1.wav",
     "hurt-2.wav",
     "hurt-3.wav"
+  ],
+  "impact": [
+    "impact-1.wav",
+    "impact-2.wav",
+    "impact-3.wav",
+    "impact-4.wav"
+  ],
+  "whiz": [
+    "whiz-1.wav"
   ]
 }

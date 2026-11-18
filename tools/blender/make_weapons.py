@@ -242,7 +242,7 @@ def halcyon():
 
 def hornet():
     """Submachine gun after the H&K MP5A3: round-topped stamped receiver, cocking tube over the barrel,
-    hooded front sight, drum rear sight, curved magazine, retractable stock on two rails."""
+    hooded front sight, drum rear sight, curved magazine, retractable stock on two rails, pushed in."""
     b = Part("body")
     b.profile([(-0.15, -0.02), (-0.15, 0.022), (-0.142, 0.034), (0.11, 0.034), (0.11, -0.02)], 0.04, A, bevel=0.009, seg=3)
     b.box((0.042, 0.05, 0.012), (0, 0.006, -0.156), S, bevel=0.004)                             # end cap
@@ -281,11 +281,10 @@ def hornet():
     b.box((0.004, 0.006, 0.022), (0.0215, -0.03, -0.074), S, bevel=0.0015)
     for z in (-0.125, 0.02, 0.1):
         b.tube_x(0.004, 0.0415, (0, -0.012, z), "steel", seg=12)
-    # retractable stock: two rails along the receiver, butt plate
-    for side in (-1, 1):
-        b.tube(0.0042, -0.335, -0.03, y=0.006, x=side * 0.0235, mat="steel", seg=10)
-    b.profile([(-0.332, 0.032), (-0.346, 0.028), (-0.352, -0.07), (-0.342, -0.08), (-0.33, -0.05)], 0.054, P, bevel=0.005)
-    b.profile([(-0.35, 0.026), (-0.358, 0.022), (-0.36, -0.066), (-0.352, -0.07)], 0.05, "rubber", bevel=0.003)
+    # retractable stock, pushed in: only the butt plate shows (its rails are inside the receiver)
+    # the stock is pushed in: fully out, its two rails ran past the camera as bars across the screen
+    b.profile(off([(-0.332, 0.032), (-0.346, 0.028), (-0.352, -0.07), (-0.342, -0.08), (-0.33, -0.05)], 0.162), 0.054, P, bevel=0.005)
+    b.profile(off([(-0.35, 0.026), (-0.358, 0.022), (-0.36, -0.066), (-0.352, -0.07)], 0.162), 0.05, "rubber", bevel=0.003)
     m = Part("mag")
     m.profile([(0.08, -0.04), (0.082, -0.1), (0.09, -0.165), (0.102, -0.22), (0.07, -0.232), (0.056, -0.172), (0.048, -0.1), (0.046, -0.04)], 0.022, S, bevel=0.002)
     m.bar((0.066, -0.07), (0.084, -0.215), 0.006, 0.0245, S, bevel=0.0015)
