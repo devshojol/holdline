@@ -20,7 +20,7 @@ services:
         value: "8787"
       # Only pages on the live site may connect.
       - key: ALLOWED_ORIGINS
-        value: https://valorantaimlab.vercel.app,https://valorant-aim-lab-psi.vercel.app,https://valorant-aim-lab-shojolislam3231-3181s-projects.vercel.app
+        value: https://holdlinelab.vercel.app
       # Render's proxy hides each visitor's address; these headers carry it (the first one present is
       # used). Without them every player would count as one address and hit the per-address limit together.
       - key: CLIENT_IP_HEADER

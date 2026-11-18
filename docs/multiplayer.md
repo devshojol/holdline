@@ -7,7 +7,7 @@ Players can fight each other in Deathmatch, two ways:
 - **Quick match**: pick the maps you are happy to play, wait, and a match forms by itself or you join
   one already under way.
 
-It is live: the website at https://valorantaimlab.vercel.app talks to a game server at
+It is live: the website at https://holdlinelab.vercel.app talks to a game server at
 `wss://tactical-aim-lab-server.onrender.com`.
 
 This document has three parts: where things stand, how to run and deploy it, and then the design
@@ -125,7 +125,7 @@ A page on `localhost` is refused by the deployed server, so local development us
 send test bots at the deployed one:
 
 ```bash
-MP_SERVER=wss://tactical-aim-lab-server.onrender.com MP_ORIGIN=https://valorantaimlab.vercel.app npm run mp:bot -- quick 3 shoot
+MP_SERVER=wss://tactical-aim-lab-server.onrender.com MP_ORIGIN=https://holdlinelab.vercel.app npm run mp:bot -- quick 3 shoot
 ```
 
 ### The website
