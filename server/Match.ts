@@ -126,7 +126,7 @@ interface Score {
 
 /** The guns a bot may be given, most likely first; the room's weapon rule narrows the list. */
 const BOT_GUNS: WeaponId[] = ['vandal', 'phantom', 'vandal', 'phantom', 'spectre', 'guardian', 'sheriff', 'ghost', 'classic'];
-const BOT_NAMES = ['Viper', 'Rook', 'Kestrel', 'Onyx', 'Wraith', 'Ember', 'Nova', 'Talon', 'Jinx', 'Sable', 'Vex', 'Pyre'];
+const BOT_NAMES = ['Cobra', 'Rook', 'Falcon', 'Onyx', 'Wraith', 'Ember', 'Nova', 'Talon', 'Hex', 'Sable', 'Vex', 'Pyre'];
 
 interface Body {
   id: string;

@@ -7,3 +7,5 @@ e2e-shots
 .vercel
 *.tsbuildinfo
 .DS_Store
+tools/blender/out/*.png
+tools/blender/out/

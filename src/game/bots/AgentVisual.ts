@@ -1,5 +1,5 @@
 /**
- * Rigged agent model for bots (public/models/miks.glb), posed procedurally.
+ * Rigged agent model for bots (public/models/agents/*.glb, built by tools/blender/make_bots.py), posed procedurally.
  *
  * The model ships without animations, so each frame we start from the rest pose and:
  *  - drop the pelvis for crouching, and bob / sway it with the stride,

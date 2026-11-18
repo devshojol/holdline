@@ -15,6 +15,11 @@ that slot. An empty list keeps the synthesised one.
 | `reload` | any gun reloads (replaces the three mag-out / mag-in / bolt cues) | three mechanical clicks |
 | `reload-vandal`, `reload-phantom`, `reload-spectre`, `reload-guardian`, `reload-operator`, `reload-classic`, `reload-ghost`, `reload-sheriff` | that gun reloads (wins over `reload`) | as above |
 | `headshot` | your shot hits a head | bright ringing ping |
+| `hit` | your shot hits a body | short tick |
+| `hurt` | you are hit | low thud |
+| `bolt` | the sniper's bolt opens, and closes | click |
+| `equip` | a gun is drawn | rustle and click |
+| `dry` | the trigger is pulled on an empty gun | click |
 | `kill1` … `kill5` | your 1st … 5th kill in a row (the 5th repeats after that; dying resets the streak) | rising chime, one note per kill |
 | `vandal-kill1` … `sheriff-kill5` | the same, but only for kills with that gun (wins over `kill1` … `kill5`) | as above |
 
@@ -30,14 +35,45 @@ Example:
 }
 ```
 
+## Gunshots (CC0)
+
+All eight guns fire recordings of real weapons from the Freesound pack **"Real Gun Sounds" by areniporgen**
+(<https://freesound.org/people/areniporgen/packs/38798/>), made for film; every sound in it is CC0 (no rights
+reserved, any use, no credit needed). `tools/audio/make_gun_sounds.py` cuts one shot per gun and uses it as
+recorded: no pitch change, no added bass, no artificial reverb. The three recordings that hold their level for
+over a second are faded so they don't pile up in automatic fire. The files here were cut from the site's preview
+files (compressed); the original WAVs need a Freesound login.
+
+| Gun | Recording |
+| --- | --- |
+| Kestrel (`vandal`) | Colt M4A1 SOCOM, 5.56 |
+| Halcyon (`phantom`) | SIG Sauer P226, suppressed (second shot, low-passed) |
+| Hornet (`spectre`) | FN P90, the last round of a burst |
+| Arbiter (`guardian`) | Heckler & Koch USP45, .45 |
+| Monarch (`operator`) | MacMillan Tac-50, .50 BMG, suppressed |
+| Pilot (`classic`) | ASP pistol, 9 mm |
+| Whisper (`ghost`) | SIG Sauer P226, suppressed (third shot) |
+| Magnate (`sheriff`) | Colt 1911, .45 |
+
+## Footsteps, reloads, handling, hits and kills (CC0)
+
+Cut by `tools/audio/make_foley.py` from these CC0 uploads on opengameart.org (no credit required):
+
+| Sound | Recording | Page |
+| --- | --- | --- |
+| Landing | "Fantozzi's Footsteps (Grass/Sand & Stone)", a stone step dropped in pitch | `/content/fantozzis-footsteps-grasssand-stone` |
+| Footsteps, jump, drawing a gun, empty-chamber click, the metal ring in headshots and kills | "50 RPG sound effects" (Kenney) | `/content/50-rpg-sound-effects` |
+| Reload, long guns | "Gun reload sounds", the rifle magazine change | `/content/gun-reload-sounds` |
+| Reload, sidearms | "Handgun reload sound effect" | `/content/handgun-reload-sound-effect` |
+| Sniper bolt | "Equipment clicks II", a bolt-action rifle being cocked | `/content/equipment-clicks-ii` |
+| Bullet hitting a body, headshot, kill, being hit | "37 hits/punches" | `/content/37-hitspunches` |
+| The grunt when you are hit | "15 vocal male strain/hurt/pain/jump sounds" | `/content/15-vocal-male-strainhurtpainjump-sounds` |
+
+A kill is a heavy body impact with a low metal knock that climbs one step with each kill in a streak (`kill1` … `kill5`).
+Bullets hitting walls and passing close by have no recording and stay synthesised.
+
 ## Notes
 
-- The current Vandal, Phantom and Sheriff takes were cut from recordings supplied by the project owner
-  with `scripts/extract-gun-samples.py`. The owner also added `footstep.mp3`, `reload.wav` and `kill-1.mp3` …
-  `kill-5.mp3`. The jump, landing and headshot slots have no recording, so they stay synthesised.
-- The Classic, Ghost, Spectre, Guardian and Operator takes were cut from recordings supplied by the project owner
-  with `scripts/extract-gun-samples-2.py` (isolated shots with their natural tail; the Spectre takes are the last
-  shot of each burst).
 - WAV, MP3 or OGG all work. When a slot lists several files, one is picked at random each time (footsteps and shots
   also get a small pitch variation), so repeats don't sound looped.
 - Silence at the start and end of every file is trimmed when it loads, so sounds play on time. The engine adds

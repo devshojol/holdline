@@ -6,6 +6,7 @@ import { SprayPattern } from '../components/Charts';
 import { ALL_WEAPONS, WEAPONS } from '../game/weapons/weaponConfigs';
 import { RUN_SPEED } from '../game/player/PlayerController';
 import { WeaponIcon } from '../components/WeaponIcon';
+import { GunViewer } from '../components/GunViewer';
 
 /** 0..1 ratings for the comparison bars, relative to the strongest gun in each column. */
 function ratings(id: WeaponId) {
@@ -76,7 +77,20 @@ export function WeaponsPage() {
       </div>
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <Card title={`${w.name} profile`} right={equipped ? <Badge tone="ok">Equipped</Badge> : undefined}>
-          <div className="grid items-center gap-6 md:grid-cols-[1fr_260px]">
+          <div className="relative mb-5 border border-line bg-bg/50">
+            <GunViewer
+              key={sel}
+              id={sel}
+              className="block h-64 w-full"
+              fallback={
+                <div className="grid h-64 place-items-center p-6">
+                  <WeaponIcon id={sel} className="h-28 w-full" color={w.color} />
+                </div>
+              }
+            />
+            <div className="pointer-events-none absolute bottom-2 right-3 text-[10px] uppercase tracking-widest text-dim">Drag to turn</div>
+          </div>
+          <div>
             <div>
               <p className="text-sm text-mute">{w.description}</p>
               <div className="mt-4 space-y-2">
@@ -89,9 +103,6 @@ export function WeaponsPage() {
                   </div>
                 ))}
               </div>
-            </div>
-            <div className="grid place-items-center border border-line bg-bg/50 p-4">
-              <WeaponIcon id={sel} className="h-24 w-full" color={w.color} />
             </div>
           </div>
           <div className="mt-5 grid gap-x-8 gap-y-2 text-sm md:grid-cols-2">
@@ -138,7 +149,13 @@ export function WeaponsPage() {
               ))}
             </tbody>
           </table>
-          <div className="mt-6 flex flex-wrap gap-2">
+          {/* stays at the bottom of the screen while the profile scrolls */}
+          <div className="sticky bottom-0 z-10 -mx-5 -mb-5 mt-6 flex flex-wrap items-center gap-3 border-t border-line bg-panel/95 px-5 py-3 backdrop-blur">
+            <span className="font-display text-lg font-semibold uppercase tracking-wider" style={{ color: w.color }}>
+              {w.name}
+            </span>
+            <span className="text-xs uppercase tracking-widest text-dim">{w.category}</span>
+            <span className="flex-1" />
             {w.slot === 'primary' ? (
               <Button variant={practice.primary === sel ? 'outline' : 'primary'} onClick={() => store.updatePractice({ primary: sel })}>
                 {practice.primary === sel ? 'Primary weapon' : 'Set as primary'}

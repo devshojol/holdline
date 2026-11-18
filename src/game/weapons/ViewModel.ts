@@ -33,6 +33,8 @@ interface GunModel {
   muzzle: TransformNode;
   hip: [number, number, number];
   adsPos: [number, number, number];
+  /** How far below the screen centre the sight line sits when aiming (0 for an optic that is aimed through). */
+  adsDrop?: number;
   flashScale: number;
   skin?: PlacedSkin;
   /** Where the hands hold the gun (gun-root space). With arms, the support point is the handguard's underside centre. */
@@ -588,8 +590,11 @@ export class ViewModel {
 
     const front = placed.handguard ? placed.handguard.add(new Vector3(0, -0.03, 0)) : null;
     this.hands(root, front ? [front.x, front.y, front.z] : null, [grip.x, grip.y, grip.z]);
-    // Aim down sights: put the top of the gun just under the screen centre.
-    const adsY = -0.035 - placed.sightY;
+    // Aim down sights: put the top of the gun just under the screen centre. An optic that is aimed through
+    // (a red dot) goes on the screen centre instead, so its dot and the crosshair agree.
+    const through = !!skin.spec.aimThrough;
+    const adsDrop = through ? 0 : 0.035;
+    const adsY = -adsDrop - placed.sightY;
     return {
       root,
       mag,
@@ -597,7 +602,8 @@ export class ViewModel {
       magHidden,
       muzzle,
       hip: pistol ? [0.15, -0.165, 0.48] : [0.17, -0.19, 0.6],
-      adsPos: [0, adsY, pistol ? 0.34 : 0.4],
+      adsPos: [through ? -grip.x : 0, adsY, pistol ? 0.34 : 0.4],
+      adsDrop,
       flashScale: WEAPONS[id].suppressed ? 0.45 : pistol ? 0.9 : 1,
       skin: placed,
       cylinder,
@@ -695,7 +701,7 @@ export class ViewModel {
           reload: ws.reloading ? reload : -1,
           ads,
           adsZ: gun.adsPos[2],
-          sightY: -0.035 - gun.adsPos[1],
+          sightY: -(gun.adsDrop ?? 0.035) - gun.adsPos[1],
           offsetPos: new Vector3(
             (this.swayX * 0.012 + bobX * 0.6) * hipFactor,
             (this.swayY * 0.012 - bobY * 0.6) * hipFactor + this.kick * 0.002,
@@ -717,7 +723,7 @@ export class ViewModel {
           reloadEmpty: this.reloadEmpty,
           ads,
           adsPos: new Vector3(gun.adsPos[0], gun.adsPos[1], gun.adsPos[2]),
-          sightY: -0.035 - gun.adsPos[1],
+          sightY: -(gun.adsDrop ?? 0.035) - gun.adsPos[1],
           offsetPos: new Vector3(
             (this.swayX * 0.012 + bobX * 0.6) * hipFactor - boltCant * 0.02,
             (this.swayY * 0.012 - bobY * 0.6) * hipFactor + this.kick * 0.003,

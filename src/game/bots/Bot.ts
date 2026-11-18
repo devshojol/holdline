@@ -62,7 +62,7 @@ function angleDiff(a: number, b: number) {
   return d;
 }
 
-const NAMES = ['Viper', 'Rook', 'Kestrel', 'Onyx', 'Wraith', 'Ember', 'Nova', 'Talon', 'Jinx', 'Sable', 'Vex', 'Pyre'];
+const NAMES = ['Cobra', 'Rook', 'Falcon', 'Onyx', 'Wraith', 'Ember', 'Nova', 'Talon', 'Hex', 'Sable', 'Vex', 'Pyre'];
 
 export class Bot {
   static nextId = 1;

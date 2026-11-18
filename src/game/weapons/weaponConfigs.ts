@@ -155,7 +155,7 @@ const OPERATOR_PATTERN: Vec2[] = [
 export const WEAPONS: Record<WeaponId, WeaponConfig> = {
   vandal: {
     id: 'vandal',
-    name: 'Vandal',
+    name: 'Kestrel',
     slot: 'primary',
     category: 'Rifle',
     description: 'One-tap headshot at any range. Hard vertical climb from bullet 4, then a left-right sway.',
@@ -194,7 +194,7 @@ export const WEAPONS: Record<WeaponId, WeaponConfig> = {
   },
   phantom: {
     id: 'phantom',
-    name: 'Phantom',
+    name: 'Halcyon',
     slot: 'primary',
     category: 'Rifle',
     description: 'Suppressed, faster fire and tighter early spray. Damage falls off past 15 m and 30 m.',
@@ -238,7 +238,7 @@ export const WEAPONS: Record<WeaponId, WeaponConfig> = {
   },
   spectre: {
     id: 'spectre',
-    name: 'Spectre',
+    name: 'Hornet',
     slot: 'primary',
     category: 'SMG',
     description: 'Suppressed SMG. Very fast fire, a gentle climb and accurate on the move, but weak past 15 m.',
@@ -282,10 +282,10 @@ export const WEAPONS: Record<WeaponId, WeaponConfig> = {
   },
   guardian: {
     id: 'guardian',
-    name: 'Guardian',
+    name: 'Arbiter',
     slot: 'primary',
     category: 'Rifle',
-    description: 'Semi-automatic marksman rifle. One-tap headshot at any range and two to the body; every shot kicks.',
+    description: 'Semi-automatic marksman rifle with a 2× scope. One-tap headshot at any range and two to the body; every shot kicks.',
     fireRate: 5.25,
     auto: false,
     magazine: 12,
@@ -313,7 +313,8 @@ export const WEAPONS: Record<WeaponId, WeaponConfig> = {
       adsMult: 0.85,
     },
     altFire: 'ads',
-    ads: { zoom: 1.5, moveSpeedMult: 0.76, fireRateMult: 0.9, transitionTime: 0.18 },
+    // aimed through its telescopic sight: the scope picture at 2×
+    ads: { zoom: 2, moveSpeedMult: 0.76, fireRateMult: 0.9, transitionTime: 0.18, optic: 'scope' },
     runSpeedMult: 1,
     tracer: true,
     sound: 'rifle-dmr',
@@ -321,7 +322,7 @@ export const WEAPONS: Record<WeaponId, WeaponConfig> = {
   },
   operator: {
     id: 'operator',
-    name: 'Operator',
+    name: 'Monarch',
     slot: 'primary',
     category: 'Sniper',
     description:
@@ -363,7 +364,7 @@ export const WEAPONS: Record<WeaponId, WeaponConfig> = {
   },
   sheriff: {
     id: 'sheriff',
-    name: 'Sheriff',
+    name: 'Magnate',
     slot: 'secondary',
     category: 'Sidearm',
     description: 'Heavy revolver. One-tap head to 30 m, strong per-shot kick.',
@@ -405,7 +406,7 @@ export const WEAPONS: Record<WeaponId, WeaponConfig> = {
   },
   ghost: {
     id: 'ghost',
-    name: 'Ghost',
+    name: 'Whisper',
     slot: 'secondary',
     category: 'Sidearm',
     description: 'Suppressed pistol. One-tap headshot to 30 m, a large magazine and quick follow-up taps.',
@@ -448,7 +449,7 @@ export const WEAPONS: Record<WeaponId, WeaponConfig> = {
   },
   classic: {
     id: 'classic',
-    name: 'Classic',
+    name: 'Pilot',
     slot: 'secondary',
     category: 'Sidearm',
     description: 'Free sidearm. Accurate left-click taps; right-click fires a 3-round burst.',

@@ -14,6 +14,7 @@ import type { Skeleton } from '@babylonjs/core/Bones/skeleton';
 import type { WeaponId } from '../../types';
 import { TransformNode, Vector3, type AbstractMesh, type Scene } from '../rendering/babylon';
 import { loadContainer } from '../rendering/gltf';
+import { applyGunReflections } from '../rendering/gunEnvironment';
 
 /** A [y, z] point on the model (model units, barrel along +Z). */
 type YZ = [number, number];
@@ -31,6 +32,8 @@ export interface SkinSpec {
   muzzle: YZ;
   /** Height of the top of the gun along the sight line (aim-down-sights alignment). */
   sightY: number;
+  /** The sight is an optic you look through: `sightY` is its axis, which aiming puts on the screen centre. */
+  aimThrough?: boolean;
   /** Node holding the detachable magazine (drops out on reload). */
   magNode?: string;
   /** Bolt node (bolt action) and a point on the axis it turns about and slides along. */
@@ -42,95 +45,112 @@ export interface SkinSpec {
   chambers?: number;
 }
 
+// Our own guns, modelled from code in Blender (tools/blender/make_weapons.py): barrel along +Z, in metres.
+// Written by tools/blender/apply_specs.py from tools/blender/out/specs.json.
 const SKIN_SPECS: Partial<Record<WeaponId, SkinSpec>> = {
+  // Kestrel
   vandal: {
     file: 'models/weapons/vandal.glb',
-    yaw: Math.PI / 2,
-    length: 1.318,
-    grip: [-0.02, -0.24],
-    handguard: [0.055, 0.32],
-    muzzle: [0.105, 0.66],
-    sightY: 0.16,
-    magNode: 'Gaia-Vandal-Orange-Main-Mag_0',
+    yaw: 0,
+    length: 0.9104,
+    grip: [-0.1, -0.082],
+    handguard: [-0.03, 0.26],
+    muzzle: [0.0, 0.556],
+    sightY: 0.068,
+    magNode: 'mag',
   },
-  // prepared with scripts/prepare-weapon-skin.mjs like the six below
+  // Halcyon
   phantom: {
     file: 'models/weapons/phantom.glb',
     yaw: 0,
-    length: 0.95,
-    grip: [-0.036, -0.2],
-    handguard: [0.02, 0.14],
-    muzzle: [0.056, 0.475],
-    sightY: 0.105,
+    length: 0.9274,
+    grip: [-0.1, -0.076],
+    handguard: [-0.03, 0.27],
+    muzzle: [0.0, 0.582],
+    sightY: 0.067,
+    magNode: 'mag',
+    aimThrough: true,
   },
-  // The six below were prepared with scripts/prepare-weapon-skin.mjs: barrel along +Z, centred,
-  // in metres, so `yaw` is 0 and the points are read straight off a side view.
-  sheriff: {
-    file: 'models/weapons/sheriff.glb',
-    yaw: 0,
-    length: 0.34,
-    grip: [-0.03, -0.125],
-    handguard: null,
-    muzzle: [0.05, 0.17],
-    sightY: 0.085,
-  },
+  // Hornet
   spectre: {
     file: 'models/weapons/spectre.glb',
     yaw: 0,
-    length: 0.66,
+    length: 0.6854,
     viewLength: 0.68,
-    grip: [-0.028, -0.16],
-    handguard: [0.035, 0.12],
-    muzzle: [0.077, 0.33],
-    sightY: 0.1,
+    grip: [-0.104, -0.094],
+    handguard: [-0.038, 0.19],
+    muzzle: [0.0, 0.3255],
+    sightY: 0.059,
+    magNode: 'mag',
   },
+  // Arbiter
   guardian: {
     file: 'models/weapons/guardian.glb',
     yaw: 0,
-    length: 1.15,
+    length: 1.1124,
     viewLength: 1.1,
-    grip: [-0.03, -0.28],
-    handguard: [0.03, 0.12],
-    muzzle: [0.088, 0.565],
-    sightY: 0.115,
+    grip: [-0.106, -0.088],
+    handguard: [-0.028, 0.3],
+    muzzle: [0.0, 0.712],
+    sightY: 0.091,
+    magNode: 'mag',
   },
+  // Monarch
   operator: {
     file: 'models/weapons/operator.glb',
     yaw: 0,
-    length: 1.25,
-    // close to life size: it is the longest gun in the game and should look it next to the rifles
+    length: 1.3024,
     viewLength: 1.2,
-    // middle of the pistol grip (its top is at y −0.02, its heel at −0.105)
-    grip: [-0.06, -0.315],
-    // the fore-end just ahead of the magazine
-    handguard: [0.02, 0.03],
-    muzzle: [0.06, 0.62],
-    sightY: 0.125,
+    grip: [-0.112, -0.09],
+    handguard: [-0.056, 0.3],
+    muzzle: [0.0, 0.8005],
+    sightY: 0.089,
     magNode: 'mag',
     boltNode: 'bolt',
-    boltAxis: [0.057, -0.193],
+    boltAxis: [0.0, -0.215],
   },
-  ghost: {
-    file: 'models/weapons/ghost.glb',
-    yaw: 0,
-    length: 0.4,
-    viewLength: 0.55,
-    grip: [-0.025, -0.162],
-    handguard: null,
-    muzzle: [0.051, 0.2],
-    sightY: 0.066,
-  },
+  // Pilot
   classic: {
     file: 'models/weapons/classic.glb',
     yaw: 0,
-    length: 0.21,
+    length: 0.2087,
     viewLength: 0.31,
-    grip: [-0.025, -0.07],
+    grip: [-0.078, -0.072],
     handguard: null,
-    muzzle: [0.05, 0.105],
-    sightY: 0.07,
+    muzzle: [0.0, 0.1046],
+    sightY: 0.0275,
+    magNode: 'mag',
+  },
+  // Whisper
+  ghost: {
+    file: 'models/weapons/ghost.glb',
+    yaw: 0,
+    length: 0.4133,
+    viewLength: 0.55,
+    grip: [-0.078, -0.072],
+    handguard: null,
+    muzzle: [0.0, 0.3076],
+    sightY: 0.034,
+    magNode: 'mag',
+  },
+  // Magnate
+  sheriff: {
+    file: 'models/weapons/sheriff.glb',
+    yaw: 0,
+    length: 0.2689,
+    grip: [-0.09, -0.076],
+    handguard: null,
+    muzzle: [0.0, 0.1667],
+    sightY: 0.027,
+    cylinderNode: 'cylinder',
+    chambers: 6,
   },
 };
+
+/** The model file of a gun, relative to the site root (null: it has none). */
+export function weaponSkinFile(id: WeaponId): string | null {
+  return SKIN_SPECS[id]?.file ?? null;
+}
 
 /** One placed copy of a skin. Points are in the parent's space. */
 export interface PlacedSkin {
@@ -200,7 +220,9 @@ export async function loadWeaponSkins(scene: Scene, ids: WeaponId[]): Promise<Ma
       const spec = SKIN_SPECS[id];
       if (!spec) return;
       try {
-        out.set(id, new WeaponSkin(id, spec, await loadContainer(scene, spec.file)));
+        const container = await loadContainer(scene, spec.file);
+        applyGunReflections(scene, container); // metal needs something to reflect, or it reads as plastic
+        out.set(id, new WeaponSkin(id, spec, container));
       } catch (err) {
         console.warn(`[weapons] ${id} skin unavailable — using the simple model`, err);
       }

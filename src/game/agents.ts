@@ -22,20 +22,21 @@ export interface AgentDef {
 }
 
 export const AGENTS = [
-  { id: 'brimstone', name: 'Brimstone', model: 'models/agents/brimstone.glb', accent: '#f08a3c', body: '#4a4438', gear: '#24211b' },
-  { id: 'cypher', name: 'Cypher', model: 'models/agents/cypher.glb', accent: '#e9e4d4', body: '#5a5a5e', gear: '#1f1f22' },
-  { id: 'iso', name: 'Iso', model: 'models/agents/iso.glb', accent: '#9a6bff', body: '#2c2a3a', gear: '#15141c' },
-  { id: 'miks', name: 'Miks', model: 'models/miks.glb', accent: '#4fd1c5', body: '#3b4150', gear: '#1d2028' },
-  { id: 'neon', name: 'Neon', model: 'models/agents/neon.glb', accent: '#3db8ff', body: '#1f2a4a', gear: '#11172a' },
-  { id: 'omen', name: 'Omen', model: 'models/agents/omen.glb', accent: '#5a7cff', body: '#1c1d2a', gear: '#0e0e15' },
-  { id: 'phoenix', name: 'Phoenix', model: 'models/agents/phoenix.glb', accent: '#ff6a2c', body: '#3a2d2c', gear: '#1d1717' },
-  { id: 'sage', name: 'Sage', model: 'models/agents/sage.glb', accent: '#3fe0c0', body: '#d9e3ea', gear: '#6d7f8c' },
-  { id: 'skye', name: 'Skye', model: 'models/agents/skye.glb', accent: '#9be05a', body: '#4b5638', gear: '#2b3122' },
+  { id: 'ranger', name: 'Ranger', model: 'models/agents/ranger.glb', accent: '#9aa86a', body: '#4c5334', gear: '#6f6040' },
+  { id: 'shade', name: 'Shade', model: 'models/agents/shade.glb', accent: '#c8463c', body: '#2a2b2f', gear: '#1a1b1e' },
+  { id: 'dune', name: 'Dune', model: 'models/agents/dune.glb', accent: '#d9b77a', body: '#a08c66', gear: '#7d6a48' },
+  { id: 'slate', name: 'Slate', model: 'models/agents/slate.glb', accent: '#e0a52e', body: '#5a6068', gear: '#26282c' },
+  { id: 'tide', name: 'Tide', model: 'models/agents/tide.glb', accent: '#6f9bd6', body: '#26344e', gear: '#4b4e52' },
+  { id: 'frost', name: 'Frost', model: 'models/agents/frost.glb', accent: '#cfd6dc', body: '#aeb3b8', gear: '#6c7176' },
+  { id: 'ember', name: 'Ember', model: 'models/agents/ember.glb', accent: '#e2674a', body: '#2a2b2f', gear: '#1a1b1e' },
+  { id: 'grove', name: 'Grove', model: 'models/agents/grove.glb', accent: '#6fbf73', body: '#4c5334', gear: '#6f6040' },
+  { id: 'flint', name: 'Flint', model: 'models/agents/flint.glb', accent: '#b9c2cc', body: '#5a6068', gear: '#26282c' },
+  { id: 'moss', name: 'Moss', model: 'models/agents/moss.glb', accent: '#c9b26a', body: '#a08c66', gear: '#7d6a48' },
 ] as const satisfies readonly AgentDef[];
 
 export type AgentId = (typeof AGENTS)[number]['id'];
 
-export const DEFAULT_AGENT: AgentId = 'phoenix';
+export const DEFAULT_AGENT: AgentId = 'ranger';
 
 export function isAgentId(id: unknown): id is AgentId {
   return typeof id === 'string' && AGENTS.some((a) => a.id === id);
@@ -45,7 +46,7 @@ export function getAgent(id: string | null | undefined): AgentDef {
   return AGENTS.find((a) => a.id === id) ?? AGENTS.find((a) => a.id === DEFAULT_AGENT)!;
 }
 
-/** The agent's profile picture: a render of their model (scripts/agent-portraits.mjs), relative to the site root. */
+/** The agent's profile picture: a render of their model (tools/blender/make_bots.py), relative to the site root. */
 export function agentPortrait(agent: AgentDef): string {
   return `models/agents/portraits/${agent.id}.webp`;
 }

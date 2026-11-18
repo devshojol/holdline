@@ -21,7 +21,7 @@ function newMatch(rng: () => number, settings: Partial<RoomSettings> = {}) {
 }
 
 function info(name: string, extra: Partial<PlayerInfo> = {}): PlayerInfo {
-  return { name, team: null, loadout: { primary: 'vandal', secondary: 'classic' }, ping: 20, agent: 'phoenix', ...extra };
+  return { name, team: null, loadout: { primary: 'vandal', secondary: 'classic' }, ping: 20, agent: 'ranger', ...extra };
 }
 
 function seeded(seed: number) {

@@ -263,11 +263,11 @@ describe('lobby', () => {
 
   it('shows each player’s agent and ignores ones that do not exist', () => {
     const { host, guest } = roomOfTwo();
-    expect(host.room.players[1].agent).toBe('phoenix');
-    guest.say({ t: 'agent', agent: 'sage' });
-    expect(host.room.players[1].agent).toBe('sage');
+    expect(host.room.players[1].agent).toBe('ranger');
+    guest.say({ t: 'agent', agent: 'slate' });
+    expect(host.room.players[1].agent).toBe('slate');
     guest.say({ t: 'agent', agent: 'nobody' } as never);
-    expect(host.room.players[1].agent).toBe('sage');
+    expect(host.room.players[1].agent).toBe('slate');
   });
 
   it('keeps a dropped player’s place and gives it back on reconnect', () => {

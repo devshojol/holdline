@@ -75,7 +75,19 @@ export interface WeaponConfig {
    * `scope`: a sniper scope. Right click cycles not scoped → `zoom` → `zoom2` → not scoped (instead of
    * hold-to-aim); scoped shows the scope overlay, hides the gun and uses the scoped sensitivity multiplier.
    */
-  ads: { zoom: number; moveSpeedMult: number; fireRateMult: number; transitionTime: number; scope?: boolean; zoom2?: number };
+  ads: {
+    zoom: number;
+    moveSpeedMult: number;
+    fireRateMult: number;
+    transitionTime: number;
+    scope?: boolean;
+    zoom2?: number;
+    /**
+     * `optic: 'scope'`: a hold-to-aim gun with a telescopic sight. Aiming looks through it: the scope picture
+     * replaces the gun at `zoom`. Unlike `scope` it keeps the hip crosshair, hold-to-aim and the normal aim sensitivity.
+     */
+    optic?: 'scope';
+  };
   /**
    * Bolt action: the bolt is worked after every shot. The scope drops while it is and comes back by itself
    * at the same zoom, and the last round of a magazine goes straight into the reload.

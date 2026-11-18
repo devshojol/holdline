@@ -1,77 +1,70 @@
 {
   "vandal": [
-    "vandal-1.wav",
-    "vandal-2.wav",
-    "vandal-3.wav",
-    "vandal-4.wav"
+    "vandal-1.wav"
   ],
   "phantom": [
-    "phantom-1.wav",
-    "phantom-2.wav",
-    "phantom-3.wav"
+    "phantom-1.wav"
   ],
   "classic": [
-    "classic-1.wav",
-    "classic-2.wav",
-    "classic-3.wav"
+    "classic-1.wav"
   ],
   "sheriff": [
-    "sheriff-1.wav",
-    "sheriff-2.wav",
-    "sheriff-3.wav",
-    "sheriff-4.wav"
+    "sheriff-1.wav"
   ],
   "spectre": [
-    "spectre-1.wav",
-    "spectre-2.wav",
-    "spectre-3.wav",
-    "spectre-4.wav"
+    "spectre-1.wav"
   ],
   "guardian": [
-    "guardian-1.wav",
-    "guardian-2.wav",
-    "guardian-3.wav"
+    "guardian-1.wav"
   ],
   "operator": [
-    "operator-1.wav",
-    "operator-2.wav",
-    "operator-3.wav"
+    "operator-1.wav"
   ],
   "ghost": [
-    "ghost-1.wav",
-    "ghost-2.wav",
-    "ghost-3.wav",
-    "ghost-4.wav"
+    "ghost-1.wav"
   ],
   "footstep": [
-    "footstep.mp3"
+    "step-1.wav",
+    "step-2.wav",
+    "step-3.wav",
+    "step-4.wav",
+    "step-5.wav",
+    "step-6.wav"
   ],
   "reload": [
-    "reload.wav"
+    "reload-rifle.wav"
   ],
   "reload-vandal": [],
   "reload-phantom": [],
-  "reload-classic": [],
-  "reload-sheriff": [],
+  "reload-classic": [
+    "reload-pistol.wav"
+  ],
+  "reload-sheriff": [
+    "reload-pistol.wav"
+  ],
   "reload-spectre": [],
   "reload-guardian": [],
   "reload-operator": [],
-  "reload-ghost": [],
-  "headshot": [],
+  "reload-ghost": [
+    "reload-pistol.wav"
+  ],
+  "headshot": [
+    "headshot-1.wav"
+  ],
   "kill1": [
-    "kill-1.mp3"
+    "kill-1.wav"
   ],
   "kill2": [
-    "kill-2.mp3"
+    "kill-2.wav"
   ],
   "kill3": [
-    "kill-3.mp3"
+    "kill-3.wav"
   ],
   "kill4": [
-    "kill-4.mp3"
+    "kill-4.wav"
   ],
   "kill5": [
-    "kill-5.mp3"
+    "kill-5.wav"
   ],
   "vandal-kill1": [],
   "vandal-kill2": [],
@@ -92,5 +85,31 @@
   "sheriff-kill2": [],
   "sheriff-kill3": [],
   "sheriff-kill4": [],
-  "sheriff-kill5": []
+  "sheriff-kill5": [],
+  "jump": [
+    "jump-1.wav"
+  ],
+  "land": [
+    "land-1.wav"
+  ],
+  "bolt": [
+    "bolt-1.wav",
+    "bolt-2.wav"
+  ],
+  "equip": [
+    "equip-1.wav"
+  ],
+  "dry": [
+    "dry-1.wav"
+  ],
+  "hit": [
+    "hit-1.wav",
+    "hit-2.wav",
+    "hit-3.wav"
+  ],
+  "hurt": [
+    "hurt-1.wav",
+    "hurt-2.wav",
+    "hurt-3.wav"
+  ]
 }

@@ -31,6 +31,12 @@ const EXTRA_KEYS: Record<string, string> = {
   land: 'land',
   reload: 'reload',
   headshot: 'headshot',
+  // handling and impacts
+  bolt: 'bolt',
+  equip: 'equip',
+  dry: 'dry',
+  hit: 'hit',
+  hurt: 'hurt',
   ...Object.fromEntries([1, 2, 3, 4, 5].map((n) => [`kill${n}`, `kill${n}`])),
   ...Object.fromEntries(
     ['vandal', 'phantom', 'spectre', 'guardian', 'operator', 'sheriff', 'ghost', 'classic'].flatMap((w) => [
@@ -96,7 +102,7 @@ export function weighStep(x: Float32Array, sr: number, surface: StepSurface): Fl
   for (let i = 0; i < x.length; i++) {
     y += top * (x[i] * norm - y);
     low += lowA * (y - low);
-    out[i] = y * 0.75 + low * 1.5; // low-end body, taken from the step itself
+    out[i] = y * 0.9 + low * 0.6; // a little low-end body from the step itself (more than this turns steps into thuds)
   }
   const add = (f0: number, f1: number, decay: number, gain: number, len: number) => {
     let ph = 0;

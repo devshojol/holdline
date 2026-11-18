@@ -552,10 +552,12 @@ export class GameEngine {
         this.audio.play(stepSound(this.surfaceUnder(bot.x, bot.y, bot.z)), {
           pos: [bot.x, bot.y + 0.1, bot.z],
           bus: 'foot',
-          volume: 1,
+          // clearly quieter than your own steps and fading sooner: several enemies running at once were a
+          // constant thudding that buried everything else
+          volume: 0.55,
           occluded,
           rate: voice * (0.97 + Math.random() * 0.06),
-          refDistance: 5,
+          refDistance: 3.5,
           dry: true,
           group: `step-bot-${bot.id}`,
         });
@@ -1339,10 +1341,10 @@ export class GameEngine {
           this.audio.play(stepSound(this.surfaceUnder(s.x, s.y, s.z)), {
             pos: [s.x, s.y + 0.1, s.z],
             bus: 'foot',
-            volume: 1,
+            volume: 0.55,
             occluded: !this.map.world.segmentClear(s.x, s.y + 1.5, s.z, eye[0], eye[1], eye[2]),
             rate: r.voice * (0.97 + Math.random() * 0.06),
-            refDistance: 5,
+            refDistance: 3.5,
             dry: true,
             group: `step-remote-${r.voice}`,
           });
@@ -1374,9 +1376,10 @@ export class GameEngine {
     }
   }
 
-  /** True while a sniper scope is fully raised. */
+  /** True while a scope is fully raised: the sniper's, or a telescopic sight being aimed through. */
   private get scoped() {
-    return !!this.weapons.weapon.ads.scope && this.weapons.ads > 0.85 && this.player.alive;
+    const ads = this.weapons.weapon.ads;
+    return (!!ads.scope || ads.optic === 'scope') && this.weapons.ads > 0.85 && this.player.alive;
   }
 
   /** Sniper scope: black surround, a round lens and thin cross lines. */
@@ -1835,7 +1838,12 @@ export class GameEngine {
       reloading: this.weapons.reloading,
       reloadProgress: Math.round(this.weapons.reloadProgress * 20) / 20,
       ads: this.weapons.isAds,
-      scopeZoom: this.weapons.weapon.ads.scope && this.weapons.isAds ? (this.weapons.scopeLevel === 2 ? (this.weapons.weapon.ads.zoom2 ?? 0) : this.weapons.weapon.ads.zoom) : 0,
+      scopeZoom:
+        this.weapons.isAds && (this.weapons.weapon.ads.scope || this.weapons.weapon.ads.optic === 'scope')
+          ? this.weapons.scopeLevel === 2
+            ? (this.weapons.weapon.ads.zoom2 ?? 0)
+            : this.weapons.weapon.ads.zoom
+          : 0,
       kills: st.kills,
       deaths: st.deaths,
       score: this.tracker.computeScore(),
