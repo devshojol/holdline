@@ -22,6 +22,22 @@
         "server"
       ],
       "port": 8787
+    },
+    {
+      "name": "crazygames",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "--mode",
+        "crazygames",
+        "--outDir",
+        "dist-crazygames",
+        "--port",
+        "5181",
+        "--strictPort"
+      ],
+      "port": 5181
     }
   ]
 }

@@ -16,6 +16,7 @@ import { multiplayer, useMultiplayer } from '../multiplayer/client';
 import { Scoreboard } from '../components/Scoreboard';
 import { MapPreview } from '../components/MapPreview';
 import { TIPS } from '../utils/tips';
+import { crazyGames } from '../platform/crazygames';
 
 declare global {
   interface Window {
@@ -156,6 +157,21 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
     // remembered as the default loadout for the next session
     store.updatePractice(slot === 0 ? { primary: id } : { secondary: id });
   };
+  // Tell CrazyGames when the game is loading and when the player is actually playing (no-ops elsewhere).
+  useEffect(() => {
+    if (status === 'loading') crazyGames.loadingStart();
+    else crazyGames.loadingStop();
+    if (status === 'running') crazyGames.gameplayStart();
+    else crazyGames.gameplayStop();
+  }, [status]);
+  useEffect(
+    () => () => {
+      crazyGames.loadingStop();
+      crazyGames.gameplayStop();
+    },
+    [],
+  );
+
   const inLoadout = status === 'paused' && pause?.reason === 'loadout' && !report;
 
   // B closes the weapon menu again (the key press is a user gesture, so the mouse can be re-captured)

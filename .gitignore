@@ -9,3 +9,5 @@ e2e-shots
 .DS_Store
 tools/blender/out/*.png
 tools/blender/out/
+dist-crazygames
+holdline-crazygames.zip

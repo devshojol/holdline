@@ -4,7 +4,8 @@
  *   npm run server                 start on port 8787
  *   PORT=9000 npm run server       another port
  *   ALLOWED_ORIGINS=https://example.com,https://www.example.com npm run server
- *                                  only accept browsers on these sites (anything is accepted when unset)
+ *                                  only accept browsers on these sites (anything is accepted when unset);
+ *                                  an entry *.example.com also allows every subdomain of example.com
  *   CLIENT_IP_HEADER=cf-connecting-ip,x-forwarded-for npm run server
  *                                  behind a proxy: the request headers that carry the visitor's address,
  *                                  most trusted first
@@ -66,10 +67,25 @@ const http = createServer((req, res) => {
   );
 });
 
+/** May a page on `origin` connect? An entry `*.example.com` allows example.com and every subdomain, over https. */
+function originAllowed(origin?: string): boolean {
+  if (ALLOWED_ORIGINS.length === 0) return true;
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  let url: URL;
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'https:') return false;
+  return ALLOWED_ORIGINS.some((entry) => entry.startsWith('*.') && (url.hostname === entry.slice(2) || url.hostname.endsWith(entry.slice(1))));
+}
+
 const wss = new WebSocketServer({
   server: http,
   maxPayload: MAX_MESSAGE_SIZE * 4, // bytes; a character is at most 4
-  verifyClient: ({ origin }: { origin?: string }) => ALLOWED_ORIGINS.length === 0 || (!!origin && ALLOWED_ORIGINS.includes(origin)),
+  verifyClient: ({ origin }: { origin?: string }) => originAllowed(origin),
 });
 
 wss.on('connection', (ws: WebSocket & { alive?: boolean }, req) => {

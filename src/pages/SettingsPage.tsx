@@ -165,12 +165,15 @@ export function SettingsPage() {
               ]}
             />
           </Field>
-          <Toggle
-            label="Fullscreen on start"
-            hint="Uses Keyboard Lock so Ctrl (crouch) + W can't close the tab. When off, crouch with C instead of Ctrl."
-            checked={g.fullscreen}
-            onChange={(v) => setG({ fullscreen: v, preset: g.preset })}
-          />
+          {/* on CrazyGames the site's own fullscreen button is the only one allowed */}
+          {!__CRAZYGAMES__ && (
+            <Toggle
+              label="Fullscreen on start"
+              hint="Uses Keyboard Lock so Ctrl (crouch) + W can't close the tab. When off, crouch with C instead of Ctrl."
+              checked={g.fullscreen}
+              onChange={(v) => setG({ fullscreen: v, preset: g.preset })}
+            />
+          )}
           {__LOCAL_MODELS__ && (
             <Field label="Gun models">
               <Segmented

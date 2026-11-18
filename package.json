@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit && tsc -p server",
     "test": "vitest run",
     "build:single": "node scripts/build-single.mjs",
+    "build:crazygames": "tsc --noEmit && vite build --mode crazygames && cd dist-crazygames && rm -f ../holdline-crazygames.zip && zip -qr ../holdline-crazygames.zip .",
     "test:e2e": "node scripts/e2e.mjs"
   },
   "dependencies": {

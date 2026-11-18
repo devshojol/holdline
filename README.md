@@ -244,6 +244,21 @@ Deathmatch against other people, up to 10 in a match. Full detail, including how
 - **New weapon**: add its id to `WeaponId` in `src/types`, a config with stats and a recoil pattern in `weaponConfigs.ts`, and optionally a skin entry in `WeaponSkins.ts` and sound slots in the manifest.
 - **New sound**: drop the file in `public/sounds/` and list it under its slot in `manifest.json`.
 
+### 3.16 The CrazyGames build
+
+`npm run build:crazygames` makes the build for crazygames.com in `dist-crazygames/` and zips it as
+`holdline-crazygames.zip` (about 17 MB zipped, 36 MB and under 300 files unpacked; their limits are 50 MB and
+1,500 files). It differs from the site's build in four ways, all switched by `__CRAZYGAMES__` (see `vite.config.ts`):
+
+- every file is referenced by a relative path, as their site requires;
+- their SDK is loaded, and `src/platform/crazygames.ts` tells it when the game is loading and when a round is
+  being played;
+- the game's own fullscreen is off and its setting hidden (their site has the only fullscreen button allowed);
+- the multiplayer server's address comes from `.env.crazygames`.
+
+The game server accepts pages on `*.crazygames.com` (`render.yaml`). `npx vite preview --mode crazygames
+--outDir dist-crazygames` serves the build locally, where the SDK runs in its "local" mode.
+
 ## 4. Known issues and limits
 
 - The animation packs have no ADS or walking animations: ADS moves the whole rig. Rifle reloads were authored for an M4, so on skins without a separate magazine the left hand mimes the change. There is no pistol arms pack: the rifle arms hold the sidearms.

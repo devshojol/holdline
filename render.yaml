@@ -20,7 +20,8 @@ services:
         value: "8787"
       # Only pages on the live site may connect.
       - key: ALLOWED_ORIGINS
-        value: https://holdlinelab.vercel.app
+        # our own site, and CrazyGames (the game runs there on their subdomains)
+        value: https://holdlinelab.vercel.app,*.crazygames.com
       # Render's proxy hides each visitor's address; these headers carry it (the first one present is
       # used). Without them every player would count as one address and hit the per-address limit together.
       - key: CLIENT_IP_HEADER

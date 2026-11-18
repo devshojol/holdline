@@ -14,6 +14,8 @@ type KeyboardLock = { lock?: (keys?: string[]) => Promise<void>; unlock?: () => 
 
 /** Request fullscreen if the current gesture still allows it. Never throws; resolves true on success. */
 export function enterGameFullscreen(): Promise<boolean> {
+  // CrazyGames forbids a game's own fullscreen: their site has the button
+  if (__CRAZYGAMES__) return Promise.resolve(false);
   const root = document.documentElement;
   if (document.fullscreenElement) return Promise.resolve(true);
   if (!root.requestFullscreen) return Promise.resolve(false);

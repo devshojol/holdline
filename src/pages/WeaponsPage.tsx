@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import type { WeaponId } from '../types';
 import { store, useAppStore } from '../hooks/useAppStore';
 import { Badge, Button, Card, PageHeader, Slider, cx } from '../components/ui';
@@ -6,7 +6,8 @@ import { SprayPattern } from '../components/Charts';
 import { ALL_WEAPONS, WEAPONS } from '../game/weapons/weaponConfigs';
 import { RUN_SPEED } from '../game/player/PlayerController';
 import { WeaponIcon } from '../components/WeaponIcon';
-import { GunViewer } from '../components/GunViewer';
+// loaded on demand: it brings the 3D engine with it, which the menus must not download up front
+const GunViewer = lazy(() => import('../components/GunViewer').then((m) => ({ default: m.GunViewer })));
 
 /** 0..1 ratings for the comparison bars, relative to the strongest gun in each column. */
 function ratings(id: WeaponId) {
@@ -78,16 +79,18 @@ export function WeaponsPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <Card title={`${w.name} profile`} right={equipped ? <Badge tone="ok">Equipped</Badge> : undefined}>
           <div className="relative mb-5 border border-line bg-bg/50">
-            <GunViewer
-              key={sel}
-              id={sel}
-              className="block h-64 w-full"
-              fallback={
-                <div className="grid h-64 place-items-center p-6">
-                  <WeaponIcon id={sel} className="h-28 w-full" color={w.color} />
-                </div>
-              }
-            />
+            <Suspense fallback={<div className="h-64" />}>
+              <GunViewer
+                key={sel}
+                id={sel}
+                className="block h-64 w-full"
+                fallback={
+                  <div className="grid h-64 place-items-center p-6">
+                    <WeaponIcon id={sel} className="h-28 w-full" color={w.color} />
+                  </div>
+                }
+              />
+            </Suspense>
             <div className="pointer-events-none absolute bottom-2 right-3 text-[10px] uppercase tracking-widest text-dim">Drag to turn</div>
           </div>
           <div>
