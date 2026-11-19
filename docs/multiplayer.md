@@ -134,33 +134,6 @@ The site is built with `VITE_MP_SERVER` set to the server's address; on Vercel t
 production environment variable. Without it the Multiplayer page says the mode is unavailable. After
 changing it, the site has to be rebuilt for the new address to take effect.
 
-### On Fly.io (not in use)
-
-The server was first deployed to Fly.io as the app `tactical-aim-lab-server` in Singapore. It worked,
-but **a Fly account on its trial stops every machine after 5 minutes** until a card is added
-(https://fly.io/trial), so the server moved to Render. The app still exists, stopped, and `fly.toml`
-holds its settings: one always-on machine that is never stopped or doubled, HTTPS, the health check and
-`CLIENT_IP_HEADER`. With a card on the account it can be brought back:
-
-```bash
-fly deploy --ha=false                                  # deploy the current code
-fly status                                             # one machine, "1 total, 1 passing"
-fly logs                                               # the server's output
-fly secrets set ALLOWED_ORIGINS=https://a.example,https://b.example   # which sites may connect
-fly apps destroy tactical-aim-lab-server               # or remove the app for good
-```
-
-Setting it up from nothing, on another account or under another name:
-
-```bash
-fly auth login
-fly launch --copy-config --no-deploy --ha=false --name YOUR-APP --region sin
-fly secrets set --stage ALLOWED_ORIGINS=https://your-site.example
-fly deploy --ha=false
-fly ips allocate-v4 --shared && fly ips allocate-v6    # if the first deploy could not provision addresses
-fly scale count 1                                      # make sure there is exactly one machine
-```
-
 ### Load
 
 Measured on a development laptop with `npm run mp:bot -- quick N shoot`, the bots in a second process on

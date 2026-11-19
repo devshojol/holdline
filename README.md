@@ -107,9 +107,8 @@ public/
   models/                     agent, arms and weapon-skin GLBs with their credits (README.md)
   sounds/                     recordings that replace synthesised sounds (README.md lists the slots)
 docs/screenshots/             images used in this README
-docs/map-visuals-plan.md      the plan for the next piece of work: realistic map visuals
 docs/multiplayer.md           multiplayer: status, running and deploying it, and the design
-Dockerfile, render.yaml       the game server's image and its Render service (fly.toml: an unused Fly.io setup)
+Dockerfile, render.yaml       the game server's image and its Render service
 scripts/                      single-file build, Playwright smoke tests, asset preparation
 tests/                        unit and map tests; tests/tools/gen-spots.test.ts regenerates enemy spots
 ```
@@ -298,8 +297,6 @@ asks for instant multiplayer, `?czy_invite=true&czy_invite_params=room%3DCODE` a
 - In a sandboxed iframe Pointer Lock may be blocked; the game falls back to free-mouse aiming. Firefox has no raw pointer input, so OS acceleration may apply.
 
 ## 5. What we can do next
-
-**Next up: realistic map visuals.** The maps are still flat-shaded boxes with procedural textures. The plan for giving them real architecture and props, in phases that each ship on their own, is in [`docs/map-visuals-plan.md`](docs/map-visuals-plan.md).
 
 **Training content (most value for players)**
 
