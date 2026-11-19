@@ -273,7 +273,8 @@ Rules that apply to both:
 - **Minimap.** Teammates always show. An enemy shows only while a teammate (or you) can see them, or for
   a moment when they fire an unsuppressed gun. The practice-mode "show nearby enemies" aid is off.
 - **Kill feed and scoreboard.** The kill feed shows killer, weapon, headshot and victim. Tab holds the
-  scoreboard open: name, kills, deaths, assists, headshot %, ping.
+  whole map open with the scoreboard beside it: name, kills, deaths, assists, headshot %, ping. M opens
+  and closes the map on its own.
 
 **Quick match rules (fixed):** Deathmatch, 5 minutes, first to 40 kills, all weapons, 10 players.
 

@@ -41,6 +41,8 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
   const hostRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
+  /** The big map's state, for an engine created after the player toggled it (a restart). */
+  const fullMapRef = useRef<'center' | 'left' | null>(null);
   const [status, setStatus] = useState<EngineStatus>('loading');
   const [pause, setPause] = useState<PauseInfo | null>(null);
   const [hud, setHud] = useState<HudState | null>(null);
@@ -69,6 +71,7 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
     // effects twice in dev, and Quit/Restart can happen mid-load) — dispose() cancels the build.
     const engine = GameEngine.create({ container: hostRef.current!, overlay: overlayRef.current!, config, settings: store.get().settings, net });
     engineRef.current = engine;
+    engine.setFullMap(fullMapRef.current);
     window.__TAL__ = engine;
     engine.on((ev) => {
       switch (ev.type) {
@@ -205,19 +208,23 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
 
   const sens = settings.sensitivity;
 
-  // Multiplayer: Tab holds the scoreboard open
+  // Holding Tab shows the big map (and in a match the scoreboard beside it); M turns the big map on and off.
   const scores = useMultiplayer((s) => s.scores);
   const matchSettings = useMultiplayer((s) => s.match?.settings ?? null);
-  const [showScores, setShowScores] = useState(false);
+  const [tabHeld, setTabHeld] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  const showScores = !!net && tabHeld;
   const reconnecting = useMultiplayer((s) => s.status === 'reconnecting');
   useEffect(() => {
-    if (!net) return;
     const onKey = (ev: KeyboardEvent) => {
-      if (ev.code !== 'Tab') return;
-      ev.preventDefault();
-      setShowScores(ev.type === 'keydown');
+      if (ev.code === 'Tab') {
+        ev.preventDefault();
+        setTabHeld(ev.type === 'keydown');
+      } else if (ev.code === 'KeyM' && ev.type === 'keydown' && !ev.repeat && !(ev.target instanceof HTMLInputElement)) {
+        setMapOpen((open) => !open);
+      }
     };
-    const hide = () => setShowScores(false);
+    const hide = () => setTabHeld(false);
     document.addEventListener('keydown', onKey);
     document.addEventListener('keyup', onKey);
     window.addEventListener('blur', hide);
@@ -226,7 +233,11 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
       document.removeEventListener('keyup', onKey);
       window.removeEventListener('blur', hide);
     };
-  }, [net]);
+  }, []);
+  useEffect(() => {
+    fullMapRef.current = mapOpen || tabHeld ? (showScores && matchSettings ? 'left' : 'center') : null;
+    engineRef.current?.setFullMap(fullMapRef.current);
+  }, [mapOpen, tabHeld, showScores, matchSettings]);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">
@@ -237,8 +248,8 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
       {hud && status !== 'loading' && !report && <Hud hud={hud} flags={settings.hud} feed={feed} renderer={renderer} />}
 
       {net && matchSettings && showScores && status !== 'loading' && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/35">
-          <div className="w-[min(760px,94vw)] border border-line bg-panel/95 p-5">
+        <div className="pointer-events-none absolute inset-y-0 right-0 flex w-1/2 items-center justify-center pr-4">
+          <div className="w-full max-w-[640px] border border-line bg-panel/95 p-5">
             <Scoreboard scores={scores} settings={matchSettings} me={net.playerId} />
           </div>
         </div>
@@ -390,7 +401,7 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
               <span>LMB fire · RMB aim / burst</span>
               <span>R reload · 1 / 2 or wheel weapons{config.mode === 'retake' ? ' · E defuse' : ''}</span>
               <span>B weapon menu</span>
-              <span>{net ? 'Esc menu · Tab scoreboard' : 'Esc pause'}</span>
+              <span>{net ? 'Esc menu · Tab map and scoreboard · M map' : 'Esc pause · Tab or M map'}</span>
             </div>
           </div>
         </div>

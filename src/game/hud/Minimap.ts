@@ -164,6 +164,132 @@ export class Minimap {
     return best;
   }
 
+  /**
+   * The whole map, north up, in a panel of `side` CSS pixels centred on (centreX, centreY): the big map shown
+   * with M or while Tab is held. Same marks as the minimap (you, enemies it may show, footsteps, the objective),
+   * with every area named and the site badges larger.
+   */
+  drawFull(
+    ctx: CanvasRenderingContext2D,
+    dpr: number,
+    centreX: number,
+    centreY: number,
+    side: number,
+    player: { x: number; z: number; yaw: number; alive: boolean },
+    enemies: MinimapEnemy[],
+    o: Pick<MinimapOptions, 'enemyRange' | 'objective' | 'sounds'>,
+  ) {
+    const rows = this.map.def.grid.length;
+    const cols = this.map.def.grid[0].length;
+    const pad = 18 * dpr;
+    const box = side * dpr;
+    const k = (box - pad * 2) / Math.max(this.img.width, this.img.height);
+    const w = this.img.width * k;
+    const h = this.img.height * k;
+    const left = centreX * dpr - w / 2;
+    const top = centreY * dpr - h / 2;
+    const toScreen = (x: number, z: number): [number, number] => [left + (x / CELL + cols / 2) * PPC * k, top + (rows / 2 - z / CELL) * PPC * k];
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(left - pad, top - pad - 30 * dpr, w + pad * 2, h + pad * 2 + 30 * dpr, 14 * dpr);
+    ctx.fillStyle = 'rgba(10,13,19,0.88)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.lineWidth = dpr;
+    ctx.stroke();
+
+    // title: the map's name, and the area you are in
+    ctx.textBaseline = 'middle';
+    ctx.font = `700 ${Math.round(18 * dpr)}px "Barlow Condensed", system-ui, sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(this.map.def.name.toUpperCase(), left, top - 18 * dpr);
+    const area = this.areaAt(player.x, player.z);
+    if (area) {
+      ctx.textAlign = 'right';
+      ctx.font = `600 ${Math.round(14 * dpr)}px "Barlow Condensed", system-ui, sans-serif`;
+      ctx.fillStyle = area.color;
+      ctx.fillText(`● ${area.name}`, left + w, top - 18 * dpr);
+    }
+
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(this.img, left, top, w, h);
+
+    ctx.textAlign = 'center';
+    ctx.font = `600 ${Math.round(12 * dpr)}px "Barlow Condensed", system-ui, sans-serif`;
+    for (const c of this.callouts) {
+      const [sx, sy] = toScreen(c.x, c.z);
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.fillText(c.name, sx + dpr, sy + dpr);
+      ctx.fillStyle = 'rgba(18,24,34,0.92)';
+      ctx.fillText(c.name, sx, sy);
+    }
+    ctx.font = `700 ${Math.round(17 * dpr)}px "Barlow Condensed", system-ui, sans-serif`;
+    for (const site of this.sites) {
+      const [sx, sy] = toScreen(site.x, site.z);
+      ctx.beginPath();
+      ctx.arc(sx, sy, 13 * dpr, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(18,23,32,0.88)';
+      ctx.fill();
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(site.letter, sx, sy + dpr);
+    }
+    if (o.objective) {
+      const [sx, sy] = toScreen(o.objective.x, o.objective.z);
+      const r = 8 * dpr;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - r);
+      ctx.lineTo(sx + r, sy);
+      ctx.lineTo(sx, sy + r);
+      ctx.lineTo(sx - r, sy);
+      ctx.closePath();
+      ctx.fillStyle = '#ffb54a';
+      ctx.fill();
+    }
+    for (const snd of o.sounds ?? []) {
+      const [sx, sy] = toScreen(snd.x, snd.z);
+      ctx.beginPath();
+      ctx.arc(sx, sy, (4 + 9 * snd.age) * dpr, 0, Math.PI * 2);
+      ctx.lineWidth = 2 * dpr;
+      ctx.strokeStyle = `rgba(255, 96, 60, ${(0.9 * (1 - snd.age)).toFixed(3)})`;
+      ctx.stroke();
+    }
+    for (const e of enemies) {
+      if (!e.alive || Math.hypot(e.x - player.x, e.z - player.z) > o.enemyRange) continue;
+      const [sx, sy] = toScreen(e.x, e.z);
+      ctx.beginPath();
+      ctx.arc(sx, sy, (e.visible ? 6.5 : 5) * dpr, 0, Math.PI * 2);
+      ctx.fillStyle = e.visible ? '#ff603c' : 'rgba(232,96,70,0.85)';
+      ctx.fill();
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.strokeStyle = e.visible ? '#ffffff' : 'rgba(40,0,6,0.85)';
+      ctx.stroke();
+    }
+
+    // you: an arrow turned the way you face
+    const [px, py] = toScreen(player.x, player.z);
+    ctx.translate(px, py);
+    ctx.rotate(player.yaw);
+    const a = 1.4 * dpr;
+    ctx.beginPath();
+    ctx.moveTo(0, -9 * a);
+    ctx.lineTo(6.5 * a, 6.5 * a);
+    ctx.lineTo(0, 3 * a);
+    ctx.lineTo(-6.5 * a, 6.5 * a);
+    ctx.closePath();
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 3 * dpr;
+    ctx.strokeStyle = 'rgba(10,14,20,0.9)';
+    ctx.stroke();
+    ctx.fillStyle = player.alive ? '#5ee0c8' : 'rgba(200,200,200,0.6)';
+    ctx.fill();
+    ctx.restore();
+  }
+
   /** Distance a sight ray travels from (x, z) along (dx, dz) before a wall stops it, up to `max` metres. */
   private sightDistance(x: number, z: number, dx: number, dz: number, max: number): number {
     const rows = this.map.def.grid.length;

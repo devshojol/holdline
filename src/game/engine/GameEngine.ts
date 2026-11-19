@@ -246,6 +246,8 @@ export class GameEngine {
   private spikeBeep = 0;
   private spikeBlink = 0;
   private damageIndicators: DamageIndicator[] = [];
+  /** The big map (M, or Tab held): null = hidden; 'left' leaves the right half free for the scoreboard. */
+  private fullMap: 'center' | 'left' | null = null;
   /** When the player last saw an enemy, hurt one or was hurt (ms): after a quiet spell an arrow points to the nearest one. */
   private lastContact = performance.now();
   private seekTimer = 0;
@@ -610,6 +612,11 @@ export class GameEngine {
 
   private emit(e: EngineEvent) {
     for (const l of this.listeners) l(e);
+  }
+
+  /** Show or hide the big map (M toggles it, holding Tab shows it); 'left' when the scoreboard shares the screen. */
+  setFullMap(mode: 'center' | 'left' | null) {
+    this.fullMap = mode;
   }
 
   private setStatus(status: EngineStatus, pause?: PauseInfo) {
@@ -1787,14 +1794,30 @@ export class GameEngine {
       ctx.stroke();
     }
 
-    if (this.settings.hud.showMinimap && this.status !== 'ended') {
+    const enemiesOnMap = () =>
+      this.net ? this.minimapRemotes() : this.director.bots.map((b) => ({ x: b.x, z: b.z, alive: b.alive, visible: b.visibleToPlayer }));
+    if (this.fullMap && this.status !== 'ended' && this.status !== 'loading') {
+      const cw = W / dpr;
+      const ch = H / dpr;
+      const side = this.fullMap === 'left' ? Math.min(cw * 0.46, ch * 0.86) : Math.min(cw * 0.8, ch * 0.86);
+      this.minimap.drawFull(
+        ctx,
+        dpr,
+        this.fullMap === 'left' ? Math.max(side / 2 + 16, cw * 0.27) : cw / 2,
+        ch / 2 + 12,
+        side,
+        { x: this.player.pos.x, z: this.player.pos.z, yaw: this.player.yaw, alive: this.player.alive },
+        enemiesOnMap(),
+        { enemyRange: this.net ? 1e6 : this.settings.hud.minimapEnemyRange, objective: this.director.spike, sounds: this.heardStepMarks() },
+      );
+    } else if (this.settings.hud.showMinimap && this.status !== 'ended') {
       this.minimap.draw(
         ctx,
         dpr,
         12,
         12,
         { x: this.player.pos.x, z: this.player.pos.z, yaw: this.player.yaw, alive: this.player.alive },
-        this.net ? this.minimapRemotes() : this.director.bots.map((b) => ({ x: b.x, z: b.z, alive: b.alive, visible: b.visibleToPlayer })),
+        enemiesOnMap(),
         // in a match the only players listed are the ones who just fired, and they show at any distance
         {
           size: 220,

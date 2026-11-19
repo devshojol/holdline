@@ -191,7 +191,8 @@ low cover standing in them (set in the map's `palette.kit`).
 | Coralis    | Sand and turquoise          | Potted shrubs      | Flags               |
 | Goldline   | White plaster               | Wooden barrels     | Flags               |
 
-Finding your way: the name of the area you are in is shown under the minimap, plates on the walls point the
+Finding your way: **M** opens and closes a map of the whole level, and holding **Tab** shows it too (in a match,
+with the scoreboard beside it). The name of the area you are in is shown under the minimap, plates on the walls point the
 way to each site in the site's colour, and in a deathmatch an arrow points to the nearest enemy once you have
 met nobody for 8 seconds. Straight streets of 30 m or more are broken by a chicane of tall crates
 (`breakLongLanes` in `src/game/maps/authoring.ts`); run the spot generator after changing it.
