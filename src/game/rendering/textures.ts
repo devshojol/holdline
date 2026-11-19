@@ -437,3 +437,43 @@ export function letterTexture(scene: Scene, letter: string, color: string) {
     false,
   );
 }
+
+/**
+ * Direction sign for a wall: the site's letter on a plate in the site's colour, with an arrow to the left or
+ * right. Drawn for a plate twice as wide as it is tall (the square canvas is stretched across it).
+ */
+export function signTexture(scene: Scene, label: string, color: string, right: boolean) {
+  return makeTexture(
+    scene,
+    `sign-${label}-${color}-${right ? 'r' : 'l'}`,
+    256,
+    (ctx, s) => {
+      ctx.save();
+      ctx.scale(0.5, 1); // work in a 2s × s space
+      const w = s * 2;
+      ctx.fillStyle = '#f4f1e8';
+      ctx.fillRect(0, 0, w, s);
+      ctx.fillStyle = shade(color, -0.08);
+      ctx.fillRect(s * 0.06, s * 0.06, w - s * 0.12, s * 0.88);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `800 ${s * 0.74}px "Barlow Condensed", Impact, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const tx = right ? w * 0.34 : w * 0.66;
+      ctx.fillText(label, tx, s * 0.54);
+      // arrow: a shaft and a head
+      const ax = right ? w * 0.6 : w * 0.4;
+      const dir = right ? 1 : -1;
+      ctx.fillRect(Math.min(ax, ax + dir * s * 0.34), s * 0.44, s * 0.34, s * 0.12);
+      ctx.beginPath();
+      ctx.moveTo(ax + dir * s * 0.62, s * 0.5);
+      ctx.lineTo(ax + dir * s * 0.3, s * 0.24);
+      ctx.lineTo(ax + dir * s * 0.3, s * 0.76);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    },
+    false,
+    false,
+  );
+}

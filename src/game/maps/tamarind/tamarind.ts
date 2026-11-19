@@ -5,7 +5,7 @@
  */
 import { GridBuilder } from '../GridMap';
 import type { MapDefinition } from '../MapData';
-import { authoring, location, withGeneratedSpots, type SpotTable } from '../authoring';
+import { authoring, breakLongLanes, location, withGeneratedSpots, type SpotTable } from '../authoring';
 import spots from '../generated/tamarind.json';
 
 const COLS = 52;
@@ -121,7 +121,7 @@ export const tamarind: MapDefinition = {
   theme: 'Jungle temple ruins, three sites',
   description:
     'Original three-site layout: A ruins and A Vines on the west, a sunken central B courtyard, and the walkable C Rise guarding C site.',
-  grid: grid(),
+  grid: breakLongLanes(grid(), locations),
   zoneOf,
   callouts: [
     { name: 'A Site', c: 9, r: 11 },
@@ -142,17 +142,19 @@ export const tamarind: MapDefinition = {
   ],
   locations,
   palette: {
-    sky: ['#86b5a4', '#e2ead3'],
-    fog: '#cfdcc6',
-    kit: { roof: 'flat', roofColor: '#7f8a6c', awnings: false, bunting: false, landmark: 'ziggurat' },
-    mood: { sun: '#ffeec8', ambient: '#c0cfe4', bounce: '#a59c84', saturation: 12 },
+    sky: ['#3f9bd8', '#e2efe6'],
+    fog: '#dbe6dc',
+    clouds: 0.7,
+    uniformShade: 0.55,
+    kit: { roof: 'flat', roofColor: '#7f9a5c', awnings: false, bunting: false, landmark: 'ziggurat', prop: 'block', crateColor: '#b5843f' },
+    mood: { sun: '#fff2c8', sunDir: [-0.5, -0.78, 0.38], sunIntensity: 1.65, ambient: '#d6dfea', bounce: '#c2bba4', saturation: 36 },
     zones: {
-      a: { wall: '#9fae94', floor: '#7f8a72', accent: '#c7963f' },
-      b: { wall: '#a9b18f', floor: '#858a6e', accent: '#2f8f84' },
-      c: { wall: '#98aa98', floor: '#7a8875', accent: '#b5653a' },
-      mid: { wall: '#a4ab8c', floor: '#80856c', accent: '#6a8f3a' },
-      defspawn: { wall: '#9aa898', floor: '#7d877a', accent: '#2e9c8a' },
-      atkspawn: { wall: '#aaa98a', floor: '#86846c', accent: '#e05a47' },
+      a: { wall: '#ddd5c4', floor: '#aba894', accent: '#e0a52e' },
+      b: { wall: '#d8d4c0', floor: '#a8a690', accent: '#1f9a8c' },
+      c: { wall: '#d6d6c8', floor: '#a4a694', accent: '#d0562f' },
+      mid: { wall: '#dbd3be', floor: '#aaa58e', accent: '#6f9a3a' },
+      defspawn: { wall: '#d4d4c8', floor: '#a2a596', accent: '#2e9c8a' },
+      atkspawn: { wall: '#ded2ba', floor: '#aca48c', accent: '#e05a47' },
     },
   },
   siteMarks: [

@@ -14,6 +14,8 @@ export interface NetLink {
   nameOf(id: string): string;
   /** The agent a player in the match plays as, once the server has said. */
   agentOf(id: string): AgentId | null;
+  /** The team a player is on (null outside Team Deathmatch, or before the server has said). */
+  teamOf(id: string): 'a' | 'b' | null;
   send(msg: ClientMessage): void;
   /** Set by the engine: called for every snapshot and match event. */
   onMessage: ((msg: ServerMessage) => void) | null;

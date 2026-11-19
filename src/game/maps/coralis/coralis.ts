@@ -5,7 +5,7 @@
  */
 import { GridBuilder } from '../GridMap';
 import type { MapDefinition } from '../MapData';
-import { authoring, location, withGeneratedSpots, type SpotTable } from '../authoring';
+import { authoring, breakLongLanes, location, withGeneratedSpots, type SpotTable } from '../authoring';
 import spots from '../generated/coralis.json';
 
 const COLS = 52;
@@ -116,7 +116,7 @@ export const coralis: MapDefinition = {
   theme: 'Open tropical island fort',
   description:
     'Original open layout: a huge A site around a stepped obelisk, a wide A Main with the A Hall shortcut, an open pillared mid, and a bending B Main into a tight B site.',
-  grid: grid(),
+  grid: breakLongLanes(grid(), locations),
   zoneOf,
   callouts: [
     { name: 'A Site', c: 10, r: 16 },
@@ -136,15 +136,18 @@ export const coralis: MapDefinition = {
   ],
   locations,
   palette: {
-    sky: ['#5fb6e8', '#d7eef7'],
-    fog: '#cfe6ee',
-    kit: { roofColor: '#b06f4e', landmark: 'lighthouse' },
+    sky: ['#1f9ae0', '#c9f0f2'],
+    fog: '#cdeeee',
+    clouds: 1,
+    uniformShade: 0.55,
+    kit: { roofColor: '#d0704a', landmark: 'lighthouse', prop: 'planter', crateColor: '#c98a3c' },
+    mood: { sun: '#fff5d8', sunDir: [-0.46, -0.8, 0.4], sunIntensity: 1.75, ambient: '#c8ecf6', bounce: '#e0d2a8', saturation: 42 },
     zones: {
-      a: { wall: '#e3d3b0', floor: '#d2c29e', accent: '#2bb7b0' },
-      b: { wall: '#dccaa4', floor: '#c9b893', accent: '#e07a3a' },
-      mid: { wall: '#e6d8b8', floor: '#cdbd98', accent: '#3a8fb7' },
-      defspawn: { wall: '#d2cdb4', floor: '#bdb69a', accent: '#2e9c8a' },
-      atkspawn: { wall: '#e0cba6', floor: '#c8b38e', accent: '#e05a47' },
+      a: { wall: '#f3e6c4', floor: '#dccba0', accent: '#18b0b0' },
+      b: { wall: '#efdcb4', floor: '#d6c498', accent: '#f07a3a' },
+      mid: { wall: '#f5ead0', floor: '#dbcca6', accent: '#2f7fd0' },
+      defspawn: { wall: '#e8e2c8', floor: '#cfc6a4', accent: '#2e9c8a' },
+      atkspawn: { wall: '#f0dcb6', floor: '#d8c59c', accent: '#e8506a' },
     },
   },
   siteMarks: [

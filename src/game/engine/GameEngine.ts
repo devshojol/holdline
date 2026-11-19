@@ -147,6 +147,8 @@ interface RemotePlayer {
   dead: boolean;
 }
 
+/** Seconds without meeting an enemy before the arrow to the nearest one appears. */
+const SEEK_AFTER_SEC = 8;
 /** How long a player who fired an unsuppressed gun stays on everyone's minimap. */
 const FIRE_REVEAL_SEC = 2.5;
 /** How far away a running enemy's footsteps can be heard (metres): in the open, and with a wall in between. */
@@ -244,6 +246,10 @@ export class GameEngine {
   private spikeBeep = 0;
   private spikeBlink = 0;
   private damageIndicators: DamageIndicator[] = [];
+  /** When the player last saw an enemy, hurt one or was hurt (ms): after a quiet spell an arrow points to the nearest one. */
+  private lastContact = performance.now();
+  private seekTimer = 0;
+  private seekTarget: { x: number; z: number } | null = null;
   private deathFlash = 0;
   private killFeedId = 1;
   private ended = false;
@@ -1083,7 +1089,7 @@ export class GameEngine {
       case 'damage':
         this.tracker.damageTaken(ev.damage);
         this.audio.play('hurt', { volume: 0.6 });
-        this.damageIndicators.push({ yaw: Math.atan2(ev.from[0] - p.pos.x, ev.from[2] - p.pos.z), t: 1.2 });
+        this.lastContact = performance.now(), this.damageIndicators.push({ yaw: Math.atan2(ev.from[0] - p.pos.x, ev.from[2] - p.pos.z), t: 1.2 });
         return;
       case 'shot': {
         // someone else fired: their gun flashes and is heard from where they stand
@@ -1637,7 +1643,7 @@ export class GameEngine {
       const killed = p.damage(dmg);
       this.tracker.damageTaken(Math.min(before, dmg));
       this.audio.play('hurt', { volume: 0.6 });
-      this.damageIndicators.push({ yaw: Math.atan2(bot.x - p.pos.x, bot.z - p.pos.z), t: 1.2 });
+      this.lastContact = performance.now(), this.damageIndicators.push({ yaw: Math.atan2(bot.x - p.pos.x, bot.z - p.pos.z), t: 1.2 });
       if (killed) {
         this.tracker.death();
         this.killStreak = 0;
@@ -1838,7 +1844,86 @@ export class GameEngine {
       }
     }
 
+    this.drawSeekArrow(ctx, dt, cx, cy, dpr, Math.min(W, H));
+
     if (this.deathFlash > 0) this.deathFlash = Math.max(0, this.deathFlash - dt * 0.8);
+  }
+
+  /**
+   * In a deathmatch, a player who has met nobody for a while gets an arrow at the edge of the view pointing
+   * to the nearest enemy, with the distance, so nobody is left wandering empty streets looking for the fight.
+   * It goes the moment an enemy is in sight or damage is dealt either way.
+   */
+  private drawSeekArrow(ctx: CanvasRenderingContext2D, dt: number, cx: number, cy: number, dpr: number, span: number) {
+    if (!this.net && this.config.mode !== 'deathmatch') return;
+    const now = performance.now();
+    if (!this.player.alive || this.status !== 'running') {
+      this.lastContact = now;
+      this.seekTarget = null;
+      return;
+    }
+    this.seekTimer -= dt;
+    if (this.seekTimer <= 0) {
+      this.seekTimer = 0.3;
+      const [ex, ey, ez] = this.player.eye();
+      let best: { x: number; z: number } | null = null;
+      let bestD = Infinity;
+      const consider = (x: number, y: number, z: number, seen: boolean | null) => {
+        const d = Math.hypot(x - ex, z - ez);
+        if (seen ?? (d < 60 && this.map.world.segmentClear(ex, ey, ez, x, y + 1.3, z))) this.lastContact = now;
+        if (d < bestD) {
+          bestD = d;
+          best = { x, z };
+        }
+      };
+      if (this.net) {
+        const t = this.serverClock.time(now) - INTERP_DELAY_MS;
+        const mine = this.net.teamOf(this.net.playerId);
+        for (const [id, r] of this.remotes) {
+          const p = r.track.at(t);
+          if (!p?.alive || (mine !== null && this.net.teamOf(id) === mine)) continue;
+          consider(p.x, p.y, p.z, null);
+        }
+      } else for (const b of this.director.bots) if (b.alive) consider(b.x, b.y, b.z, b.visibleToPlayer);
+      this.seekTarget = best;
+    }
+    const quiet = (now - this.lastContact) / 1000 - SEEK_AFTER_SEC;
+    const target = this.seekTarget;
+    if (quiet <= 0 || !target) return;
+    const dx = target.x - this.player.pos.x;
+    const dz = target.z - this.player.pos.z;
+    const ang = Math.atan2(dx, dz) - this.player.yaw - Math.PI / 2; // screen angle: ahead = up
+    const a = Math.min(1, quiet / 0.6) * (0.75 + 0.25 * Math.sin(now / 260));
+    const r = span * 0.3;
+    const px = cx + Math.cos(ang) * r;
+    const py = cy + Math.sin(ang) * r;
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(ang);
+    const s = 17 * dpr;
+    ctx.beginPath();
+    ctx.moveTo(s, 0);
+    ctx.lineTo(-s * 0.7, -s * 0.8);
+    ctx.lineTo(-s * 0.25, 0);
+    ctx.lineTo(-s * 0.7, s * 0.8);
+    ctx.closePath();
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 3 * dpr;
+    ctx.strokeStyle = `rgba(20,12,0,${0.8 * a})`;
+    ctx.stroke();
+    ctx.fillStyle = `rgba(255,181,74,${a})`;
+    ctx.fill();
+    ctx.restore();
+    const label = `ENEMY ${Math.round(Math.hypot(dx, dz))} M`;
+    const lx = cx + Math.cos(ang) * (r - 44 * dpr);
+    const ly = cy + Math.sin(ang) * (r - 32 * dpr);
+    ctx.font = `700 ${Math.round(16 * dpr)}px "Barlow Condensed", system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = `rgba(0,0,0,${0.6 * a})`;
+    ctx.fillText(label, lx + dpr, ly + dpr);
+    ctx.fillStyle = `rgba(255,214,150,${a})`;
+    ctx.fillText(label, lx, ly);
   }
 
   /* ------------------------------------------------------------------ */

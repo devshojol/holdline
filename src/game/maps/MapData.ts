@@ -54,15 +54,25 @@ export interface MapKit {
   /** Wall-mounted cooling units and pipe runs (modern settings only). */
   wallUnits: boolean;
   crateColor: string;
-  /** Some of the small corridor props are pairs of wooden barrels instead of crates. */
-  barrels: boolean;
+  /** What about half of the low crates are drawn as, so each map has cover of its own. */
+  prop: PropKind;
+  /** What hangs from the cords strung across narrow streets (needs `bunting`). */
+  string: 'flags' | 'banners' | 'lanterns' | 'cloth';
+  /** Snow lying on top of the props. */
+  snow: boolean;
   /** The shape that marks each site from a distance. */
   landmark: Landmark;
 }
 
+/**
+ * Low cover drawn in place of a crate: wooden barrels, oil drums, clay jars, baskets of produce, mossy stone
+ * blocks, potted plants, stone lanterns or drinks cabinets. All fill the same collision box.
+ */
+export type PropKind = 'crate' | 'barrel' | 'drum' | 'jar' | 'basket' | 'block' | 'planter' | 'lantern' | 'cabinet';
+
 export type Landmark = 'tower' | 'minaret' | 'pagoda' | 'sign' | 'watertank' | 'ziggurat' | 'crane' | 'lighthouse';
 
-const DEFAULT_KIT: MapKit = { roof: 'tile', roofColor: '#a8644a', awnings: true, bunting: true, vista: 'hills', wallUnits: false, crateColor: '#a5794b', barrels: false, landmark: 'tower' };
+const DEFAULT_KIT: MapKit = { roof: 'tile', roofColor: '#a8644a', awnings: true, bunting: true, vista: 'hills', wallUnits: false, crateColor: '#a5794b', prop: 'crate', string: 'flags', snow: false, landmark: 'tower' };
 
 export function mapKit(def: MapDefinition): MapKit {
   return { ...DEFAULT_KIT, ...def.palette.kit };

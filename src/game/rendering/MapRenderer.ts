@@ -1,5 +1,5 @@
-import { mapKit, mapMood, type MapBox, type MapData, type MapKit } from '../maps/MapData';
-import { CELL, WALL_HEIGHT } from '../maps/GridMap';
+import { mapKit, mapMood, type MapBox, type MapData, type MapKit, type PropKind } from '../maps/MapData';
+import { CELL, WALL_HEIGHT, shapeOf } from '../maps/GridMap';
 import {
   Color3,
   CreatePlane,
@@ -19,6 +19,7 @@ import {
   occlusionTexture,
   radialTexture,
   roofTexture,
+  signTexture,
   skyTexture,
   stoneTexture,
   wallTexture,
@@ -368,6 +369,7 @@ export function renderMap(scene: Scene, data: MapData, shadow: ShadowGenerator |
     return shared;
   };
 
+  const propColors = Object.values(zones).map((z) => z.accent);
   for (const box of data.boxes) {
     const zone = zones[box.zone] ?? Object.values(zones)[0];
     const seed = zoneSeed(box.zone);
@@ -408,8 +410,8 @@ export function renderMap(scene: Scene, data: MapData, shadow: ShadowGenerator |
         break;
       case 'crate':
       case 'crate-low': {
-        if (kit.barrels && isBarrelProp(box)) {
-          addBarrels(box, flat);
+        if (kit.prop !== 'crate' && isPropBox(box)) {
+          addProps(box, kit, flat, propColors);
           break;
         }
         const color = box.kind === 'crate' ? kit.crateColor : shade(kit.crateColor, 0.86);
@@ -437,8 +439,16 @@ export function renderMap(scene: Scene, data: MapData, shadow: ShadowGenerator |
       return m;
     }, false);
   };
-  addFacadeDetail(data, kit, detail);
-  if (kit.bunting) addBunting(data, flat);
+  // Direction signs: one textured batch per site letter and arrow direction.
+  const sign = (label: string, color: string, right: boolean) =>
+    getBatch(`sign-${label}-${right ? 'r' : 'l'}`, () => {
+      const m = mat(`sign-${label}-${right}`, signTexture(scene, label, color, right), undefined, 0.02);
+      m.emissiveColor = new Color3(0.22, 0.22, 0.22);
+      m.backFaceCulling = false;
+      return m;
+    }, false);
+  addFacadeDetail(data, kit, detail, planSigns(data), sign);
+  if (kit.bunting) addBunting(data, flat, kit.string);
   addLandmarks(
     data,
     kit,
@@ -584,7 +594,84 @@ function shade(hex: string, k: number): string {
  * wall lamps. Below head height everything sits within 13 cm of the wall face (the door step aside);
  * sills and awnings stand further out but are above it. None of it has collision.
  */
-function addFacadeDetail(data: MapData, kit: MapKit, batch: (key: string, color: string, emissive?: string) => GeometryBatch) {
+interface SignPlan {
+  label: string;
+  color: string;
+  /** Which way along the wall the site lies: +1 = towards higher rows (or columns), −1 = lower. */
+  ahead: 1 | -1;
+}
+
+const signKey = (c: number, r: number, dc: number, dr: number) => `${c},${r},${dc},${dr}`;
+
+/**
+ * Where the direction signs go: for each site, wall faces spread through the map (about one every ten
+ * metres of walking) whose street leads along the wall towards that site, by the shortest route on foot.
+ */
+function planSigns(data: MapData): Map<string, SignPlan> {
+  const { def } = data;
+  const rows = def.grid.length;
+  const cols = def.grid[0].length;
+  const walk = (c: number, r: number) => r >= 0 && r < rows && c >= 0 && c < cols && shapeOf(def.grid[r][c]).walkable;
+  const plans = new Map<string, SignPlan>();
+  for (const site of def.siteMarks) {
+    const zone = def.palette.zones[def.zoneOf(Math.floor(site.c), Math.floor(site.r))];
+    // walking distance (in cells) from the site to everywhere
+    const dist = new Int32Array(cols * rows).fill(-1);
+    const queue: number[] = [];
+    for (let rad = 0; rad < 4 && queue.length === 0; rad++)
+      for (let r = Math.floor(site.r) - rad; r <= Math.floor(site.r) + rad; r++)
+        for (let c = Math.floor(site.c) - rad; c <= Math.floor(site.c) + rad; c++)
+          if (walk(c, r) && dist[r * cols + c] < 0) {
+            dist[r * cols + c] = 0;
+            queue.push(r * cols + c);
+          }
+    for (let head = 0; head < queue.length; head++) {
+      const i = queue[head];
+      const c = i % cols;
+      const r = (i - c) / cols;
+      for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const j = (r + dr) * cols + c + dc;
+        if (walk(c + dc, r + dr) && dist[j] < 0) {
+          dist[j] = dist[i] + 1;
+          queue.push(j);
+        }
+      }
+    }
+    const d = (c: number, r: number) => (walk(c, r) ? dist[r * cols + c] : -1);
+    const cands: { c: number; r: number; dc: number; dr: number; ahead: 1 | -1; dist: number }[] = [];
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++) {
+        if (def.grid[r][c] !== '#') continue;
+        for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const here = d(c + dc, r + dr);
+          if (here < 12 || here > 80 || def.grid[r + dr]?.[c + dc] !== '.') continue;
+          // the two ways along the wall (k runs along rows for a wall facing ±X, along columns otherwise)
+          const up = dc !== 0 ? d(c + dc, r + 1) : d(c + 1, r + dr);
+          const down = dc !== 0 ? d(c + dc, r - 1) : d(c - 1, r + dr);
+          if (up >= 0 && up < here) cands.push({ c, r, dc, dr, ahead: 1, dist: here });
+          else if (down >= 0 && down < here) cands.push({ c, r, dc, dr, ahead: -1, dist: here });
+        }
+      }
+    cands.sort((a, b) => a.dist - b.dist);
+    const placed: { c: number; r: number }[] = [];
+    for (const k of cands) {
+      if (placed.length >= 12) break;
+      if (plans.has(signKey(k.c, k.r, k.dc, k.dr))) continue;
+      if (placed.some((p) => Math.max(Math.abs(p.c - k.c), Math.abs(p.r - k.r)) < 9)) continue;
+      placed.push(k);
+      plans.set(signKey(k.c, k.r, k.dc, k.dr), { label: site.letter, color: zone?.accent ?? '#3a6fb0', ahead: k.ahead });
+    }
+  }
+  return plans;
+}
+
+function addFacadeDetail(
+  data: MapData,
+  kit: MapKit,
+  batch: (key: string, color: string, emissive?: string) => GeometryBatch,
+  signs: Map<string, SignPlan>,
+  signBatch: (label: string, color: string, right: boolean) => GeometryBatch,
+) {
   const { def, space, cellTop } = data;
   const rows = def.grid.length;
   const cols = def.grid[0].length;
@@ -724,8 +811,10 @@ function addFacadeDetail(data: MapData, kit: MapKit, batch: (key: string, color:
         if (k > k1) break;
       }
       // a door on some runs of 3+ cells: a deep surround with the leaf set back inside it
+      let doorAt = -99;
       if (n >= 3 && h01(line, k0, seed) < 0.45) {
         const kd = k0 + 1 + Math.floor(h01(k0, line, seed + 1) * (n - 2));
+        doorAt = kd;
         const fk = `facade-frame-${frame}`;
         box(fk, frame, kd, -0.84, 0.2, 0, 2.78, 0.1); // jambs
         box(fk, frame, kd, 0.84, 0.2, 0, 2.78, 0.1);
@@ -741,6 +830,18 @@ function addFacadeDetail(data: MapData, kit: MapKit, batch: (key: string, color:
         const roll = h01(kd, line, seed + 2);
         if (kit.awnings && roll < 0.5) awning(kd, 2.4, 3.6, 3.12, 0.8);
         else if (roll < 0.8) lantern(kd, 0, 3.0);
+      }
+      // direction signs: a plate above head height, clear of any door
+      for (let k = k0; k <= k1; k++) {
+        const plan = signs.get(signKey(cellC(k), cellR(k), dc, dr));
+        if (!plan || Math.abs(k - doorAt) <= 1) continue;
+        // +a along the wall is to the viewer's right when the wall faces −X or towards higher rows
+        const aRight = alongRows ? dc === -1 : dr === 1;
+        const right = (plan.ahead === 1) === aRight;
+        const l = aRight ? -0.62 : 0.62; // the viewer's left edge
+        const b = signBatch(plan.label, plan.color, right);
+        b.quad([P(k, l, 2.05, 0.03), P(k, -l, 2.05, 0.03), P(k, -l, 2.67, 0.03), P(k, l, 2.67, 0.03)], out, [[0, 0], [1, 0], [1, 1], [0, 1]]);
+        boxAt('', '#3a3632', k, 0, 1.3, 2.02, 2.7, 0, 0.022); // backing plate
       }
       // high windows and lamps along the rest
       for (let k = k0; k <= k1; k++) {
@@ -917,38 +1018,142 @@ function addCrates(box: MapBox, body: GeometryBatch, flat: FlatBatch, frameColor
   });
 }
 
-/** Which low crates are drawn as barrels instead: about half of them, picked by position. */
-function isBarrelProp(box: MapBox): boolean {
+/** Which low crates are drawn as the map's own prop instead: about half of them, picked by position. */
+function isPropBox(box: MapBox): boolean {
   return box.kind === 'crate-low' && h01(Math.round(box.min[0] * 10), Math.round(box.min[2] * 10), 41) < 0.55;
 }
 
-/** Wooden barrels standing packed inside a low crate's collision box: bulged staves, iron hoops, a sunk lid. */
-function addBarrels(box: MapBox, flat: FlatBatch) {
+/**
+ * The map's own low cover, packed inside a low crate's collision box: the box is cut into square plots
+ * (four to a full cell, a row along a narrow wall prop) and one prop stands on each.
+ */
+function addProps(box: MapBox, kit: MapKit, flat: FlatBatch, colors: string[]) {
   const dx = box.max[0] - box.min[0];
   const dz = box.max[2] - box.min[2];
-  const r = Math.min(dx, dz, CELL / 2) / 2;
+  // one large piece per cell for the props that read badly when small
+  const big = kit.prop === 'block' || kit.prop === 'cabinet' || kit.prop === 'planter';
+  const r = Math.min(dx, dz, big ? CELL : CELL / 2) / 2;
   const nx = Math.max(1, Math.floor(dx / (r * 2) + 0.01));
   const nz = Math.max(1, Math.floor(dz / (r * 2) + 0.01));
   const y0 = box.min[1];
-  const top = box.max[1] - y0;
+  const h = box.max[1] - y0;
   for (let i = 0; i < nx; i++)
     for (let j = 0; j < nz; j++) {
       const cx = box.min[0] + (dx * (i + 0.5)) / nx;
       const cz = box.min[2] + (dz * (j + 0.5)) / nz;
-      const k = 0.88 + 0.2 * h01(Math.round(cx * 10), Math.round(cz * 10), 5);
-      const wood = shade('#9a6a3c', k);
-      const end = r * 0.84;
-      const h = top;
-      // staves in three bands, widest at the middle
-      flat(wood).tube(cx, cz, y0, y0 + h * 0.3, end, r, 14);
-      flat(wood).tube(cx, cz, y0 + h * 0.3, y0 + h * 0.7, r, r, 14);
-      flat(wood).tube(cx, cz, y0 + h * 0.7, y0 + h, r, end, 14);
-      // hoops, standing a little proud of the staves
-      for (const [t, rr] of [[0.06, end + (r - end) * 0.2], [0.3, r], [0.7, r], [0.94, end + (r - end) * 0.2]] as const)
-        flat('#3b3a39').tube(cx, cz, y0 + h * t - 0.025, y0 + h * t + 0.025, rr + 0.008, rr + 0.008, 14);
-      flat(shade(wood, 1.08)).disc(cx, cz, y0 + h - 0.03, end * 0.97, 0, true, 14);
+      const roll = h01(Math.round(cx * 10), Math.round(cz * 10), 5);
+      const pick = dull(colors[Math.floor(roll * 97) % colors.length], 0.4);
+      if (kit.prop !== 'crate') PROPS[kit.prop](flat, cx, cz, r, y0, h, roll, pick);
+      if (kit.snow) flat('#f3f7fa').dome(cx, cz, y0 + h - 0.01, r * 0.86, 0.1, 3, 14);
     }
 }
+
+/** A colour pulled part of the way (k, 0 to 1) towards grey: painted objects look garish at the walls' full strength. */
+function dull(hex: string, k: number): string {
+  const c = Color3.FromHexString(hex);
+  const grey = c.r * 0.3 + c.g * 0.59 + c.b * 0.11;
+  return new Color3(c.r + (grey - c.r) * k, c.g + (grey - c.g) * k, c.b + (grey - c.b) * k).toHexString();
+}
+
+type PropBuilder = (flat: FlatBatch, cx: number, cz: number, r: number, y0: number, h: number, roll: number, color: string) => void;
+
+/** A turned shape: rings at the given heights (fractions of h) and radii (fractions of r), joined by straight bands. */
+function lathe(flat: FlatBatch, color: string, cx: number, cz: number, r: number, y0: number, h: number, profile: number[][], sides = 14) {
+  for (let k = 0; k + 1 < profile.length; k++)
+    flat(color).tube(cx, cz, y0 + h * profile[k][0], y0 + h * profile[k + 1][0], r * profile[k][1], r * profile[k + 1][1], sides);
+}
+
+const squareBox = (flat: FlatBatch, color: string, cx: number, cz: number, half: number, ya: number, yb: number) =>
+  flat(color).box([cx - half, ya, cz - half], [cx + half, yb, cz + half], FLAT_UV, false);
+
+const PROPS: Record<Exclude<PropKind, 'crate'>, PropBuilder> = {
+  /** Wooden barrel: bulged staves, iron hoops, a sunk lid. */
+  barrel(flat, cx, cz, r, y0, h, roll) {
+    const wood = shade('#9a6a3c', 0.88 + 0.2 * roll);
+    const end = 0.84;
+    lathe(flat, wood, cx, cz, r, y0, h, [[0, end], [0.3, 1], [0.7, 1], [1, end]]);
+    for (const [t, rr] of [[0.06, end + (1 - end) * 0.2], [0.3, 1], [0.7, 1], [0.94, end + (1 - end) * 0.2]])
+      flat('#3b3a39').tube(cx, cz, y0 + h * t - 0.025, y0 + h * t + 0.025, r * rr + 0.008, r * rr + 0.008, 14);
+    flat(shade(wood, 1.08)).disc(cx, cz, y0 + h - 0.03, r * end * 0.97, 0, true, 14);
+  },
+  /** Steel oil drum in a painted colour: straight sides, two pressed ribs, rolled rims. */
+  drum(flat, cx, cz, r, y0, h, roll, color) {
+    const paint = shade(color, 0.8 + 0.14 * roll);
+    flat(paint).tube(cx, cz, y0, y0 + h, r * 0.93, r * 0.93, 16);
+    for (const t of [0.02, 0.34, 0.66, 0.98]) flat(shade(paint, 0.8)).tube(cx, cz, y0 + h * t - 0.022, y0 + h * t + 0.022, r * 0.97, r * 0.97, 16);
+    flat(shade(paint, 0.7)).disc(cx, cz, y0 + h - 0.025, r * 0.93, 0, true, 16);
+    flat('#2a2c2e').disc(cx + r * 0.45, cz, y0 + h - 0.02, r * 0.12, 0, true, 8); // bung
+  },
+  /** Clay storage jar: narrow foot, wide shoulder, a neck with a rolled lip and a painted band. */
+  jar(flat, cx, cz, r, y0, h, roll, color) {
+    const clay = shade('#a57257', 0.88 + 0.18 * roll);
+    lathe(flat, clay, cx, cz, r, y0, h, [[0, 0.42], [0.12, 0.7], [0.4, 0.98], [0.52, 0.98]]);
+    lathe(flat, color, cx, cz, r, y0, h, [[0.52, 0.985], [0.6, 0.93]]);
+    lathe(flat, clay, cx, cz, r, y0, h, [[0.6, 0.92], [0.78, 0.6], [0.88, 0.44], [0.95, 0.5], [1, 0.58]]);
+    flat('#2b1c14').disc(cx, cz, y0 + h - 0.04, r * 0.5, 0, true, 14);
+  },
+  /** Woven market basket heaped with produce or spice. */
+  basket(flat, cx, cz, r, y0, h, roll) {
+    const wicker = shade('#b98a4e', 0.9 + 0.2 * roll);
+    lathe(flat, wicker, cx, cz, r, y0, h, [[0, 0.66], [0.72, 0.96]]);
+    for (const t of [0.14, 0.4, 0.66]) flat(shade(wicker, 0.72)).tube(cx, cz, y0 + h * t - 0.02, y0 + h * t + 0.02, r * (0.67 + t * 0.42), r * (0.67 + t * 0.42), 14);
+    flat(shade(wicker, 0.8)).tube(cx, cz, y0 + h * 0.72 - 0.035, y0 + h * 0.72 + 0.035, r, r, 14); // rim
+    const heap = ['#b5593f', '#c79a45', '#7d8f4c', '#96506a', '#d8cdb0'][Math.floor(roll * 53) % 5];
+    flat(heap).dome(cx, cz, y0 + h * 0.72, r * 0.9, h * 0.28, 4, 14);
+  },
+  /** Fallen temple masonry: two weathered blocks, the tops grown over with moss. */
+  block(flat, cx, cz, r, y0, h, roll) {
+    const stone = shade('#b3b1a2', 0.9 + 0.16 * roll);
+    const moss = shade('#5a7044', 0.88 + 0.16 * roll);
+    const mid = y0 + h * 0.58;
+    squareBox(flat, stone, cx, cz, r * 0.97, y0, mid);
+    squareBox(flat, shade(stone, 0.8), cx, cz, r * 0.9, mid - 0.06, mid); // weathered joint
+    const ox = (roll - 0.5) * r * 0.3;
+    flat(shade(stone, 1.06)).box([cx - r * 0.78 + ox, mid, cz - r * 0.7], [cx + r * 0.6 + ox, y0 + h - 0.05, cz + r * 0.74], FLAT_UV, false);
+    flat(moss).box([cx - r * 0.8 + ox, y0 + h - 0.05, cz - r * 0.72], [cx + r * 0.62 + ox, y0 + h, cz + r * 0.76], FLAT_UV, false);
+    flat(moss).box([cx + r * 0.62 + ox, mid, cz - r * 0.95], [cx + r * 0.97, mid + 0.05, cz + r * 0.95], FLAT_UV, false);
+  },
+  /** Whitewashed pot with a painted band, planted with a thick flowering shrub. */
+  planter(flat, cx, cz, r, y0, h, roll, color) {
+    lathe(flat, '#ddd6c6', cx, cz, r, y0, h, [[0, 0.5], [0.3, 0.74]]);
+    lathe(flat, color, cx, cz, r, y0, h, [[0.3, 0.75], [0.37, 0.79]]);
+    lathe(flat, '#ddd6c6', cx, cz, r, y0, h, [[0.37, 0.79], [0.44, 0.84], [0.47, 0.8]]);
+    flat('#4a3626').disc(cx, cz, y0 + h * 0.45, r * 0.8, 0, true, 14);
+    const leaf = shade('#476b48', 0.85 + 0.2 * roll);
+    flat(leaf).dome(cx, cz, y0 + h * 0.45, r * 0.78, h * 0.55, 4, 12);
+    for (let k = 0; k < 5; k++) {
+      const a = k * 1.2566 + roll * 6;
+      flat(shade(leaf, 1.12)).dome(cx + Math.cos(a) * r * 0.55, cz + Math.sin(a) * r * 0.55, y0 + h * 0.5, r * 0.42, h * 0.36, 3, 8);
+      flat(k % 2 ? '#e9dcd6' : '#c9728e').dome(cx + Math.cos(a + 0.6) * r * 0.5, cz + Math.sin(a + 0.6) * r * 0.5, y0 + h * 0.84, r * 0.13, 0.06, 2, 6);
+    }
+  },
+  /** Stone garden lantern: plinth, post, a light chamber with paper windows and a hipped cap. */
+  lantern(flat, cx, cz, r, y0, h, roll) {
+    const stone = shade('#b7b2a4', 0.92 + 0.14 * roll);
+    squareBox(flat, shade(stone, 0.86), cx, cz, r * 0.8, y0, y0 + h * 0.1);
+    squareBox(flat, stone, cx, cz, r * 0.62, y0 + h * 0.1, y0 + h * 0.16);
+    flat(stone).tube(cx, cz, y0 + h * 0.16, y0 + h * 0.52, r * 0.3, r * 0.26, 8, 0, true);
+    squareBox(flat, stone, cx, cz, r * 0.72, y0 + h * 0.52, y0 + h * 0.6);
+    squareBox(flat, shade(stone, 0.92), cx, cz, r * 0.5, y0 + h * 0.6, y0 + h * 0.8);
+    squareBox(flat, '#f1d58c', cx, cz, r * 0.51, y0 + h * 0.64, y0 + h * 0.76); // paper windows, lit
+    for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]])
+      flat(stone).box([cx + sx * r * 0.44 - 0.04, y0 + h * 0.6, cz + sz * r * 0.44 - 0.04], [cx + sx * r * 0.44 + 0.04, y0 + h * 0.8, cz + sz * r * 0.44 + 0.04], FLAT_UV, false);
+    flat(shade(stone, 0.8)).tube(cx, cz, y0 + h * 0.8, y0 + h * 0.94, r * 1.15, r * 0.16, 4, Math.PI / 4, true);
+    flat(shade(stone, 0.8)).disc(cx, cz, y0 + h * 0.8, r * 1.15, 0, false, 4);
+    flat(stone).tube(cx, cz, y0 + h * 0.94, y0 + h, r * 0.14, r * 0.05, 6, 0, true);
+  },
+  /** Street drinks cabinet in a loud colour: glass front panels, a lit header and a dark kick plate. */
+  cabinet(flat, cx, cz, r, y0, h, roll, color) {
+    const body = shade(color, 0.92 + 0.16 * roll);
+    squareBox(flat, '#24262b', cx, cz, r * 0.9, y0, y0 + h * 0.09);
+    squareBox(flat, body, cx, cz, r * 0.93, y0 + h * 0.09, y0 + h);
+    squareBox(flat, '#1b2430', cx, cz, r * 0.945, y0 + h * 0.22, y0 + h * 0.74); // glass, all round
+    for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]])
+      flat(body).box([cx + sx * r * 0.83 - r * 0.13, y0 + h * 0.09, cz + sz * r * 0.83 - r * 0.13], [cx + sx * r * 0.83 + r * 0.13, y0 + h, cz + sz * r * 0.83 + r * 0.13], FLAT_UV, false);
+    for (const t of [0.4, 0.57]) squareBox(flat, '#c9d2da', cx, cz, r * 0.95, y0 + h * t, y0 + h * t + 0.02); // shelves seen through the glass
+    squareBox(flat, '#f4f1e6', cx, cz, r * 0.95, y0 + h * 0.8, y0 + h * 0.93); // lit header
+  },
+};
 
 /** Shipping containers filling a stack collision box: two cells long where there is room, two high. */
 function addContainers(box: MapBox, body: GeometryBatch, flat: FlatBatch, frameColor: string) {
@@ -973,14 +1178,14 @@ function addContainers(box: MapBox, body: GeometryBatch, flat: FlatBatch, frameC
 }
 
 /** Strings of small flags sagging between facing walls across narrow streets, well above head height. */
-function addBunting(data: MapData, flat: FlatBatch) {
+function addBunting(data: MapData, flat: FlatBatch, kind: MapKit['string']) {
   const { def, space, cellTop } = data;
   const rows = def.grid.length;
   const cols = def.grid[0].length;
   const at = (c: number, r: number) => (r >= 0 && r < rows && c >= 0 && c < cols ? def.grid[r][c] : '#');
   const seed = [...def.id].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 9) | 0;
   const accents = Object.values(def.palette.zones).map((z) => z.accent);
-  const colors = [accents[0], '#f1ead8', accents[1 % accents.length], '#e8c85a'];
+  const colors = kind === 'banners' ? ['#2f6fb8', '#f1ead8', '#c8392f', '#3f8a4a', '#e8c23a'] : [accents[0], '#f1ead8', accents[1 % accents.length], '#e8c85a'];
   const half = CELL / 2;
   const string = (ax: number, az: number, bx: number, bz: number, salt: number) => {
     const len = Math.hypot(bx - ax, bz - az);
@@ -1002,9 +1207,28 @@ function addBunting(data: MapData, flat: FlatBatch) {
       const m = [(p[0] + q[0]) / 2, Math.min(p[1], q[1]) - 0.3, (p[2] + q[2]) / 2];
       const a = [p[0] + (q[0] - p[0]) * 0.12, p[1], p[2] + (q[2] - p[2]) * 0.12];
       const b = [p[0] + (q[0] - p[0]) * 0.88, q[1], p[2] + (q[2] - p[2]) * 0.88];
-      const flag = flat(colors[(i + salt) % colors.length]);
-      flag.quad([a, b, m, m], [nx, 0, nz], uv);
-      flag.quad([a, b, m, m], [-nx, 0, -nz], uv, [0.85, 0.85, 0.85, 0.85]);
+      const color = colors[(i + salt) % colors.length];
+      const flag = flat(color);
+      const both = (pts: number[][]) => {
+        flag.quad(pts, [nx, 0, nz], uv);
+        flag.quad(pts, [-nx, 0, -nz], uv, [0.85, 0.85, 0.85, 0.85]);
+      };
+      if (kind === 'flags') both([a, b, m, m]);
+      else if (kind === 'banners') both([a, b, [b[0], b[1] - 0.34, b[2]], [a[0], a[1] - 0.34, a[2]]]); // square prayer flags
+      else if (kind === 'cloth') {
+        // long strips of dyed cloth hung out to dry, every other gap
+        if (i % 2 === 0) both([a, b, [b[0], b[1] - 0.95, b[2]], [a[0], a[1] - 0.8, a[2]]]);
+      } else if (i % 3 === 1) {
+        // paper lantern: a round red body between two dark caps, on a short cord
+        const lx = (p[0] + q[0]) / 2;
+        const lz = (p[2] + q[2]) / 2;
+        const ly = Math.min(p[1], q[1]) - 0.12;
+        const red = (i + salt) % 2 ? '#e0402e' : '#f0a63a';
+        line.tube(lx, lz, ly, ly + 0.12, 0.012, 0.012, 4);
+        lathe(flat, red, lx, lz, 0.2, ly - 0.42, 0.42, [[0.06, 0.45], [0.25, 0.9], [0.5, 1], [0.75, 0.9], [0.94, 0.45]], 10);
+        flat('#2b2622').tube(lx, lz, ly - 0.03, ly, 0.09, 0.09, 10);
+        flat('#2b2622').tube(lx, lz, ly - 0.42, ly - 0.39, 0.09, 0.09, 10);
+      }
     }
   };
   const tall = (c: number, r: number) => at(c, r) === '#' && cellTop[r * cols + c] >= WALL_HEIGHT;

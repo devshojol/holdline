@@ -9,6 +9,7 @@
 import type { EnemySpot, MapLocation, SpawnPoint, Vec2 } from '../../../types';
 import { CELL, GridBuilder, GridSpace } from '../GridMap';
 import type { MapDefinition } from '../MapData';
+import { breakLongLanes } from '../authoring';
 import { BOT_RADIUS } from '../../bots/perception/visibility';
 
 const COLS = 52;
@@ -264,7 +265,7 @@ export const vellora: MapDefinition = {
   theme: 'Sun-baked Mediterranean piazza',
   description:
     'Original two-site layout inspired by Ascent: long A Main, raised Balcony, an open mid courtyard and a arcade building linking mid to B.',
-  grid: buildGrid(),
+  grid: breakLongLanes(buildGrid(), locations, true),
   zoneOf,
   callouts: [
     { name: 'A Site', c: 9, r: 13.2 },
@@ -285,14 +286,18 @@ export const vellora: MapDefinition = {
   ],
   locations,
   palette: {
-    sky: ['#9cc8ea', '#f3dcc0'],
-    fog: '#d9d2c7',
+    sky: ['#2f86dc', '#cfe6f7'],
+    fog: '#dbe8f0',
+    clouds: 0.8,
+    uniformShade: 0.55,
+    kit: { prop: 'jar', roofColor: '#c8623c', crateColor: '#c98f45' },
+    mood: { sun: '#fff0d2', sunDir: [-0.5, -0.76, 0.42], sunIntensity: 1.7, ambient: '#cfe0ff', bounce: '#dcc6a4', saturation: 45 },
     zones: {
-      a: { wall: '#d9c6a5', floor: '#b7a68c', accent: '#c4573c' },
-      mid: { wall: '#cf9a74', floor: '#a59e93', accent: '#3f7e8c' },
-      b: { wall: '#a9b9c4', floor: '#9aa3a6', accent: '#d08a3a' },
-      defspawn: { wall: '#9fb6ae', floor: '#8f9a96', accent: '#2e9c8a' },
-      atkspawn: { wall: '#c7a98c', floor: '#a69481', accent: '#e05a47' },
+      a: { wall: '#f2d9a8', floor: '#c9b596', accent: '#2f7d6a' },
+      mid: { wall: '#f0bd9e', floor: '#c4b6a4', accent: '#3b78b8' },
+      b: { wall: '#f3e6cc', floor: '#bfb6a6', accent: '#c9502f' },
+      defspawn: { wall: '#e6dcc6', floor: '#b9b1a2', accent: '#2e9c8a' },
+      atkspawn: { wall: '#f1cfa0', floor: '#c6b294', accent: '#d9433a' },
     },
   },
   handAuthoredSpots: true,

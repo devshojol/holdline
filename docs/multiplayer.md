@@ -304,6 +304,11 @@ Rules that apply to both:
 
 **Quick match rules (fixed):** Deathmatch, 5 minutes, first to 40 kills, all weapons, 10 players.
 
+**Small matches use the middle of the map.** While a match has 6 players or fewer (bots included), everyone
+spawns in the 45% of the map nearest its centre on foot, and bots roam only there, so players meet within
+seconds. From the seventh player on the whole map is used. Nothing is walled off: the rest of the map can
+still be walked into. A spawning player faces down the longest open view from the spawn point.
+
 ### 3.2 Custom room settings
 
 | Setting             | Options                                                                 | Default     |

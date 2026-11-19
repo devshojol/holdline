@@ -61,7 +61,14 @@ interface MapEntry {
   data: MapData;
   /** Ground-level cells a player can stand on: feet positions. */
   spawns: Vec3[];
+  /** The middle of the map: the `COMPACT_SHARE` of those cells nearest its centre on foot. */
+  core: Vec3[];
 }
+
+/** With this many players or fewer, everyone spawns (and bots roam) in the middle part of the map only. */
+const COMPACT_MAX_PLAYERS = 6;
+/** How much of the map's ground that middle part covers. */
+const COMPACT_SHARE = 0.45;
 
 const maps = new Map<string, MapEntry>();
 
@@ -77,7 +84,31 @@ function mapEntry(id: string): MapEntry {
         const i = r * nav.cols + c;
         if (nav.walkable[i] && Math.abs(nav.height[i]) < 0.01) spawns.push([space.x(c), nav.height[i], space.z(r)]);
       }
-    entry = { data, spawns };
+    // walking distance from the middle of the map to every ground cell
+    const mid = spawns.reduce((a, p) => [a[0] + p[0] / spawns.length, 0, a[2] + p[2] / spawns.length] as Vec3, [0, 0, 0] as Vec3);
+    const start = spawns.reduce((best, p) => (Math.hypot(p[0] - mid[0], p[2] - mid[2]) < Math.hypot(best[0] - mid[0], best[2] - mid[2]) ? p : best), spawns[0]);
+    const dist = new Int32Array(nav.cols * nav.rows).fill(-1);
+    const ground = (c: number, r: number) => c >= 0 && r >= 0 && c < nav.cols && r < nav.rows && nav.walkable[r * nav.cols + c] === 1;
+    const queue = [space.row(start[2]) * nav.cols + space.col(start[0])];
+    dist[queue[0]] = 0;
+    for (let head = 0; head < queue.length; head++) {
+      const i = queue[head];
+      const c = i % nav.cols;
+      const r = (i - c) / nav.cols;
+      for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const j = (r + dr) * nav.cols + c + dc;
+        if (ground(c + dc, r + dr) && dist[j] < 0) {
+          dist[j] = dist[i] + 1;
+          queue.push(j);
+        }
+      }
+    }
+    const walk = (p: Vec3) => {
+      const d = dist[space.row(p[2]) * nav.cols + space.col(p[0])];
+      return d < 0 ? Infinity : d;
+    };
+    const core = [...spawns].sort((a, b) => walk(a) - walk(b)).slice(0, Math.max(1, Math.round(spawns.length * COMPACT_SHARE)));
+    entry = { data, spawns, core };
     maps.set(id, entry);
   }
   return entry;
@@ -201,7 +232,7 @@ export class Match {
   /** Create a body at a fresh spawn. */
   private place(id: string, team: Team | null, loadout: Loadout, bot: MatchBot | null, now: number) {
     const pos = this.pickSpawn(id, team);
-    const yaw = this.rng() * 360;
+    const yaw = this.openYaw(pos);
     const controller = new PlayerController(this.map.data.world);
     controller.spawn(pos[0], pos[1], pos[2], yaw);
     bot?.reset((yaw * Math.PI) / 180);
@@ -272,7 +303,7 @@ export class Match {
     const allowed = BOT_GUNS.filter((g) => isWeaponAllowed(this.settings, WEAPONS[g]));
     const gun = WEAPONS[allowed.length ? allowed[Math.floor(this.rng() * allowed.length) % allowed.length] : this.settings.singleWeapon];
     const loadout: Loadout = { primary: gun.slot === 'primary' ? gun.id : 'vandal', secondary: gun.slot === 'secondary' ? gun.id : 'classic' };
-    const bot = new MatchBot(this.map.data, this.map.spawns, gun, this.settings.botDifficulty, this.rng);
+    const bot = new MatchBot(this.map.data, () => this.spawnPool(), gun, this.settings.botDifficulty, this.rng);
     this.place(id, team, loadout, bot, now);
     const agent = randomAgentId(this.rng, [...this.scores.values()].map((s) => s.agent));
     this.scores.set(id, { name, team, kills: 0, deaths: 0, assists: 0, headshots: 0, ping: 0, bot: true, agent });
@@ -421,7 +452,7 @@ export class Match {
 
   private respawn(body: Body) {
     const pos = this.pickSpawn(body.id, body.team);
-    const yaw = this.rng() * 360;
+    const yaw = this.openYaw(pos);
     body.controller.spawn(pos[0], pos[1], pos[2], yaw);
     body.bot?.reset((yaw * Math.PI) / 180);
     if (body.pendingLoadout) this.applyLoadout(body, body.pendingLoadout);
@@ -590,8 +621,41 @@ export class Match {
    * A ground cell far from, and out of sight of, every living opponent (as far as one exists).
    * Teammates don't count against a cell.
    */
+  /**
+   * The cells in play: a small match is kept to the middle of the map, so players meet within seconds of
+   * spawning; a fuller one has the whole map.
+   */
+  private spawnPool(): Vec3[] {
+    return this.bodies.size <= COMPACT_MAX_PLAYERS ? this.map.core : this.map.spawns;
+  }
+
+  /** A direction to face on spawning (degrees): down the longest open view from there, never into a wall. */
+  private openYaw(pos: Vec3): number {
+    const world = this.map.data.world;
+    const y = pos[1] + STAND_EYE;
+    let best = 0;
+    let bestReach = -1;
+    const turn = this.rng() * 360;
+    for (let i = 0; i < 12; i++) {
+      const deg = turn + i * 30;
+      const dx = Math.sin((deg * Math.PI) / 180);
+      const dz = Math.cos((deg * Math.PI) / 180);
+      let reach = 0;
+      for (let d = 2; d <= 30; d += 2) {
+        if (!world.segmentClear(pos[0], y, pos[2], pos[0] + dx * d, y, pos[2] + dz * d)) break;
+        reach = d;
+      }
+      if (reach > bestReach) {
+        bestReach = reach;
+        best = deg;
+      }
+    }
+    return best % 360;
+  }
+
   private pickSpawn(forId: string, team: Team | null): Vec3 {
-    const { spawns, data } = this.map;
+    const { data } = this.map;
+    const spawns = this.spawnPool();
     const others = [...this.bodies.values()].filter((b) => b.id !== forId && b.controller.alive && !(team !== null && b.team === team)).map((b) => b.controller);
     let best = spawns[Math.floor(this.rng() * spawns.length)];
     let bestScore = -Infinity;

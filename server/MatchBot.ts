@@ -102,7 +102,8 @@ export class MatchBot {
 
   constructor(
     private readonly map: MapData,
-    private readonly spawns: Vec3[],
+    /** The cells bots wander between: the part of the map in play right now. */
+    private readonly goals: () => Vec3[],
     readonly weapon: WeaponConfig,
     difficulty: BotDifficulty,
     private readonly rng: () => number,
@@ -282,7 +283,8 @@ export class MatchBot {
       let goal: Vec3 | null = this.chase > 0 ? this.lastKnown : null;
       if (!goal) {
         this.lastKnown = null;
-        goal = this.spawns[Math.floor(this.rng() * this.spawns.length) % this.spawns.length];
+        const goals = this.goals();
+        goal = goals[Math.floor(this.rng() * goals.length) % goals.length];
       }
       this.path = findPath(nav, space, x, z, goal[0], goal[2]) ?? [];
       if (this.path.length === 0) {

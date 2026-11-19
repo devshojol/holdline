@@ -5,7 +5,7 @@
  */
 import { GridBuilder } from '../GridMap';
 import type { MapDefinition } from '../MapData';
-import { authoring, location, withGeneratedSpots, type SpotTable } from '../authoring';
+import { authoring, breakLongLanes, location, withGeneratedSpots, type SpotTable } from '../authoring';
 import spots from '../generated/goldline.json';
 
 const COLS = 52;
@@ -116,7 +116,7 @@ export const goldline: MapDefinition = {
   theme: 'White-walled streets at midday',
   description:
     'Original city block: A Main through the A Bend, a Arcade and fountain courtyard in mid with alleys to both sites, and B Main past the Noodles shop.',
-  grid: grid(),
+  grid: breakLongLanes(grid(), locations),
   zoneOf,
   callouts: [
     { name: 'A Site', c: 9, r: 11 },
@@ -140,7 +140,7 @@ export const goldline: MapDefinition = {
     fog: '#d6e7f4',
     clouds: 1,
     uniformShade: 0.55,
-    kit: { vista: 'city', landmark: 'watertank', roofColor: '#c9643c', crateColor: '#d08a34', barrels: true },
+    kit: { vista: 'city', landmark: 'watertank', roofColor: '#c9643c', crateColor: '#d08a34', prop: 'barrel' },
     mood: { sun: '#fff1d6', sunDir: [-0.5, -0.78, 0.38], sunIntensity: 1.7, ambient: '#cfe0ff', bounce: '#d9c7ab', saturation: 45 },
     zones: {
       a: { wall: '#ebe7de', floor: '#c4b196', accent: '#2f6fb8' },

@@ -6,7 +6,7 @@
  */
 import { GridBuilder } from '../GridMap';
 import type { MapDefinition } from '../MapData';
-import { authoring, location, withGeneratedSpots, type SpotTable } from '../authoring';
+import { authoring, breakLongLanes, location, withGeneratedSpots, type SpotTable } from '../authoring';
 import spots from '../generated/kitsune.json';
 
 const COLS = 52;
@@ -146,7 +146,7 @@ export const kitsune: MapDefinition = {
   theme: 'Vertical neon city',
   description:
     'Original vertical layout: A ramps up to a raised site under A Balcony, a raised Mid Top reached by stairs with Ducts and Depot side routes, and B Balcony over B site.',
-  grid: grid(),
+  grid: breakLongLanes(grid(), locations),
   zoneOf,
   callouts: [
     { name: 'A Site', c: 8, r: 13 },
@@ -167,16 +167,18 @@ export const kitsune: MapDefinition = {
   ],
   locations,
   palette: {
-    sky: ['#7fa9d6', '#d9e4ec'],
-    fog: '#cfd8e0',
-    kit: { roof: 'flat', roofColor: '#6c7480', vista: 'city', wallUnits: true, landmark: 'sign', crateColor: '#7d7468' },
-    mood: { sun: '#ffe2c0', sunDir: [-0.62, -0.62, 0.4], ambient: '#b4c6ee', bounce: '#9a96a0' },
+    sky: ['#4a8fe0', '#d9e6f5'],
+    fog: '#d7e1ee',
+    clouds: 0.6,
+    uniformShade: 0.55,
+    kit: { roof: 'flat', roofColor: '#59616e', vista: 'city', wallUnits: true, landmark: 'sign', crateColor: '#3f9aa6', prop: 'cabinet', string: 'lanterns' },
+    mood: { sun: '#fff0e0', sunDir: [-0.58, -0.68, 0.44], sunIntensity: 1.6, ambient: '#cdd8f8', bounce: '#b4b2bc', saturation: 50 },
     zones: {
-      a: { wall: '#c9cfd6', floor: '#8e969f', accent: '#e0457b' },
-      b: { wall: '#b8c4c9', floor: '#88949a', accent: '#2bb3a3' },
-      mid: { wall: '#d4c7b8', floor: '#958a80', accent: '#f0a33c' },
-      defspawn: { wall: '#aeb8c2', floor: '#848d96', accent: '#2e9c8a' },
-      atkspawn: { wall: '#c4b5a8', floor: '#90857c', accent: '#e05a47' },
+      a: { wall: '#e7e3ec', floor: '#9ba2ad', accent: '#f0447f' },
+      b: { wall: '#dfe9ea', floor: '#959fa6', accent: '#1fb8c4' },
+      mid: { wall: '#ecebe6', floor: '#a09c98', accent: '#f5a623' },
+      defspawn: { wall: '#dde2ea', floor: '#929aa4', accent: '#7a5cf0' },
+      atkspawn: { wall: '#e9e2dc', floor: '#9c958e', accent: '#e8503a' },
     },
   },
   siteMarks: [

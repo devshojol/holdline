@@ -5,7 +5,7 @@
  */
 import { GridBuilder } from '../GridMap';
 import type { MapDefinition } from '../MapData';
-import { authoring, location, withGeneratedSpots, type SpotTable } from '../authoring';
+import { authoring, breakLongLanes, location, withGeneratedSpots, type SpotTable } from '../authoring';
 import spots from '../generated/sanctum.json';
 
 const COLS = 52;
@@ -137,7 +137,7 @@ export const sanctum: MapDefinition = {
   theme: 'Hillside monastery, three sites',
   description:
     'Original three-site layout: A Long and the A Short sewer on the west, a central B site above the mid courtyard, and Workshop and C Long leading to C.',
-  grid: grid(),
+  grid: breakLongLanes(grid(), locations),
   zoneOf,
   callouts: [
     { name: 'A Site', c: 7, r: 11 },
@@ -156,16 +156,19 @@ export const sanctum: MapDefinition = {
   ],
   locations,
   palette: {
-    sky: ['#88b4dc', '#f2e6cf'],
-    fog: '#eadfca',
-    kit: { roofColor: '#5f6f7a', landmark: 'pagoda' },
+    sky: ['#3f8fdc', '#e4f0f8'],
+    fog: '#e2ecf2',
+    clouds: 0.9,
+    uniformShade: 0.55,
+    kit: { roofColor: '#3d6470', landmark: 'pagoda', prop: 'lantern', string: 'banners', crateColor: '#a8703c' },
+    mood: { sun: '#fff4dc', sunDir: [-0.55, -0.74, 0.4], sunIntensity: 1.65, ambient: '#d2e2fb', bounce: '#cfc8b4', saturation: 42 },
     zones: {
-      a: { wall: '#e6d3b1', floor: '#bba88a', accent: '#5f8f45' },
-      b: { wall: '#ecdcbd', floor: '#c2b092', accent: '#b0473a' },
-      c: { wall: '#dfcaa6', floor: '#b39f80', accent: '#3d6f8f' },
-      mid: { wall: '#e3cfab', floor: '#b6a284', accent: '#9a6a3a' },
-      defspawn: { wall: '#d6ccb4', floor: '#aea38c', accent: '#2e9c8a' },
-      atkspawn: { wall: '#e0c8a4', floor: '#b39d80', accent: '#e05a47' },
+      a: { wall: '#f1e7d0', floor: '#b9b4a6', accent: '#c8392f' },
+      b: { wall: '#f4ecd8', floor: '#bdb8aa', accent: '#2f8a4f' },
+      c: { wall: '#ece0c6', floor: '#b3aea0', accent: '#2f6fb8' },
+      mid: { wall: '#efe4cc', floor: '#b6b1a3', accent: '#d9a52a' },
+      defspawn: { wall: '#e6dfcc', floor: '#aeaa9d', accent: '#2e9c8a' },
+      atkspawn: { wall: '#eedcc0', floor: '#b5ad9c', accent: '#e05a47' },
     },
   },
   siteMarks: [

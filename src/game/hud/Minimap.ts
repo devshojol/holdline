@@ -39,7 +39,7 @@ export interface MinimapOptions {
 export class Minimap {
   private readonly img: HTMLCanvasElement;
   private readonly sites: { letter: string; x: number; z: number }[];
-  private readonly callouts: { name: string; x: number; z: number }[];
+  private readonly callouts: { name: string; x: number; z: number; color: string }[];
   /** 1 where a cell blocks sight (row-major). */
   private readonly opaque: Uint8Array;
 
@@ -147,7 +147,21 @@ export class Minimap {
     this.sites = (def.siteMarks ?? []).map((m) => ({ letter: m.letter, x: space.x(m.c), z: space.z(m.r) }));
     this.callouts = (def.callouts ?? [])
       .filter((c) => !/ site$/i.test(c.name))
-      .map((c) => ({ name: c.name.toUpperCase(), x: space.x(c.c), z: space.z(c.r) }));
+      .map((c) => ({ name: c.name.toUpperCase(), x: space.x(c.c), z: space.z(c.r), color: def.palette.zones[def.zoneOf(Math.floor(c.c), Math.floor(c.r))]?.accent ?? '#ffffff' }));
+  }
+
+  /** The named area a point is in: the nearest callout, with its area's colour. */
+  areaAt(x: number, z: number): { name: string; color: string } | null {
+    let best: { name: string; color: string } | null = null;
+    let bestD = Infinity;
+    for (const c of this.callouts) {
+      const d = (c.x - x) ** 2 + (c.z - z) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = c;
+      }
+    }
+    return best;
   }
 
   /** Distance a sight ray travels from (x, z) along (dx, dz) before a wall stops it, up to `max` metres. */
@@ -358,5 +372,26 @@ export class Minimap {
       ctx.stroke();
     }
     ctx.restore();
+
+    // where you are: the area's name on a tab under the panel, with a bar in the area's colour
+    const area = this.areaAt(player.x, player.z);
+    if (area) {
+      const th = 24 * dpr;
+      const ty = y0 + size + 5 * dpr;
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x0, ty, size, th, 6 * dpr);
+      ctx.fillStyle = 'rgba(12,16,23,0.82)';
+      ctx.fill();
+      ctx.clip();
+      ctx.fillStyle = area.color;
+      ctx.fillRect(x0, ty, 5 * dpr, th);
+      ctx.font = `700 ${Math.round(14 * dpr)}px "Barlow Condensed", system-ui, sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(area.name, x0 + 14 * dpr, ty + th / 2 + 0.5 * dpr);
+      ctx.restore();
+    }
   }
 }

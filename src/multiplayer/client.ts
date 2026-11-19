@@ -335,6 +335,7 @@ function receive(msg: ServerMessage) {
         endsAt: msg.endsAt,
         nameOf: (id) => state.scores.find((p) => p.id === id)?.name ?? state.room?.players.find((p) => p.id === id)?.name ?? 'Player',
         agentOf: (id) => state.scores.find((p) => p.id === id)?.agent ?? state.room?.players.find((p) => p.id === id)?.agent ?? null,
+        teamOf: (id) => state.scores.find((p) => p.id === id)?.team ?? state.room?.players.find((p) => p.id === id)?.team ?? null,
         send: raw,
         onMessage: null,
         drop: () => socket?.close(),

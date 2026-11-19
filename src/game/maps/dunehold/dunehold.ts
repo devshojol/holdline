@@ -5,7 +5,7 @@
  */
 import { GridBuilder } from '../GridMap';
 import type { MapDefinition } from '../MapData';
-import { authoring, location, withGeneratedSpots, type SpotTable } from '../authoring';
+import { authoring, breakLongLanes, location, withGeneratedSpots, type SpotTable } from '../authoring';
 import spots from '../generated/dunehold.json';
 
 const COLS = 52;
@@ -126,7 +126,7 @@ export const dunehold: MapDefinition = {
   theme: 'Desert bazaar, two sites, no mid',
   description:
     'Original layout: A Short through Baths and A Long on the west, the Teahouse room with its site window and B Long on the east. There is no mid, so you rotate through spawn.',
-  grid: grid(),
+  grid: breakLongLanes(grid(), locations),
   zoneOf,
   callouts: [
     { name: 'A Site', c: 9, r: 10.5 },
@@ -144,15 +144,18 @@ export const dunehold: MapDefinition = {
   ],
   locations,
   palette: {
-    sky: ['#a9c6e0', '#f4d9b0'],
-    fog: '#e6d2b5',
-    kit: { roof: 'flat', roofColor: '#c9a874', wallUnits: true, landmark: 'minaret' },
+    sky: ['#2a8fd6', '#f3e2bd'],
+    fog: '#ecdcbc',
+    clouds: 0.3,
+    uniformShade: 0.55,
+    kit: { roof: 'flat', roofColor: '#dcc18e', wallUnits: false, landmark: 'minaret', prop: 'basket', string: 'cloth', crateColor: '#b9803c' },
+    mood: { sun: '#ffe9b8', sunDir: [-0.44, -0.82, 0.36], sunIntensity: 1.8, ambient: '#d6e2f6', bounce: '#e0c491', saturation: 48 },
     zones: {
-      a: { wall: '#d8b98c', floor: '#c2a57d', accent: '#b5532e' },
-      b: { wall: '#cfa77a', floor: '#b8986e', accent: '#2f7f86' },
-      mid: { wall: '#c99a6b', floor: '#b28f6c', accent: '#8a3b2a' },
-      defspawn: { wall: '#bfae8e', floor: '#a89a80', accent: '#2e9c8a' },
-      atkspawn: { wall: '#c8a27c', floor: '#a8906f', accent: '#e05a47' },
+      a: { wall: '#ecc98a', floor: '#d6bc8c', accent: '#1f9a9a' },
+      b: { wall: '#e8ba78', floor: '#d0b382', accent: '#c9372f' },
+      mid: { wall: '#e2ad6e', floor: '#cbae80', accent: '#7a4fb0' },
+      defspawn: { wall: '#e0c99c', floor: '#c4b08a', accent: '#2e9c8a' },
+      atkspawn: { wall: '#e6bd84', floor: '#ccb083', accent: '#e07a2c' },
     },
   },
   siteMarks: [

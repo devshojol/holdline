@@ -5,7 +5,7 @@
  */
 import { GridBuilder } from '../GridMap';
 import type { MapDefinition } from '../MapData';
-import { authoring, location, withGeneratedSpots, type SpotTable } from '../authoring';
+import { authoring, breakLongLanes, location, withGeneratedSpots, type SpotTable } from '../authoring';
 import spots from '../generated/permafrost.json';
 
 const COLS = 52;
@@ -116,7 +116,7 @@ export const permafrost: MapDefinition = {
   theme: 'Arctic container yard',
   description:
     'Original layout: container mazes on both sites, a furnace yard in mid, and a Canteen leading to B.',
-  grid: grid(),
+  grid: breakLongLanes(grid(), locations),
   zoneOf,
   callouts: [
     { name: 'A Site', c: 9, r: 11 },
@@ -136,16 +136,18 @@ export const permafrost: MapDefinition = {
   ],
   locations,
   palette: {
-    sky: ['#b8d4ec', '#eef4f8'],
-    fog: '#e6edf2',
-    kit: { roof: 'flat', roofColor: '#5d6b78', awnings: false, bunting: false, wallUnits: true, landmark: 'crane', crateColor: '#6f8496' },
-    mood: { sun: '#f6f3ea', sunDir: [-0.6, -0.6, 0.42], sunIntensity: 1.4, ambient: '#bcd3f4', bounce: '#c4d0dc', ambientIntensity: 0.78, exposure: 0.95 },
+    sky: ['#3d8fe0', '#e6f2fb'],
+    fog: '#e4eef6',
+    clouds: 0.5,
+    uniformShade: 0.55,
+    kit: { roof: 'flat', roofColor: '#4f6478', awnings: false, bunting: false, wallUnits: true, landmark: 'crane', crateColor: '#d8792f', prop: 'drum', snow: true },
+    mood: { sun: '#fbf7ee', sunDir: [-0.6, -0.62, 0.42], sunIntensity: 1.55, ambient: '#c6dbfa', bounce: '#ccd9e6', ambientIntensity: 0.88, saturation: 45 },
     zones: {
-      a: { wall: '#e3eaf0', floor: '#c9d3dc', accent: '#2f6fb0' },
-      b: { wall: '#e6ebee', floor: '#ccd5db', accent: '#d8a23a' },
-      mid: { wall: '#dde5ea', floor: '#c2ccd4', accent: '#4a9a6a' },
-      defspawn: { wall: '#d6e0e6', floor: '#bdc8d0', accent: '#2e9c8a' },
-      atkspawn: { wall: '#e0e2e4', floor: '#c4c9cd', accent: '#c4473a' },
+      a: { wall: '#e6eef5', floor: '#cdd8e2', accent: '#1f6fd0' },
+      b: { wall: '#eaf0f3', floor: '#d0dae1', accent: '#f0b429' },
+      mid: { wall: '#dfe9f0', floor: '#c6d2dc', accent: '#2fa86a' },
+      defspawn: { wall: '#d8e3ea', floor: '#c0ccd6', accent: '#2e9c8a' },
+      atkspawn: { wall: '#e4e8ec', floor: '#c8ced4', accent: '#d8402f' },
     },
   },
   siteMarks: [

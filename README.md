@@ -178,6 +178,25 @@ A bot is one `Bot` entity (state, perception, aim, shooting, movement) plus a _b
 | Coralis    | Island fort        | A Main into a huge open site, Mid, B Main through the B Bend           |
 | Goldline   | Sunlit old town    | A Main via the A Bend, Mid (Arcade/Courtyard), B Main                  |
 
+Each map has a look of its own: its wall and accent colours, its sky, what hangs across its streets and the
+low cover standing in them (set in the map's `palette.kit`).
+
+| Map        | Walls and light             | Low cover          | Across the streets  |
+| ---------- | --------------------------- | ------------------ | ------------------- |
+| Vellora    | Ochre and peach plaster     | Clay storage jars  | Flags               |
+| Dunehold   | Golden sandstone            | Market baskets     | Dyed cloth          |
+| Sanctum    | Cream walls, slate roofs    | Stone lanterns     | Prayer flags        |
+| Kitsune    | Pale lilac concrete         | Drinks cabinets    | Paper lanterns      |
+| Tamarind   | Weathered stone             | Mossy stone blocks | Nothing             |
+| Permafrost | Ice white                   | Oil drums in snow  | Nothing             |
+| Coralis    | Sand and turquoise          | Potted shrubs      | Flags               |
+| Goldline   | White plaster               | Wooden barrels     | Flags               |
+
+Finding your way: the name of the area you are in is shown under the minimap, plates on the walls point the
+way to each site in the site's colour, and in a deathmatch an arrow points to the nearest enemy once you have
+met nobody for 8 seconds. Straight streets of 30 m or more are broken by a chicane of tall crates
+(`breakLongLanes` in `src/game/maps/authoring.ts`); run the spot generator after changing it.
+
 ### 3.8 Practice modes and statistics
 
 - **Angle Holding**: hold a location while bots peek with the behaviour you pick (or a mix). Bots that peek and escape count against you.
