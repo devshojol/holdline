@@ -6,37 +6,21 @@
  */
 
 import type { Action, ActionSource } from './actions';
+import { ACTIONS } from './actions';
+import { DEFAULT_KEYS, type KeyBindings } from '../../settings/keybindings';
 
 export type { Action } from './actions';
 
 /** Minimum time between two wheel-driven weapon swaps. */
 const WHEEL_COOLDOWN_MS = 180;
 
-const KEYMAP: Record<string, Action> = {
-  KeyW: 'forward',
-  KeyS: 'back',
-  KeyA: 'left',
-  KeyD: 'right',
-  ArrowUp: 'forward',
-  ArrowDown: 'back',
-  ArrowLeft: 'left',
-  ArrowRight: 'right',
-  ShiftLeft: 'walk',
-  ShiftRight: 'walk',
-  ControlLeft: 'crouch',
-  ControlRight: 'crouch',
-  KeyC: 'crouch',
-  Space: 'jump',
-  KeyR: 'reload',
-  KeyE: 'use',
-  Digit4: 'use',
-  Digit1: 'primary',
-  Digit2: 'secondary',
-  KeyB: 'loadout',
-};
 
 export class Input implements ActionSource {
   private held = new Set<Action>();
+  /** Key codes / mouse buttons held right now, so letting go of one of two keys for an action keeps it held. */
+  private heldCodes = new Set<string>();
+  /** Bound code → the game actions it drives. */
+  private bindings = new Map<string, Action[]>();
   private pressed = new Set<Action>();
   private mouseDX = 0;
   private mouseDY = 0;
@@ -57,7 +41,8 @@ export class Input implements ActionSource {
 
   private readonly listeners: [EventTarget, string, EventListener, AddEventListenerOptions?][] = [];
 
-  constructor(private readonly canvas: HTMLCanvasElement) {
+  constructor(private readonly canvas: HTMLCanvasElement, keys: KeyBindings = DEFAULT_KEYS) {
+    this.setBindings(keys);
     this.on(document, 'keydown', (e) => this.onKey(e as KeyboardEvent, true));
     this.on(document, 'keyup', (e) => this.onKey(e as KeyboardEvent, false));
     this.on(document, 'mousemove', (e) => this.onMouseMove(e as MouseEvent));
@@ -90,6 +75,32 @@ export class Input implements ActionSource {
     });
     this.on(document, 'pointerlockerror', (e) => this.onLockError?.(e));
     this.on(window, 'blur', () => this.releaseAll());
+  }
+
+  /** Use these key bindings from now on (the map keys in them are the page's, not the simulation's). */
+  setBindings(keys: KeyBindings) {
+    this.bindings.clear();
+    for (const action of ACTIONS)
+      for (const code of keys[action] ?? [])
+        if (code) this.bindings.set(code, [...(this.bindings.get(code) ?? []), action]);
+    this.releaseAll();
+  }
+
+  /** A bound key or button went down or up. */
+  private press(code: string, down: boolean): boolean {
+    const actions = this.bindings.get(code);
+    if (!actions) return false;
+    if (down) {
+      this.heldCodes.add(code);
+      for (const a of actions) {
+        if (!this.held.has(a)) this.pressed.add(a);
+        this.held.add(a);
+      }
+    } else {
+      this.heldCodes.delete(code);
+      for (const a of actions) if (![...this.heldCodes].some((c) => this.bindings.get(c)?.includes(a))) this.held.delete(a);
+    }
+    return true;
   }
 
   private on(target: EventTarget, type: string, fn: EventListener, opts?: AddEventListenerOptions) {
@@ -133,15 +144,8 @@ export class Input implements ActionSource {
       if (this.unlockedLook) this.onEscape?.();
       return;
     }
-    const a = KEYMAP[e.code];
-    if (!a) return;
-    e.preventDefault();
-    if (down) {
-      if (!this.held.has(a)) this.pressed.add(a);
-      this.held.add(a);
-    } else {
-      this.held.delete(a);
-    }
+    if (e.repeat && down) return;
+    if (this.press(e.code, down)) e.preventDefault();
   }
 
   private onMouseMove(e: MouseEvent) {
@@ -161,12 +165,8 @@ export class Input implements ActionSource {
 
   private onMouseButton(e: MouseEvent, down: boolean) {
     if (!this.enabled || (!this.locked && !this.unlockedLook)) return;
-    const a: Action | null = e.button === 0 ? 'fire' : e.button === 2 ? 'alt' : null;
-    if (!a) return;
-    if (down) {
-      if (!this.held.has(a)) this.pressed.add(a);
-      this.held.add(a);
-    } else this.held.delete(a);
+    // a bound side button must not also take the browser back or forward
+    if (this.press(`Mouse${e.button}`, down) && e.button > 2) e.preventDefault();
   }
 
   isDown(a: Action) {
@@ -194,6 +194,7 @@ export class Input implements ActionSource {
 
   releaseAll() {
     this.held.clear();
+    this.heldCodes.clear();
     this.pressed.clear();
     this.mouseDX = 0;
     this.mouseDY = 0;

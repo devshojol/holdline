@@ -1,5 +1,7 @@
 // Shared, engine-agnostic types used by both the React UI layer and the game engine layer.
 
+import type { KeyBindings } from '../settings/keybindings';
+
 export type Vec2 = [number, number];
 export type Vec3 = [number, number, number];
 
@@ -329,6 +331,8 @@ export interface HudSettings {
 }
 
 export interface GameSettings {
+  /** Rebindable controls (src/settings/keybindings.ts). */
+  keys: KeyBindings;
   sensitivity: SensitivitySettings;
   crosshair: CrosshairSettings;
   graphics: GraphicsSettings;

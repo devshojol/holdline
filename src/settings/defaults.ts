@@ -1,3 +1,4 @@
+import { DEFAULT_KEYS } from './keybindings';
 import type {
   BotTuning,
   CrosshairSettings,
@@ -132,6 +133,7 @@ export const GRAPHICS_PRESETS: Record<Exclude<GraphicsPreset, 'custom'>, Graphic
 };
 
 export const DEFAULT_SETTINGS: GameSettings = {
+  keys: DEFAULT_KEYS,
   sensitivity: {
     sensitivity: 0.4,
     dpi: 800,

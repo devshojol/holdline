@@ -5,6 +5,7 @@ import { detectDevice } from '../settings/deviceProfile';
 import { load, mergeDefaults, save } from '../services/storage';
 import { enterGameFullscreen } from '../utils/fullscreen';
 import { readResume } from '../multiplayer/resume';
+import { cleanKeys } from '../settings/keybindings';
 
 export type Page = 'home' | 'practice' | 'multiplayer' | 'maps' | 'weapons' | 'crosshair' | 'sensitivity' | 'statistics' | 'settings';
 
@@ -50,7 +51,8 @@ function migrateSettings(s: GameSettings): GameSettings {
   // 'rigged' was the default before the animated arms existed: move it to the new default once
   if (fpArms === 'rigged' && !load('arms-anim-migrated', false)) fpArms = 'animated';
   save('arms-anim-migrated', true);
-  return fpArms === s.graphics.fpArms ? s : { ...s, graphics: { ...s.graphics, fpArms } };
+  const keys = cleanKeys(s.keys);
+  return { ...s, keys, graphics: fpArms === s.graphics.fpArms ? s.graphics : { ...s.graphics, fpArms } };
 }
 
 /** Settings on first run: the defaults with a graphics preset picked for this machine. */

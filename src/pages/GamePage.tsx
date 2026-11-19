@@ -14,6 +14,7 @@ import { exitGameFullscreen } from '../utils/fullscreen';
 import type { NetLink } from '../game/net/NetLink';
 import { multiplayer, useMultiplayer } from '../multiplayer/client';
 import { Scoreboard } from '../components/Scoreboard';
+import { keyLabel, type BindAction } from '../settings/keybindings';
 import { MapPreview } from '../components/MapPreview';
 import { TIPS } from '../utils/tips';
 import { crazyGames } from '../platform/crazygames';
@@ -181,11 +182,11 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
   useEffect(() => {
     if (!inLoadout) return;
     const onKey = (ev: KeyboardEvent) => {
-      if (ev.code === 'KeyB' && !ev.repeat) void resume();
+      if (settings.keys.loadout.includes(ev.code) && !ev.repeat) void resume();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [inLoadout]);
+  }, [inLoadout, settings.keys]);
 
   const endSession = () => engineRef.current?.end();
   const quit = () => {
@@ -207,6 +208,8 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
   };
 
   const sens = settings.sensitivity;
+  /** The first key bound to an action, as the player knows it (for the hints on the start screen). */
+  const k = (action: BindAction) => keyLabel(settings.keys[action][0] || settings.keys[action][1]) || '—';
 
   // Holding Tab shows the big map (and in a match the scoreboard beside it); M turns the big map on and off.
   const scores = useMultiplayer((s) => s.scores);
@@ -216,11 +219,13 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
   const showScores = !!net && tabHeld;
   const reconnecting = useMultiplayer((s) => s.status === 'reconnecting');
   useEffect(() => {
+    const { mapHold, mapToggle } = settings.keys;
     const onKey = (ev: KeyboardEvent) => {
-      if (ev.code === 'Tab') {
+      if (!ev.code) return;
+      if (mapHold.includes(ev.code)) {
         ev.preventDefault();
         setTabHeld(ev.type === 'keydown');
-      } else if (ev.code === 'KeyM' && ev.type === 'keydown' && !ev.repeat && !(ev.target instanceof HTMLInputElement)) {
+      } else if (mapToggle.includes(ev.code) && ev.type === 'keydown' && !ev.repeat && !(ev.target instanceof HTMLInputElement)) {
         setMapOpen((open) => !open);
       }
     };
@@ -233,7 +238,7 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
       document.removeEventListener('keyup', onKey);
       window.removeEventListener('blur', hide);
     };
-  }, []);
+  }, [settings.keys]);
   useEffect(() => {
     fullMapRef.current = mapOpen || tabHeld ? (showScores && matchSettings ? 'left' : 'center') : null;
     engineRef.current?.setFullMap(fullMapRef.current);
@@ -396,12 +401,22 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
               </div>
             )}
             <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-dim">
-              <span>WASD move · Shift walk</span>
-              <span>Ctrl / C crouch · Space jump</span>
-              <span>LMB fire · RMB aim / burst</span>
-              <span>R reload · 1 / 2 or wheel weapons{config.mode === 'retake' ? ' · E defuse' : ''}</span>
-              <span>B weapon menu</span>
-              <span>{net ? 'Esc menu · Tab map and scoreboard · M map' : 'Esc pause · Tab or M map'}</span>
+              <span>
+                {[k('forward'), k('left'), k('back'), k('right')].join(' ')} move · {k('walk')} walk
+              </span>
+              <span>
+                {k('crouch')} crouch · {k('jump')} jump
+              </span>
+              <span>
+                {k('fire')} fire · {k('alt')} aim / burst
+              </span>
+              <span>
+                {k('reload')} reload · {k('primary')} / {k('secondary')} or wheel weapons{config.mode === 'retake' ? ` · ${k('use')} defuse` : ''}
+              </span>
+              <span>{k('loadout')} weapon menu</span>
+              <span>
+                Esc {net ? 'menu' : 'pause'} · {k('mapToggle')} map · hold {k('mapHold')} {net ? 'map and scoreboard' : 'map'}
+              </span>
             </div>
           </div>
         </div>

@@ -1,8 +1,8 @@
-import { Database, Download, Keyboard, LayoutDashboard, Monitor, RotateCcw, Upload, User, Volume2 } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { Check, Database, Download, Keyboard, LayoutDashboard, Monitor, MousePointer2, RotateCcw, Upload, User, Volume2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { AudioSettings, GraphicsPreset, GraphicsSettings, HudSettings } from '../types';
 import { store, useAppStore } from '../hooks/useAppStore';
-import { Button, Card, ConfirmButton, Field, PageHeader, Segmented, Slider, Toggle } from '../components/ui';
+import { Badge, Button, Card, ConfirmButton, PageHeader, Segmented, Slider, Toggle, cx } from '../components/ui';
 import { DEFAULT_SETTINGS, GRAPHICS_PRESETS } from '../settings/defaults';
 import { mergeDefaults } from '../services/storage';
 import { detectDevice } from '../settings/deviceProfile';
@@ -10,77 +10,289 @@ import { AgentPortrait } from '../components/AgentPicker';
 import { getAgent } from '../game/agents';
 import { multiplayer, useMultiplayer } from '../multiplayer/client';
 import { MAX_NAME_LENGTH, sanitizeName } from '../net/protocol';
+import { BIND_GROUPS, DEFAULT_KEYS, RESERVED_KEYS, bindKey, keyLabel, type BindAction } from '../settings/keybindings';
 
-type Section = 'profile' | 'graphics' | 'audio' | 'hud' | 'controls' | 'data';
-const SECTIONS: { id: Section; label: string; icon: typeof Monitor }[] = [
-  { id: 'profile', label: 'Profile', icon: User },
-  { id: 'graphics', label: 'Graphics', icon: Monitor },
-  { id: 'audio', label: 'Audio', icon: Volume2 },
-  { id: 'hud', label: 'HUD', icon: LayoutDashboard },
-  { id: 'controls', label: 'Controls', icon: Keyboard },
-  { id: 'data', label: 'Data', icon: Database },
+type Section = 'profile' | 'controls' | 'graphics' | 'audio' | 'hud' | 'data';
+const SECTIONS: { id: Section; label: string; blurb: string; icon: typeof Monitor }[] = [
+  { id: 'controls', label: 'Controls', blurb: 'Keys, mouse buttons, sensitivity', icon: Keyboard },
+  { id: 'graphics', label: 'Graphics', blurb: 'Quality, frame rate, models', icon: Monitor },
+  { id: 'audio', label: 'Audio', blurb: 'Volume of each kind of sound', icon: Volume2 },
+  { id: 'hud', label: 'HUD', blurb: 'What shows while you play', icon: LayoutDashboard },
+  { id: 'profile', label: 'Profile', blurb: 'The name other players see', icon: User },
+  { id: 'data', label: 'Data', blurb: 'Back up, restore or reset', icon: Database },
 ];
 
 /** The category shown when the screen opens: the last one looked at, or one another screen asked for. */
-let lastSection: Section = 'graphics';
+let lastSection: Section = 'controls';
 export function showSettingsSection(section: Section) {
   lastSection = section;
 }
 
-const KEYS: [string, string][] = [
-  ['W A S D', 'Move'],
-  ['Mouse', 'Aim'],
-  ['Left click', 'Fire'],
-  ['Right click', 'Aim down sights (rifles, Magnate) · burst (Pilot)'],
-  ['R', 'Reload'],
-  ['Shift (hold)', 'Walk — silent and more accurate'],
-  ['Ctrl / C (hold)', 'Crouch (use C when not fullscreen — Ctrl+W closes browser tabs)'],
-  ['Space', 'Jump'],
-  ['1 / 2', 'Primary / sidearm'],
-  ['Mouse wheel', 'Swap weapon'],
-  ['B', 'Weapon menu — change primary and sidearm mid-session'],
-  ['Esc', 'Pause & release mouse'],
-];
+/** A titled block inside a section, with a rule above it. */
+function Group({ title, children, right }: { title: string; children: ReactNode; right?: ReactNode }) {
+  return (
+    <div className="border-t border-white/[0.07] pt-4 first:border-t-0 first:pt-0">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h3 className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-accent">{title}</h3>
+        {right}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** One setting: its name (marked when it only applies from the next session), the control, an optional explanation. */
+function Setting({ label, next, note, children }: { label: string; next?: boolean; note?: ReactNode; children: ReactNode }) {
+  return (
+    <div className="grid gap-2 py-2.5 md:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] md:items-start md:gap-6">
+      <div className="pt-1 text-sm text-ink">
+        {label}
+        {next && (
+          <span className="ml-2 inline-block align-middle">
+            <Badge>Next session</Badge>
+          </span>
+        )}
+      </div>
+      <div className="min-w-0">
+        {children}
+        {note && <p className="mt-1.5 text-xs leading-relaxed text-dim">{note}</p>}
+      </div>
+    </div>
+  );
+}
+
+/** The title of an open section, what it is for, and a way to put just this section back to its defaults. */
+function SectionHead({ title, blurb, onReset }: { title: string; blurb: string; onReset?: () => void }) {
+  return (
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-white/[0.07] pb-4">
+      <div>
+        <h2 className="font-display text-2xl font-bold uppercase tracking-[0.08em] text-ink">{title}</h2>
+        <p className="text-sm text-mute">{blurb}</p>
+      </div>
+      {onReset && (
+        <ConfirmButton confirmLabel="Reset this section?" onConfirm={onReset}>
+          <RotateCcw size={14} /> Defaults
+        </ConfirmButton>
+      )}
+    </div>
+  );
+}
 
 export function SettingsPage() {
-  const settings = useAppStore((s) => s.settings);
-  const g = settings.graphics;
-  const fileRef = useRef<HTMLInputElement>(null);
   const [section, setSectionState] = useState<Section>(lastSection);
   const setSection = (sec: Section) => {
     lastSection = sec;
     setSectionState(sec);
   };
-  const [msg, setMsg] = useState<string | null>(null);
-  const [exported, setExported] = useState<string | null>(null);
-  const device = useMemo(detectDevice, []);
-  const setG = (p: Partial<GraphicsSettings>) => store.updateSettings((s) => ({ ...s, graphics: { ...s.graphics, ...p, preset: p.preset ?? 'custom' } }));
-  const setA = (p: Partial<AudioSettings>) => store.updateSettings((s) => ({ ...s, audio: { ...s.audio, ...p } }));
-  const setH = (p: Partial<HudSettings>) => store.updateSettings((s) => ({ ...s, hud: { ...s.hud, ...p } }));
-  const preset = (p: GraphicsPreset) => {
-    if (p === 'custom') return setG({ preset: 'custom' });
-    store.updateSettings((s) => ({ ...s, graphics: { ...s.graphics, ...GRAPHICS_PRESETS[p], preset: p } }));
-  };
 
   return (
     <div>
-      <PageHeader kicker="Options" title="Settings" />
-      <div className="grid gap-6 lg:grid-cols-[230px_minmax(0,1fr)]">
+      <PageHeader kicker="Options" title="Settings">
+        <span className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest text-dim">
+          <Check size={14} className="text-ok" /> Changes save as you make them
+        </span>
+      </PageHeader>
+      <div className="grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
         {/* the categories, as a game's options menu: one shows at a time */}
         <nav aria-label="Settings categories" className="tal-rail">
-          {SECTIONS.map((sec, i) => (
+          {SECTIONS.map((sec) => (
             <button key={sec.id} type="button" aria-current={sec.id === section ? 'page' : undefined} className="tal-rail-item" onClick={() => setSection(sec.id)}>
-              <span className="tabular w-5 text-xs text-dim">{String(i + 1).padStart(2, '0')}</span>
-              <sec.icon size={17} />
-              <span>{sec.label}</span>
+              <sec.icon size={18} className="shrink-0" />
+              <span className="min-w-0 text-left">
+                <span className="block">{sec.label}</span>
+                <span className="hidden truncate text-[11px] normal-case tracking-normal text-dim lg:block">{sec.blurb}</span>
+              </span>
             </button>
           ))}
         </nav>
         <div key={section} className="tal-rise min-w-0">
-        {section === 'profile' && <ProfileCard />}
-        {section === 'graphics' && (
-        <Card title="Graphics">
-          <Field label="Preset">
+          {section === 'controls' && <ControlsCard />}
+          {section === 'graphics' && <GraphicsCard />}
+          {section === 'audio' && <AudioCard />}
+          {section === 'hud' && <HudCard />}
+          {section === 'profile' && <ProfileCard />}
+          {section === 'data' && <DataCard />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Controls                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Every action with two key slots. Click a slot and press a key or mouse button to bind it; Esc cancels,
+ * Backspace or Delete empties the slot. A key already used elsewhere moves here, and the screen says so.
+ */
+function ControlsCard() {
+  const keys = useAppStore((s) => s.settings.keys);
+  const sens = useAppStore((s) => s.settings.sensitivity);
+  const [listening, setListening] = useState<{ action: BindAction; slot: 0 | 1; keyboardOnly: boolean } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const labelOf = (action: BindAction) => BIND_GROUPS.flatMap((g) => g.rows).find((r) => r.action === action)?.label ?? action;
+
+  const assign = (action: BindAction, slot: 0 | 1, code: string) => {
+    const { keys: next, movedFrom } = bindKey(store.get().settings.keys, action, slot, code);
+    store.updateSettings((s) => ({ ...s, keys: next }));
+    if (!code) setNotice(`${labelOf(action)}: slot cleared.`);
+    else if (movedFrom) setNotice(`${keyLabel(code)} moved from ${labelOf(movedFrom)} to ${labelOf(action)}.`);
+    else setNotice(`${labelOf(action)} is now ${keyLabel(code)}.`);
+  };
+
+  useEffect(() => {
+    if (!listening) return;
+    const { action, slot, keyboardOnly } = listening;
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.code === 'Escape') return setListening(null);
+      if (e.code === 'Backspace' || e.code === 'Delete') {
+        assign(action, slot, '');
+        return setListening(null);
+      }
+      if (!e.code || RESERVED_KEYS.has(e.code)) return;
+      assign(action, slot, e.code);
+      setListening(null);
+    };
+    const onMouse = (e: MouseEvent) => {
+      if (keyboardOnly) return;
+      e.preventDefault();
+      e.stopPropagation();
+      assign(action, slot, `Mouse${e.button}`);
+      setListening(null);
+    };
+    const noMenu = (e: Event) => e.preventDefault();
+    // attach after the click that opened the slot has finished, so that click isn't taken as the binding
+    const t = setTimeout(() => {
+      window.addEventListener('keydown', onKey, true);
+      window.addEventListener('mousedown', onMouse, true);
+      window.addEventListener('contextmenu', noMenu, true);
+    }, 0);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('mousedown', onMouse, true);
+      window.removeEventListener('contextmenu', noMenu, true);
+    };
+  }, [listening]);
+
+  const setS = (p: Partial<typeof sens>) => store.updateSettings((s) => ({ ...s, sensitivity: { ...s.sensitivity, ...p } }));
+
+  return (
+    <Card>
+      <SectionHead
+        title="Controls"
+        blurb="Click a key to change it, then press the new key or mouse button."
+        onReset={() => {
+          store.updateSettings((s) => ({ ...s, keys: DEFAULT_KEYS }));
+          setNotice('All keys are back to their defaults.');
+        }}
+      />
+      <div className="space-y-5">
+        <Group
+          title="Mouse"
+          right={
+            <button type="button" className="text-xs uppercase tracking-widest text-mute underline-offset-4 hover:text-ink hover:underline" onClick={() => store.go('sensitivity')}>
+              More on the Sensitivity screen
+            </button>
+          }
+        >
+          <div className="grid gap-x-8 md:grid-cols-2">
+            <Slider label="Sensitivity" value={sens.sensitivity} min={0.01} max={5} step={0.01} onChange={(v) => setS({ sensitivity: v })} format={(v) => `eDPI ${Math.round(v * sens.dpi)} at ${sens.dpi} DPI`} />
+            <Toggle label="Invert vertical look" checked={sens.invertY} onChange={(v) => setS({ invertY: v })} />
+          </div>
+        </Group>
+
+        <div aria-live="polite" className={cx('flex min-h-9 items-center gap-2 border px-3 py-2 text-sm', listening ? 'border-accent/60 bg-accent/10 text-ink' : notice ? 'border-ok/30 bg-ok/5 text-ok' : 'border-transparent text-dim')}>
+          <MousePointer2 size={15} className="shrink-0" />
+          {listening
+            ? `Press a ${listening.keyboardOnly ? 'key' : 'key or mouse button'} for ${labelOf(listening.action)} · Esc cancels · Backspace clears`
+            : (notice ?? 'Each action can have two keys. Esc is kept for pausing.')}
+        </div>
+
+        {BIND_GROUPS.map((group) => (
+          <Group key={group.title} title={group.title}>
+            <div className="hidden grid-cols-[minmax(0,1fr)_8.5rem_8.5rem] gap-2 pb-1 text-[11px] uppercase tracking-widest text-dim sm:grid">
+              <span>Action</span>
+              <span className="text-center">Key</span>
+              <span className="text-center">Second key</span>
+            </div>
+            <div className="divide-y divide-white/[0.05]">
+              {group.rows.map((row) => (
+                <div key={row.action} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 py-1.5 sm:grid-cols-[minmax(0,1fr)_8.5rem_8.5rem]">
+                  <div className="min-w-0">
+                    <div className="text-sm text-ink">{row.label}</div>
+                    {row.hint && <div className="truncate text-xs text-dim">{row.hint}</div>}
+                  </div>
+                  {([0, 1] as const).map((slot) => {
+                    const code = keys[row.action][slot];
+                    const active = listening?.action === row.action && listening.slot === slot;
+                    return (
+                      <button
+                        key={slot}
+                        type="button"
+                        aria-label={`${row.label}, ${slot === 0 ? 'key' : 'second key'}: ${code ? keyLabel(code) : 'none'}`}
+                        onClick={() => setListening(active ? null : { action: row.action, slot, keyboardOnly: !!row.keyboardOnly })}
+                        className={cx(
+                          'h-9 min-w-[5.5rem] border px-2 font-display text-sm font-semibold uppercase tracking-wider transition-colors sm:min-w-0',
+                          active
+                            ? 'animate-pulse border-accent bg-accent/20 text-ink'
+                            : code
+                              ? 'border-line bg-bg text-ink hover:border-mute'
+                              : 'border-dashed border-line bg-transparent text-dim hover:border-mute hover:text-mute',
+                        )}
+                      >
+                        {active ? 'Press…' : code ? keyLabel(code) : '+ Add'}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </Group>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Graphics                                                            */
+/* ------------------------------------------------------------------ */
+
+function GraphicsCard() {
+  const g = useAppStore((s) => s.settings.graphics);
+  const device = useMemo(detectDevice, []);
+  const setG = (p: Partial<GraphicsSettings>) => store.updateSettings((s) => ({ ...s, graphics: { ...s.graphics, ...p, preset: p.preset ?? 'custom' } }));
+  const preset = (p: GraphicsPreset) => {
+    if (p === 'custom') return setG({ preset: 'custom' });
+    store.updateSettings((s) => ({ ...s, graphics: { ...s.graphics, ...GRAPHICS_PRESETS[p], preset: p } }));
+  };
+  const suggested = device.preset[0].toUpperCase() + device.preset.slice(1);
+
+  return (
+    <Card>
+      <SectionHead
+        title="Graphics"
+        blurb="Pick a preset, then fine-tune. Lower settings run smoother on slower computers."
+        onReset={() => store.updateSettings((s) => ({ ...s, graphics: DEFAULT_SETTINGS.graphics }))}
+      />
+      <div className="space-y-5">
+        <Group title="Quality">
+          <Setting
+            label="Preset"
+            note={
+              <>
+                Suggested for this computer:{' '}
+                <button type="button" className="text-accent underline" onClick={() => preset(device.preset)}>
+                  {suggested}
+                </button>{' '}
+                <span className="text-dim">({device.gpu || 'unknown graphics card'})</span>. Potato is for computers without a graphics card.
+              </>
+            }
+          >
             <Segmented
               value={g.preset}
               onChange={preset}
@@ -92,45 +304,18 @@ export function SettingsPage() {
                 { value: 'custom', label: 'Custom' },
               ]}
             />
-            <p className="mt-2 text-xs text-dim">
-              Potato is for machines without a dedicated GPU: simple models, no shadows or post-processing, 60% resolution. Detected here:{' '}
-              <span className="text-mute">{device.gpu || 'unknown GPU'}</span> ({device.reason}) — suggested preset{' '}
-              <button className="text-accent underline" onClick={() => preset(device.preset)}>
-                {device.preset[0].toUpperCase() + device.preset.slice(1)}
-              </button>
-              . Model, shadow, lighting and texture changes apply on the next session.
-            </p>
-          </Field>
-          <Field label="Shadows">
-            <Segmented
-              value={g.shadows}
-              onChange={(v) => setG({ shadows: v })}
-              options={[
-                { value: 'off', label: 'Off' },
-                { value: 'medium', label: 'Medium (2K)' },
-                { value: 'high', label: 'High (4K)' },
-              ]}
-            />
-          </Field>
-          <Field label="Effects (decals, particles, muzzle light)">
-            <Segmented
-              value={g.effects}
-              onChange={(v) => setG({ effects: v })}
-              options={[
-                { value: 'low', label: 'Low' },
-                { value: 'medium', label: 'Medium' },
-                { value: 'high', label: 'High' },
-              ]}
-            />
-          </Field>
-          <Slider label="Resolution scale" value={g.resolutionScale} min={0.5} max={1} step={0.05} onChange={(v) => setG({ resolutionScale: v })} format={(v) => `${Math.round(v * 100)}% of native`} />
+          </Setting>
+        </Group>
+
+        <Group title="Display">
+          <Slider label="Resolution scale" value={g.resolutionScale} min={0.5} max={1} step={0.05} onChange={(v) => setG({ resolutionScale: v })} format={(v) => `${Math.round(v * 100)}% of your screen's resolution`} />
           <Toggle
             label="Adaptive resolution"
-            hint="Lowers the resolution automatically while the frame rate is under 60 (or your FPS limit) and restores it afterwards."
+            hint="Lowers the resolution while the frame rate is under 60 (or your limit) and restores it afterwards."
             checked={g.adaptiveResolution}
             onChange={(v) => setG({ adaptiveResolution: v, preset: g.preset })}
           />
-          <Field label="FPS limit">
+          <Setting label="Frame rate limit">
             <Segmented
               value={g.fpsCap}
               onChange={(v) => setG({ fpsCap: v, preset: g.preset })}
@@ -142,10 +327,42 @@ export function SettingsPage() {
                 { value: 144, label: '144' },
               ]}
             />
-          </Field>
-          <Toggle label="Anti-aliasing (FXAA)" checked={g.antialias} onChange={(v) => setG({ antialias: v })} />
-          <Toggle label="Post-processing (tone mapping, contrast, vignette)" checked={g.postFx} onChange={(v) => setG({ postFx: v })} />
-          <Field label="Lighting">
+          </Setting>
+          {/* on CrazyGames the site's own fullscreen button is the only one allowed */}
+          {!__CRAZYGAMES__ && (
+            <Toggle
+              label="Fullscreen on start"
+              hint="Stops Ctrl (crouch) + W from closing the tab. When off, crouch with C instead."
+              checked={g.fullscreen}
+              onChange={(v) => setG({ fullscreen: v, preset: g.preset })}
+            />
+          )}
+        </Group>
+
+        <Group title="Detail">
+          <Setting label="Shadows" next>
+            <Segmented
+              value={g.shadows}
+              onChange={(v) => setG({ shadows: v })}
+              options={[
+                { value: 'off', label: 'Off' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'high', label: 'High' },
+              ]}
+            />
+          </Setting>
+          <Setting label="Effects" next note="Bullet holes, sparks and the muzzle light.">
+            <Segmented
+              value={g.effects}
+              onChange={(v) => setG({ effects: v })}
+              options={[
+                { value: 'low', label: 'Low' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'high', label: 'High' },
+              ]}
+            />
+          </Setting>
+          <Setting label="Lighting" next>
             <Segmented
               value={g.lighting}
               onChange={(v) => setG({ lighting: v })}
@@ -154,8 +371,8 @@ export function SettingsPage() {
                 { value: 'full', label: 'Full' },
               ]}
             />
-          </Field>
-          <Field label="Textures">
+          </Setting>
+          <Setting label="Textures" next>
             <Segmented
               value={g.textureQuality}
               onChange={(v) => setG({ textureQuality: v })}
@@ -164,66 +381,51 @@ export function SettingsPage() {
                 { value: 'high', label: 'High' },
               ]}
             />
-          </Field>
-          {/* on CrazyGames the site's own fullscreen button is the only one allowed */}
-          {!__CRAZYGAMES__ && (
-            <Toggle
-              label="Fullscreen on start"
-              hint="Uses Keyboard Lock so Ctrl (crouch) + W can't close the tab. When off, crouch with C instead of Ctrl."
-              checked={g.fullscreen}
-              onChange={(v) => setG({ fullscreen: v, preset: g.preset })}
-            />
-          )}
+          </Setting>
+          <Toggle label="Anti-aliasing" hint="Smooths jagged edges (FXAA)." checked={g.antialias} onChange={(v) => setG({ antialias: v })} />
+          <Toggle label="Post-processing" hint="Tone mapping, contrast and vignette." checked={g.postFx} onChange={(v) => setG({ postFx: v })} />
+        </Group>
+
+        <Group title="Models">
           {__LOCAL_MODELS__ && (
-            <Field label="Gun models">
+            <Setting label="Guns" next note="Simple guns are built from basic shapes and are lighter on slow computers.">
               <Segmented
                 value={g.gunModels}
                 onChange={(v) => setG({ gunModels: v })}
                 options={[
-                  { value: 'skins', label: 'Skins' },
+                  { value: 'skins', label: 'Detailed' },
                   { value: 'simple', label: 'Simple' },
                 ]}
               />
-              <p className="mt-2 text-xs text-dim">
-                Skins: 3D models for all eight guns (the soldiers carry the Kestrel). Simple: guns built from basic shapes, lighter on slow machines. Applies on
-                the next session.
-              </p>
-            </Field>
+            </Setting>
           )}
-          <Field label="First-person arms">
+          <Setting label="Your arms" next>
             <Segmented
               value={!__LOCAL_MODELS__ && g.fpArms === 'animated' ? 'rigged' : g.fpArms}
               onChange={(v) => setG({ fpArms: v })}
               options={[
                 ...(__LOCAL_MODELS__ ? [{ value: 'animated' as const, label: 'Animated' }] : []),
-                { value: 'rigged', label: 'Rigged arms' },
+                { value: 'rigged', label: 'Posed arms' },
                 { value: 'simple', label: 'Simple hands' },
               ]}
             />
-            <p className="mt-2 text-xs text-dim">
-              {__LOCAL_MODELS__
-                ? 'Animated: gloved arms with real draw, fire and reload animations (public/models/fp-arms-anim.glb). Rigged: the fingerless-glove arm model posed onto each gun (public/models/fp-arms.glb). Either falls back to built-in jointed arms if its file is missing.'
-                : 'Rigged arms are jointed arms that wrap each gun.'}{' '}
-              Applies on the next session.
-            </p>
-          </Field>
+          </Setting>
           {__LOCAL_MODELS__ && (
-            <Field label="Bot model">
+            <Setting label="Soldiers" next note="Practice dummies are much lighter: pick them on slow computers or for big deathmatches.">
               <Segmented
                 value={g.botModel}
                 onChange={(v) => setG({ botModel: v })}
                 options={[
-                  { value: 'agent', label: 'Agents (random)' },
-                  { value: 'dummy', label: 'Training dummy' },
+                  { value: 'agent', label: 'Agents' },
+                  { value: 'dummy', label: 'Practice dummy' },
                 ]}
               />
-              <p className="mt-2 text-xs text-dim">
-                Each bot wears a random agent model (~15–25k triangles per bot). Pick the dummy on slower machines or for big deathmatches. Applies on the next
-                session.
-              </p>
-            </Field>
+            </Setting>
           )}
-          <Field label="Renderer">
+        </Group>
+
+        <Group title="Advanced">
+          <Setting label="Renderer" next note="WebGPU is used only where the browser supports it, and falls back to WebGL 2 by itself.">
             <Segmented
               value={g.renderer}
               onChange={(v) => setG({ renderer: v, preset: g.preset })}
@@ -232,146 +434,180 @@ export function SettingsPage() {
                 { value: 'webgpu', label: 'WebGPU (experimental)' },
               ]}
             />
-            <p className="mt-2 text-xs text-dim">WebGPU is attempted only when supported and falls back to WebGL 2 automatically. Shadows/effects/renderer apply on the next session.</p>
-          </Field>
-        </Card>
-        )}
+          </Setting>
+        </Group>
+      </div>
+    </Card>
+  );
+}
 
-        {section === 'audio' && (
-        <Card title="Audio">
-          <Slider label="Master" value={settings.audio.master} min={0} max={1} step={0.01} onChange={(v) => setA({ master: v })} format={(v) => `${Math.round(v * 100)}%`} />
-          <Slider label="Weapons" value={settings.audio.weapons} min={0} max={1} step={0.01} onChange={(v) => setA({ weapons: v })} format={(v) => `${Math.round(v * 100)}%`} />
-          <Slider label="Effects & feedback" value={settings.audio.effects} min={0} max={1} step={0.01} onChange={(v) => setA({ effects: v })} format={(v) => `${Math.round(v * 100)}%`} />
-          <Slider label="Footsteps" value={settings.audio.footsteps} min={0} max={1} step={0.01} onChange={(v) => setA({ footsteps: v })} format={(v) => `${Math.round(v * 100)}%`} />
-          <Toggle label="Hit & headshot sounds" checked={settings.audio.hitSounds} onChange={(v) => setA({ hitSounds: v })} />
-          <p className="mt-2 text-xs text-dim">All sounds are synthesised in the browser (Web Audio). Enemy shots and footsteps are positional (HRTF) and muffled behind walls.</p>
-        </Card>
-        )}
+/* ------------------------------------------------------------------ */
+/* Audio and HUD                                                       */
+/* ------------------------------------------------------------------ */
 
-        {section === 'hud' && (
-        <Card title="HUD">
-          <div className="grid gap-x-6 md:grid-cols-2">
-            <Toggle label="FPS counter" checked={settings.hud.showFps} onChange={(v) => setH({ showFps: v })} />
-            <Toggle label="Performance metrics" checked={settings.hud.showPerfMetrics} onChange={(v) => setH({ showPerfMetrics: v })} />
-            <Toggle label="Session timer" checked={settings.hud.showTimer} onChange={(v) => setH({ showTimer: v })} />
-            <Toggle label="Kill / death counter" checked={settings.hud.showKills} onChange={(v) => setH({ showKills: v })} />
-            <Toggle label="Health & shield" checked={settings.hud.showHealth} onChange={(v) => setH({ showHealth: v })} />
-            <Toggle label="Weapon & ammo" checked={settings.hud.showAmmo} onChange={(v) => setH({ showAmmo: v })} />
-            <Toggle label="Kill feed" checked={settings.hud.showKillFeed} onChange={(v) => setH({ showKillFeed: v })} />
-            <Toggle label="Hit markers" checked={settings.hud.showHitmarkers} onChange={(v) => setH({ showHitmarkers: v })} />
-            <Toggle label="Moving-shot warning" checked={settings.hud.showMoveWarning} onChange={(v) => setH({ showMoveWarning: v })} />
-            <Toggle label="Damage direction" checked={settings.hud.showDamageIndicator} onChange={(v) => setH({ showDamageIndicator: v })} />
-            <Toggle label="Minimap" checked={settings.hud.showMinimap} onChange={(v) => setH({ showMinimap: v })} />
+function AudioCard() {
+  const a = useAppStore((s) => s.settings.audio);
+  const setA = (p: Partial<AudioSettings>) => store.updateSettings((s) => ({ ...s, audio: { ...s.audio, ...p } }));
+  const pct = (v: number) => `${Math.round(v * 100)}%`;
+  return (
+    <Card>
+      <SectionHead
+        title="Audio"
+        blurb="Footsteps tell you where enemies are: keep them loud enough to hear."
+        onReset={() => store.updateSettings((s) => ({ ...s, audio: DEFAULT_SETTINGS.audio }))}
+      />
+      <div className="grid gap-x-8 md:grid-cols-2">
+        <Slider label="Master volume" value={a.master} min={0} max={1} step={0.01} onChange={(v) => setA({ master: v })} format={pct} />
+        <Slider label="Guns" value={a.weapons} min={0} max={1} step={0.01} onChange={(v) => setA({ weapons: v })} format={pct} />
+        <Slider label="Footsteps" value={a.footsteps} min={0} max={1} step={0.01} onChange={(v) => setA({ footsteps: v })} format={pct} />
+        <Slider label="Effects and feedback" value={a.effects} min={0} max={1} step={0.01} onChange={(v) => setA({ effects: v })} format={pct} />
+      </div>
+      <Toggle label="Hit and headshot sounds" checked={a.hitSounds} onChange={(v) => setA({ hitSounds: v })} />
+      <p className="mt-2 text-xs text-dim">Enemy shots and footsteps come from where they happen and are muffled behind walls: headphones help.</p>
+    </Card>
+  );
+}
+
+function HudCard() {
+  const h = useAppStore((s) => s.settings.hud);
+  const setH = (p: Partial<HudSettings>) => store.updateSettings((s) => ({ ...s, hud: { ...s.hud, ...p } }));
+  return (
+    <Card>
+      <SectionHead
+        title="HUD"
+        blurb="Show only what helps you: a quieter screen makes enemies easier to spot."
+        onReset={() => store.updateSettings((s) => ({ ...s, hud: DEFAULT_SETTINGS.hud }))}
+      />
+      <div className="space-y-5">
+        <Group title="Information">
+          <div className="grid gap-x-8 md:grid-cols-2">
+            <Toggle label="Health and shield" checked={h.showHealth} onChange={(v) => setH({ showHealth: v })} />
+            <Toggle label="Weapon and ammo" checked={h.showAmmo} onChange={(v) => setH({ showAmmo: v })} />
+            <Toggle label="Timer" checked={h.showTimer} onChange={(v) => setH({ showTimer: v })} />
+            <Toggle label="Kills and deaths" checked={h.showKills} onChange={(v) => setH({ showKills: v })} />
+            <Toggle label="Kill feed" checked={h.showKillFeed} onChange={(v) => setH({ showKillFeed: v })} />
+          </div>
+        </Group>
+        <Group title="Combat feedback">
+          <div className="grid gap-x-8 md:grid-cols-2">
+            <Toggle label="Hit markers" checked={h.showHitmarkers} onChange={(v) => setH({ showHitmarkers: v })} />
+            <Toggle label="Damage direction" checked={h.showDamageIndicator} onChange={(v) => setH({ showDamageIndicator: v })} />
+            <Toggle label="Moving-shot warning" hint="Reminds you to stop before you shoot." checked={h.showMoveWarning} onChange={(v) => setH({ showMoveWarning: v })} />
+          </div>
+        </Group>
+        <Group title="Minimap">
+          <div className="grid gap-x-8 md:grid-cols-2">
+            <Toggle label="Minimap" checked={h.showMinimap} onChange={(v) => setH({ showMinimap: v })} />
             <Slider
-              label="Minimap: always show enemies within"
-              value={settings.hud.minimapEnemyRange}
+              label="Practice: show enemies within"
+              value={h.minimapEnemyRange}
               min={0}
               max={60}
               step={5}
               onChange={(v) => setH({ minimapEnemyRange: v })}
-              format={(v) => (v === 0 ? 'off (none shown)' : `${v} m`)}
+              format={(v) => (v === 0 ? 'Off: none shown' : `${v} m, even through walls`)}
             />
           </div>
-        </Card>
-        )}
-
-        {section === 'controls' && (
-        <Card title="Controls">
-          <div className="divide-y divide-line text-sm">
-            {KEYS.map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-4 py-1.5">
-                <kbd className="border border-line bg-bg px-2 py-0.5 font-mono text-xs">{k}</kbd>
-                <span className="text-right text-mute">{v}</span>
-              </div>
-            ))}
+        </Group>
+        <Group title="Performance">
+          <div className="grid gap-x-8 md:grid-cols-2">
+            <Toggle label="Frame rate counter" checked={h.showFps} onChange={(v) => setH({ showFps: v })} />
+            <Toggle label="Detailed performance" checked={h.showPerfMetrics} onChange={(v) => setH({ showPerfMetrics: v })} />
           </div>
-          <p className="mt-3 text-xs text-dim">Optimised for keyboard and mouse on desktop Chrome/Edge (Firefox works where Pointer Lock raw input is unsupported). Mobile is not supported.</p>
-        </Card>
-        )}
-
-        {section === 'data' && (
-        <Card title="Data">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                const st = store.get();
-                const json = JSON.stringify({ v: 1, settings: st.settings, practice: st.practice, presets: st.presets }, null, 2);
-                setExported(json);
-                try {
-                  const blob = new Blob([json], { type: 'application/json' });
-                  const a = document.createElement('a');
-                  a.href = URL.createObjectURL(blob);
-                  a.download = 'holdline-settings.json';
-                  a.click();
-                  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-                } catch {
-                  /* downloads blocked — JSON is shown below */
-                }
-              }}
-            >
-              <Download size={16} /> Export settings
-            </Button>
-            <Button variant="outline" onClick={() => fileRef.current?.click()}>
-              <Upload size={16} /> Import settings
-            </Button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="application/json"
-              className="hidden"
-              onChange={async (e) => {
-                const f = e.target.files?.[0];
-                if (!f) return;
-                try {
-                  const data = JSON.parse(await f.text());
-                  if (data.settings) store.updateSettings(() => mergeDefaults(DEFAULT_SETTINGS, data.settings));
-                  if (data.practice) store.updatePractice(data.practice);
-                  if (Array.isArray(data.presets)) store.savePresets(data.presets);
-                  setMsg('Settings imported.');
-                } catch {
-                  setMsg('Could not read that file.');
-                }
-                e.target.value = '';
-              }}
-            />
-            <ConfirmButton
-              size="md"
-              confirmLabel="Reset everything?"
-              onConfirm={() => {
-                store.updateSettings(() => DEFAULT_SETTINGS);
-                setMsg('Settings reset.');
-              }}
-            >
-              <RotateCcw size={16} /> Reset all settings
-            </ConfirmButton>
-          </div>
-          {msg && <div className="mt-2 text-sm text-ok">{msg}</div>}
-          {exported && (
-            <div className="mt-3">
-              <div className="mb-1 flex items-center justify-between text-xs text-dim">
-                <span>Settings JSON (if the download was blocked, copy it from here)</span>
-                <button
-                  className="text-mute underline hover:text-ink"
-                  onClick={() => {
-                    navigator.clipboard?.writeText(exported).then(
-                      () => setMsg('Copied to clipboard.'),
-                      () => setMsg('Select the text and copy it manually.'),
-                    );
-                  }}
-                >
-                  Copy
-                </button>
-              </div>
-              <textarea id="settings-json" readOnly value={exported} className="h-32 w-full border border-line bg-bg p-2 font-mono text-xs" />
-            </div>
-          )}
-          <p className="mt-3 text-xs text-dim">Settings, crosshair presets and session history are stored locally in this browser (localStorage).</p>
-        </Card>
-        )}
-        </div>
+        </Group>
       </div>
-    </div>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Data and profile                                                    */
+/* ------------------------------------------------------------------ */
+
+function DataCard() {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [exported, setExported] = useState<string | null>(null);
+  return (
+    <Card>
+      <SectionHead title="Data" blurb="Everything is kept in this browser. Export a file to move your setup to another computer." />
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          onClick={() => {
+            const st = store.get();
+            const json = JSON.stringify({ v: 1, settings: st.settings, practice: st.practice, presets: st.presets }, null, 2);
+            setExported(json);
+            try {
+              const blob = new Blob([json], { type: 'application/json' });
+              const a = document.createElement('a');
+              a.href = URL.createObjectURL(blob);
+              a.download = 'holdline-settings.json';
+              a.click();
+              setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            } catch {
+              /* downloads blocked — JSON is shown below */
+            }
+          }}
+        >
+          <Download size={16} /> Export settings
+        </Button>
+        <Button variant="outline" onClick={() => fileRef.current?.click()}>
+          <Upload size={16} /> Import settings
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json"
+          className="hidden"
+          onChange={async (e) => {
+            const f = e.target.files?.[0];
+            if (!f) return;
+            try {
+              const data = JSON.parse(await f.text());
+              if (data.settings) store.updateSettings(() => mergeDefaults(DEFAULT_SETTINGS, data.settings));
+              if (data.practice) store.updatePractice(data.practice);
+              if (Array.isArray(data.presets)) store.savePresets(data.presets);
+              setMsg('Settings imported.');
+            } catch {
+              setMsg('Could not read that file.');
+            }
+            e.target.value = '';
+          }}
+        />
+        <ConfirmButton
+          size="md"
+          confirmLabel="Reset everything?"
+          onConfirm={() => {
+            store.updateSettings(() => DEFAULT_SETTINGS);
+            setMsg('Settings reset.');
+          }}
+        >
+          <RotateCcw size={16} /> Reset all settings
+        </ConfirmButton>
+      </div>
+      {msg && <div className="mt-2 text-sm text-ok">{msg}</div>}
+      {exported && (
+        <div className="mt-3">
+          <div className="mb-1 flex items-center justify-between text-xs text-dim">
+            <span>Settings JSON (if the download was blocked, copy it from here)</span>
+            <button
+              className="text-mute underline hover:text-ink"
+              onClick={() => {
+                navigator.clipboard?.writeText(exported).then(
+                  () => setMsg('Copied to clipboard.'),
+                  () => setMsg('Select the text and copy it manually.'),
+                );
+              }}
+            >
+              Copy
+            </button>
+          </div>
+          <textarea id="settings-json" readOnly value={exported} className="h-32 w-full border border-line bg-bg p-2 font-mono text-xs" />
+        </div>
+      )}
+      <p className="mt-3 text-xs text-dim">Settings, keys, crosshair presets and your session history are stored in this browser only.</p>
+    </Card>
   );
 }
 
@@ -384,7 +620,8 @@ function ProfileCard() {
   const clean = sanitizeName(draft);
   const changed = clean !== null && clean !== sanitizeName(name);
   return (
-    <Card title="Profile">
+    <Card>
+      <SectionHead title="Profile" blurb="Your callsign in multiplayer." />
       <form
         className="flex flex-wrap items-end gap-4"
         onSubmit={(e) => {
@@ -413,7 +650,7 @@ function ProfileCard() {
         </Button>
       </form>
       <p className="mt-3 text-xs text-dim">
-        The name other players see in multiplayer. Your agent ({agent.name}) is picked on the Multiplayer screen.
+        Your agent ({agent.name}) is picked on the Multiplayer screen.
         {inRoom && ' A room keeps the name you joined with: the new one shows from the next room.'}
       </p>
     </Card>

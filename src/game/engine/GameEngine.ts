@@ -430,7 +430,7 @@ export class GameEngine {
     }
 
     // gameplay
-    this.input = new Input(this.canvas);
+    this.input = new Input(this.canvas, this.settings.keys);
     this.input.rawRequested = this.settings.sensitivity.rawInput;
     this.input.onLockChange = (locked) => {
       if (!locked && this.status === 'running' && !this.input.unlockedLook) this.pause('pointer-lock');
@@ -758,6 +758,7 @@ export class GameEngine {
     if (this.status === 'loading' || this.disposed) return; // init reads this.settings as it builds
     this.audio.applySettings(s.audio);
     this.input.rawRequested = s.sensitivity.rawInput;
+    if (prev.keys !== s.keys) this.input.setBindings(s.keys);
     if (prev.graphics.resolutionScale !== s.graphics.resolutionScale || prev.graphics.adaptiveResolution !== s.graphics.adaptiveResolution) {
       if (!s.graphics.adaptiveResolution) this.dynScale = 1;
       this.applyResolution();
