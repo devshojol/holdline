@@ -97,7 +97,9 @@ function CallsignGate() {
         className="tal-callsign tal-rise"
         onSubmit={(e) => {
           e.preventDefault();
-          if (clean) multiplayer.setName(clean);
+          if (!clean) return;
+          multiplayer.setName(clean);
+          multiplayer.nameChosen();
         }}
       >
         <div className="font-display text-xs font-semibold uppercase tracking-[0.4em] text-accent">{invite ? `Invited to room ${invite}` : 'Before you drop in'}</div>

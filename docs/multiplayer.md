@@ -302,7 +302,7 @@ Rules that apply to both:
 - **Kill feed and scoreboard.** The kill feed shows killer, weapon, headshot and victim. Tab holds the
   scoreboard open: name, kills, deaths, assists, headshot %, ping.
 
-**Quick match rules (fixed):** Deathmatch, 10 minutes, first to 40 kills, all weapons, 10 players.
+**Quick match rules (fixed):** Deathmatch, 5 minutes, first to 40 kills, all weapons, 10 players.
 
 ### 3.2 Custom room settings
 
@@ -333,7 +333,7 @@ other, created by the server instead of by a host.
 
 The server looks at the queue once a second and, for each waiting player in order of arrival:
 
-1. **Join a running match.** If a quick match on an accepted map has a free slot and more than 3 minutes
+1. **Join a running match.** If a quick match on an accepted map has a free slot and more than 90 seconds
    or 10 kills left, the player joins it. This is what keeps waits short when few people are online.
 2. **Start a new match.** Otherwise the player waits. When 10 players accept a common map, the match
    starts immediately. As soon as **1** does (bots will fill the rest), a 15-second timer starts for that group; anyone who arrives

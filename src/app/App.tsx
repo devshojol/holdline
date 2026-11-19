@@ -153,7 +153,35 @@ function useMenuFeel(active: boolean) {
   }, [active]);
 }
 
+/** The screen the menus are laid out for. */
+const DESIGN_WIDTH = 1600;
+const DESIGN_HEIGHT = 900;
+/** Narrower than this is a phone: it gets the stacked layout at its real size (same as `--breakpoint-lg`). */
+const PHONE_WIDTH = 768;
+
+function uiScale(): number {
+  if (typeof window === 'undefined' || window.innerWidth < PHONE_WIDTH) return 1;
+  const fit = Math.min(window.innerWidth / DESIGN_WIDTH, window.innerHeight / DESIGN_HEIGHT);
+  return Math.min(2, Math.round(fit * 1000) / 1000);
+}
+
+/**
+ * How much to scale the menus so the desktop layout fits the window exactly: a window smaller than the
+ * design screen (a game frame on a portal, a small laptop) shows the same layout smaller instead of a
+ * rearranged or cut-off one, and a bigger one shows it larger. Phones are left alone.
+ */
+function useUiScale(): number {
+  const [scale, setScale] = useState(uiScale);
+  useEffect(() => {
+    const update = () => setScale(uiScale());
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  return scale;
+}
+
 export function App() {
+  const scale = useUiScale();
   const page = useAppStore((s) => s.page);
   const playing = useAppStore((s) => s.playing);
 
@@ -183,7 +211,12 @@ export function App() {
     );
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden">
+    <div
+      className="relative flex h-full flex-col overflow-hidden"
+      // scaled as a whole: it still fills the window (its 100% is not scaled), and everything inside is laid out
+      // as if the window were 1/scale times as large
+      style={scale === 1 ? undefined : { zoom: scale }}
+    >
       <Backdrop />
 
       <header className="tal-topbar flex shrink-0 flex-col md:h-16 md:flex-row md:items-stretch">

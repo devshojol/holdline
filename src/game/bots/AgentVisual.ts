@@ -111,6 +111,20 @@ const vE = new Vector3();
 const vU = new Vector3();
 const vN = new Vector3();
 
+/**
+ * The line drawn round every other soldier so they can be picked out at range, where a figure is a few
+ * dozen pixels of camouflage against a wall. Its width follows the distance, so on screen it stays about
+ * two pixels wide: next to nothing up close, a clear edge far away. It is hidden by walls like the
+ * soldier is, so it never shows where someone is behind cover.
+ */
+const OUTLINE_COLOUR = new Color3(1, 0.33, 0.2);
+/** Metres of outline per metre of distance (about two pixels at 1080p). */
+const OUTLINE_PER_METRE = 0.0021;
+const OUTLINE_MIN = 0.003;
+const OUTLINE_MAX = 0.16;
+/** Smaller parts than this add nothing to the silhouette and are not worth drawing twice. */
+const OUTLINE_MIN_VERTICES = 200;
+
 /** How much of its own colour a character gives off as light (0 = lit by the scene only). */
 const SELF_LIGHT = 0.34;
 
@@ -268,6 +282,8 @@ class AgentVisual implements BotView {
   private poseKey = '';
   private frameNo = 0;
   private readonly body: AbstractMesh;
+  /** The body meshes that carry the outline (the gun is left plain). */
+  private readonly outlined: AbstractMesh[];
   private rifleSkin: PlacedSkin | null = null;
   /** Support-hand point on the rifle, relative to the grip (metres along / above the barrel). */
   private handguardFwd = 0.27;
@@ -298,6 +314,13 @@ class AgentVisual implements BotView {
       m.applyFog = false; // the distance haze softens the scenery, not the people in it
       m.overlayColor = new Color3(1, 1, 1);
       m.overlayAlpha = 0.55;
+    }
+    // the parts that make the silhouette carry the outline; hair, brows, lashes and eyes would only add blobs
+    this.outlined = this.meshes.filter((m) => m.getTotalVertices() >= OUTLINE_MIN_VERTICES && !m.material?.needAlphaTesting() && !m.material?.needAlphaBlending());
+    for (const m of this.outlined) {
+      m.outlineColor = OUTLINE_COLOUR;
+      m.outlineWidth = OUTLINE_MIN / assets.scale;
+      m.renderOutline = true;
     }
 
     for (const key of Object.keys(N) as NodeKey[]) {
@@ -405,6 +428,7 @@ class AgentVisual implements BotView {
 
   die() {
     this.deathT = 0;
+    for (const m of this.outlined) m.renderOutline = false; // a body on the ground is not a target
     this.deathRoll = (Math.random() - 0.5) * 0.9;
     this.endReload();
   }
@@ -416,6 +440,7 @@ class AgentVisual implements BotView {
 
   revive() {
     this.deathT = -1;
+    for (const m of this.outlined) m.renderOutline = true;
     this.kick = 0;
     this.flinch = 0;
     this.endReload();
@@ -614,6 +639,15 @@ class AgentVisual implements BotView {
 
   private pose() {
     if (!this.visible) return;
+
+    // outline: as wide as the distance needs to stay the same on screen
+    const viewer = this.assets.scene.activeCamera;
+    if (viewer && this.deathT < 0) {
+      const eye = viewer.globalPosition;
+      const dist = Math.hypot(eye.x - this.x, eye.y - this.y, eye.z - this.z);
+      const width = Math.min(OUTLINE_MAX, Math.max(OUTLINE_MIN, dist * OUTLINE_PER_METRE)) / this.assets.scale;
+      for (const m of this.outlined) m.outlineWidth = width;
+    }
 
     // flash / hit overlay
     if (this.flashTime > 0) {

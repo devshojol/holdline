@@ -40,7 +40,7 @@ export const MIN_PLAYERS = 2;
 /** Quick match: how long a group of at least `MIN_PLAYERS` waits for more before its match starts. */
 export const QUEUE_START_DELAY_MS = 15000;
 /** Quick match: a running match takes newcomers only while it has more than this much time and this many kills left. */
-export const QUICK_MIN_TIME_LEFT_MS = 3 * 60_000;
+export const QUICK_MIN_TIME_LEFT_MS = 90_000;
 export const QUICK_MIN_KILLS_LEFT = 10;
 /** Quick match: a player who does nothing for this long is removed, so their place can go to someone else. */
 export const IDLE_KICK_MS = 60_000;

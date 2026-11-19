@@ -413,7 +413,7 @@ describe('quick match', () => {
     t.wait(QUEUE_START_DELAY_MS - 10_000 + 1000);
     for (const p of [a, b, c]) {
       expect(p.queue).toBeNull();
-      expect(p.room).toMatchObject({ kind: 'quick', phase: 'countdown', settings: { mapId: 'vellora', mode: 'deathmatch', killLimit: 40, timeLimitMin: 10 } });
+      expect(p.room).toMatchObject({ kind: 'quick', phase: 'countdown', settings: { mapId: 'vellora', mode: 'deathmatch', killLimit: 40, timeLimitMin: 5 } });
       expect(p.room.players.map((x) => x.name)).toEqual(['Sova', 'Jett', 'Omen']);
       expect(p.room.players.some((x) => x.host)).toBe(false);
     }

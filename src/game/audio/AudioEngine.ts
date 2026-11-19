@@ -6,6 +6,7 @@
 
 import type { AudioSettings, Vec3 } from '../../types';
 import { makeImpulseResponse, renderAllGuns, type GunSoundId } from './gunSynth';
+import { crazyGames } from '../../platform/crazygames';
 
 /** Optional user-supplied recordings (public/sounds/manifest.json), keyed by weapon. */
 const SAMPLE_KEYS: Record<GunSoundId, string> = {
@@ -323,6 +324,9 @@ class Synth {
 export class AudioEngine {
   ctx: AudioContext | null = null;
   private master!: GainNode;
+  /** Muted by the site the game is embedded in (CrazyGames' mute switch). */
+  private platformMuted = false;
+  private stopMuteWatch: (() => void) | null = null;
   private buses!: Record<Bus, GainNode>;
   private buffers = new Map<string, AudioBuffer[]>();
   private settings: AudioSettings;
@@ -335,6 +339,10 @@ export class AudioEngine {
 
   constructor(settings: AudioSettings) {
     this.settings = settings;
+    this.stopMuteWatch = crazyGames.onMute((muted) => {
+      this.platformMuted = muted;
+      if (this.ctx) this.master.gain.value = muted ? 0 : this.settings.master;
+    });
   }
 
   /** Create the AudioContext — must be called from a user gesture. */
@@ -500,7 +508,8 @@ export class AudioEngine {
   applySettings(s: AudioSettings) {
     this.settings = s;
     if (!this.ctx) return;
-    this.master.gain.value = s.master;
+    // the site the game is embedded in may mute it, whatever the game's own volume says
+    this.master.gain.value = this.platformMuted ? 0 : s.master;
     this.buses.weapons.gain.value = s.weapons;
     this.buses.effects.gain.value = s.effects;
     this.buses.foot.gain.value = s.footsteps;
@@ -797,6 +806,8 @@ export class AudioEngine {
   }
 
   dispose() {
+    this.stopMuteWatch?.();
+    this.stopMuteWatch = null;
     void this.ctx?.close();
     this.ctx = null;
     this.ready = false;

@@ -15,6 +15,16 @@
   --color-info: #5cc8ff;
   --font-display: 'Barlow Condensed', 'Arial Narrow', Impact, sans-serif;
   --font-sans: 'Barlow', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /*
+   * One desktop layout for every window that is not a phone. The menus are laid out for a 1600×900 screen and
+   * scaled to fit whatever they are shown in (`useUiScale` in app/App.tsx), so a small frame on a games site
+   * shows the same screen as a big monitor, only smaller. That means the wide-screen steps must all switch on
+   * together, at the width where the phone layout ends. They differ by a hair only to keep their order in
+   * the stylesheet (xl must still win over lg).
+   */
+  --breakpoint-lg: 48rem;
+  --breakpoint-xl: 48.01rem;
+  --breakpoint-2xl: 48.02rem;
 }
 
 :root {
@@ -1164,7 +1174,7 @@ input[type='number'].tal-num::-webkit-inner-spin-button {
   gap: 4px;
   align-self: start;
 }
-@media (max-width: 1023px) {
+@media (max-width: 767px) {
   .tal-rail {
     flex-direction: row;
     overflow-x: auto;

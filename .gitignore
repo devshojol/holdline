@@ -11,3 +11,4 @@ tools/blender/out/*.png
 tools/blender/out/
 dist-crazygames
 holdline-crazygames.zip
+dist-cg-test

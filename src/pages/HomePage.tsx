@@ -9,6 +9,9 @@ import { WEAPONS } from '../game/weapons/weaponConfigs';
 import { getMapDefinition } from '../game/maps/registry';
 import { DIFFICULTY_LABEL, MODE_INFO, accuracy, dayKey, fmtDate, hsPct, locationName } from '../utils/labels';
 import { normaliseConfig } from './PracticePage';
+import { multiplayer, useMultiplayer } from '../multiplayer/client';
+import { ensureName } from '../multiplayer/crazygamesRooms';
+import { crazyGames } from '../platform/crazygames';
 
 const DAILY: { mode: PracticeMode; title: string; target: string; patch: Partial<PracticeConfig> }[] = [
   { mode: 'angle-hold', title: 'Warm-up: hold A Main', target: '2 min angle hold', patch: { locationId: 'a-main', side: 'defend', behavior: 'mixed', durationSec: 120, botCount: 2 } },
@@ -59,7 +62,16 @@ export function HomePage() {
   const secondary = WEAPONS[cfg.secondary];
   const routineToday = routineHistory.find((r) => r.day === today)?.total;
 
-  const quick = () => store.play(cfg);
+  const online = useMultiplayer((s) => s.available);
+  /** The drill set up under Custom setup: practice alone against bots. */
+  const practiceNow = () => store.play(cfg);
+  /** Quick Play: an online deathmatch on any map. The server finds a match with room, or starts one that bots fill. */
+  const quick = async () => {
+    if (!online) return practiceNow(); // a build with no game server has nothing to search
+    if (crazyGames.enabled) await ensureName(); // their players arrive with a name; ours are asked once
+    store.go('multiplayer');
+    multiplayer.quickPlay();
+  };
   const drill = (d: (typeof DAILY)[number]) => normaliseConfig({ ...practice, ...d.patch, mode: d.mode, playerSpawnId: '', enemySpotIds: [] });
   const routine = () =>
     store.startRoutine(
@@ -80,9 +92,9 @@ export function HomePage() {
           <p className="mt-3 max-w-xs text-sm text-mute">Win the gunfight before the round.</p>
         </div>
         <nav aria-label="Main menu" className="space-y-2">
-          <MenuItem index={0} primary label="Quick practice" hint={`${MODE_INFO[cfg.mode].label} · ${def.name} · ${locationName(cfg.mapId, cfg.locationId)}`} icon={Play} onClick={quick} />
-          <MenuItem index={1} label="Custom setup" hint="Map, location, bots, difficulty, weapons" icon={SlidersHorizontal} onClick={() => store.go('practice')} />
-          <MenuItem index={2} label="Multiplayer" hint="A room with friends, or a quick match" icon={Users} onClick={() => store.go('multiplayer')} />
+          <MenuItem index={0} primary label="Quick play" hint={online ? 'Online deathmatch · any map · bots fill in' : `${MODE_INFO[cfg.mode].label} · ${def.name} · ${locationName(cfg.mapId, cfg.locationId)}`} icon={Play} onClick={() => void quick()} />
+          <MenuItem index={1} label="Custom setup" hint="Practice alone: map, location, bots, weapons" icon={SlidersHorizontal} onClick={() => store.go('practice')} />
+          <MenuItem index={2} label="Multiplayer" hint="A room with friends, or pick your maps" icon={Users} onClick={() => store.go('multiplayer')} />
           <MenuItem index={3} label="Daily routine" hint={`${DAILY.length} drills back to back · ${ROUTINE_MINUTES} min`} icon={Flame} onClick={routine} />
           <MenuItem index={4} label="Armory" hint="Every weapon, its damage and recoil" icon={Swords} onClick={() => store.go('weapons')} />
           <MenuItem index={5} label="Career" hint={sessions.length ? `${sessions.length} sessions recorded` : 'Your results and progress'} icon={ChartColumn} onClick={() => store.go('statistics')} />
@@ -93,7 +105,7 @@ export function HomePage() {
       <div className="flex min-h-0 min-w-0 flex-col">
         <div className="tal-rise flex flex-wrap items-end justify-between gap-x-6 gap-y-2" style={{ '--i': 1 } as CSSProperties}>
           <div>
-            <div className="font-display text-xs font-semibold uppercase tracking-[0.3em] text-info">Next drill</div>
+            <div className="font-display text-xs font-semibold uppercase tracking-[0.3em] text-info">Practice drill</div>
             <div className="font-display text-4xl font-bold uppercase leading-none tracking-[0.05em]">{def.name}</div>
             <div className="mt-1 text-sm text-mute">
               {MODE_INFO[cfg.mode].label} · {cfg.side === 'attack' ? 'Attacking' : 'Defending'} · {primary.name}
@@ -200,13 +212,13 @@ export function HomePage() {
                   </div>
                 ))}
               </div>
-              <Button className="mt-3 w-full" variant="outline" size="sm" onClick={quick}>
+              <Button className="mt-3 w-full" variant="outline" size="sm" onClick={practiceNow}>
                 <Play size={14} /> Continue previous drill
               </Button>
             </>
           ) : (
             <p className="text-sm text-mute">
-              No sessions yet. Start with <span className="text-ink">Quick practice</span>: your history and progress build up from there.
+              No practice sessions yet. Set one up under <span className="text-ink">Custom setup</span>: your history and progress build up from there.
             </p>
           )}
         </Panel>

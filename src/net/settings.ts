@@ -67,7 +67,7 @@ export const ROOM_OPTIONS = {
 export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
   mapId: DEFAULT_MAP_ID,
   mode: 'deathmatch',
-  timeLimitMin: 10,
+  timeLimitMin: 5,
   killLimit: 40,
   maxPlayers: MAX_ROOM_PLAYERS,
   weapons: 'all',
@@ -85,7 +85,7 @@ export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
 /** Quick match always plays these rules; only the map varies. */
 export const QUICK_MATCH_SETTINGS: Omit<RoomSettings, 'mapId'> = {
   mode: 'deathmatch',
-  timeLimitMin: 10,
+  timeLimitMin: 5,
   killLimit: 40,
   maxPlayers: MAX_ROOM_PLAYERS,
   weapons: 'all',

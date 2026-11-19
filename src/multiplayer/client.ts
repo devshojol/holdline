@@ -20,6 +20,7 @@ import {
   type Team,
 } from '../net/protocol';
 import { normalizeRoomCode } from '../net/roomCode';
+import { crazyGames } from '../platform/crazygames';
 import type { RoomSettings } from '../net/settings';
 import { readResume, writeResume } from './resume';
 import type { PracticeConfig } from '../types';
@@ -152,6 +153,8 @@ let state: MultiplayerState = {
   quickMaps: load<string[]>('mp-quick-maps', []),
 };
 const listeners = new Set<() => void>();
+/** Quick Play was pressed by a player with no name yet: the search starts once they have one. */
+let quickPlayWaiting = false;
 
 function set(patch: Partial<MultiplayerState>) {
   state = { ...state, ...patch };
@@ -423,6 +426,21 @@ export const multiplayer = {
     set({ error: null, result: null, quickMaps: maps, queue: { maps, waiting: 1, startsAt: 0 }, queueSince: Date.now() });
     send({ t: 'queue.join', maps });
   },
+  /**
+   * Quick Play on the main menu: search on any map at once. The server puts the player into a running
+   * quick match that has room, or starts a new one that bots fill. A player who has no name yet is asked
+   * for one first (the Multiplayer page does that) and the search starts as soon as they have it.
+   */
+  quickPlay() {
+    if (sanitizeName(state.name)) multiplayer.findMatch([]);
+    else quickPlayWaiting = true;
+  },
+  /** The name screen calls this once the player has a name: carry on with the Quick Play that brought them there. */
+  nameChosen() {
+    if (!quickPlayWaiting || !sanitizeName(state.name)) return;
+    quickPlayWaiting = false;
+    multiplayer.findMatch([]);
+  },
   cancelSearch() {
     raw({ t: 'queue.leave' });
     close();
@@ -483,9 +501,9 @@ export const multiplayer = {
   showGame() {
     if (state.match) set({ inGame: true });
   },
-  /** The link a friend opens to join this room. */
+  /** The link a friend opens to join this room. On CrazyGames it is their link, which opens the game on their site. */
   inviteLink(code: string) {
-    return `${location.origin}${location.pathname}?room=${code}`;
+    return crazyGames.inviteLink({ room: code }) ?? `${location.origin}${location.pathname}?room=${code}`;
   },
 };
 

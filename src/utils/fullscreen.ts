@@ -2,7 +2,7 @@
  * Fullscreen + Keyboard Lock for play sessions.
  *
  * Fullscreen uses up a click's transient user activation, and pointer lock needs that activation.
- * So fullscreen is requested on the click that *launches* a session (Start / Quick practice / …),
+ * So fullscreen is requested on the click that *launches* a session (Start / Quick play / …),
  * and pointer lock on the separate "Click to start" click. When fullscreen is re-entered on resume,
  * it is requested only after the pointer is already locked.
  */

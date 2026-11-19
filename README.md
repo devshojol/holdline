@@ -220,7 +220,7 @@ Deathmatch against other people, up to 10 in a match. Full detail, including how
 ### 3.12 UI, settings and storage
 
 - The menus are built as a game's, not a website's: a full-screen shell with a top bar of screens, an animated backdrop, a footer of key hints and tips, and a main menu (Home) with the next drill's map laid out as a tactical table. Menu controls make a soft sound on hover and click (`utils/uiSound.ts`, following the master volume), and Esc returns to the main menu.
-- Screens: Home, Practice (map, location, side, spawn, mode, behaviour, bot count, difficulty, weapons), Maps, Weapons, Crosshair (full editor with presets and import/export codes), Sensitivity, Statistics, Settings (graphics, audio, HUD, controls, data), Multiplayer (rooms, quick match) and Game.
+- Screens: Home, Practice (map, location, side, spawn, mode, behaviour, bot count, difficulty, weapons), Maps, Weapons, Crosshair (full editor with presets and import/export codes), Sensitivity, Statistics, Settings (graphics, audio, HUD, controls, data), Multiplayer (rooms, quick match) and Game. On Home, **Quick play** goes straight into the quick-match search on any map (the server joins a running quick match that has room, or starts one that bots fill; a build with no game server starts the practice drill instead), and **Custom setup** is practice alone. The menus are laid out for a 1600×900 screen and scaled as a whole to fit the window (`useUiScale` in `app/App.tsx`), so a small frame on a games portal shows the same desktop layout smaller; only windows narrower than 768 px get the stacked phone layout. Other soldiers carry a thin red outline whose width follows the distance (`bots/AgentVisual.ts`), so they can be picked out at range.
 - Settings live in a small external store (`useAppStore`) saved to versioned localStorage keys; stored values are merged with the defaults so new settings appear without wiping old ones.
 - Robustness: the game pauses on Esc, pointer-lock loss, window blur or a hidden tab; pointer lock is requested before fullscreen; WebGL context loss and missing WebGL show a clear message; audio starts on the first click; fullscreen uses Keyboard Lock so Ctrl+W doesn't close the tab while crouch-walking.
 
@@ -254,10 +254,17 @@ Deathmatch against other people, up to 10 in a match. Full detail, including how
 - their SDK is loaded, and `src/platform/crazygames.ts` tells it when the game is loading and when a round is
   being played;
 - the game's own fullscreen is off and its setting hidden (their site has the only fullscreen button allowed);
+- their mute switch silences the game whatever its own volume says (`AudioEngine`);
+- multiplayer works through their site (`src/multiplayer/crazygamesRooms.ts`): the room a player is in is reported
+  to their SDK, which shows their invite button; "Copy invite link" gives their link; a player arriving by an
+  invite joins that room; and "instant multiplayer" puts the player straight into a new room. Players are named
+  after their CrazyGames username. Lobby size is 2 to 10;
 - the multiplayer server's address comes from `.env.crazygames`.
 
 The game server accepts pages on `*.crazygames.com` (`render.yaml`). `npx vite preview --mode crazygames
---outDir dist-crazygames` serves the build locally, where the SDK runs in its "local" mode.
+--outDir dist-crazygames` serves the build locally, where the SDK runs in its "local" mode. There, `?instantJoin=true`
+asks for instant multiplayer, `?czy_invite=true&czy_invite_params=room%3DCODE` arrives by invite, and
+`?muteAudio=true` mutes. (To try rooms locally, build with `VITE_MP_SERVER=ws://localhost:8787` and run `npm run server`.)
 
 ## 4. Known issues and limits
 
