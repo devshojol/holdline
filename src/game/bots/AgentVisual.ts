@@ -117,6 +117,13 @@ const vN = new Vector3();
  * Each part glows in its own colour, so the kit keeps its hues and nothing turns white.
  */
 const SELF_LIGHT = 0.7;
+/**
+ * The same for bare skin (the face and hands), which is lit more than the clothes: at range the head is then
+ * the first thing the eye finds, whatever the uniform and whatever wall is behind it.
+ */
+const SKIN_LIGHT = 1.15;
+/** The skin material of a soldier model (MakeHuman names it after the body). */
+const isSkin = (name: string) => /^Human\.body/.test(name);
 
 /**
  * Make a character material give off some of its own colour, so a figure standing in shadow or far
@@ -124,6 +131,7 @@ const SELF_LIGHT = 0.7;
  */
 function selfLight(mat: unknown) {
   const m = mat as {
+    name?: string;
     albedoTexture?: unknown;
     albedoColor?: Color3;
     diffuseTexture?: unknown;
@@ -135,7 +143,7 @@ function selfLight(mat: unknown) {
   const texture = m.albedoTexture ?? m.diffuseTexture;
   const colour = m.albedoColor ?? m.diffuseColor ?? new Color3(1, 1, 1);
   if (texture) m.emissiveTexture = texture;
-  m.emissiveColor = colour.scale(SELF_LIGHT);
+  m.emissiveColor = colour.scale(isSkin(m.name ?? '') ? SKIN_LIGHT : SELF_LIGHT);
 }
 
 /** Per-session agent template: the loaded model plus measurements of its rest pose. */
