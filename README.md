@@ -176,7 +176,7 @@ A bot is one `Bot` entity (state, perception, aim, shooting, movement) plus a _b
 | Tamarind   | Jungle ruins       | A Main, B Main, C Main over the C Rise (three sites)                   |
 | Permafrost | Arctic port        | A Main, Mid (Furnace), B Main into container mazes                     |
 | Coralis    | Island fort        | A Main into a huge open site, Mid, B Main through the B Bend           |
-| Goldline   | Evening boulevard  | A Main via the A Bend, Mid (Arcade/Courtyard), B Main                  |
+| Goldline   | Sunlit old town    | A Main via the A Bend, Mid (Arcade/Courtyard), B Main                  |
 
 ### 3.8 Practice modes and statistics
 

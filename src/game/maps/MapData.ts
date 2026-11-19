@@ -54,13 +54,15 @@ export interface MapKit {
   /** Wall-mounted cooling units and pipe runs (modern settings only). */
   wallUnits: boolean;
   crateColor: string;
+  /** Some of the small corridor props are pairs of wooden barrels instead of crates. */
+  barrels: boolean;
   /** The shape that marks each site from a distance. */
   landmark: Landmark;
 }
 
 export type Landmark = 'tower' | 'minaret' | 'pagoda' | 'sign' | 'watertank' | 'ziggurat' | 'crane' | 'lighthouse';
 
-const DEFAULT_KIT: MapKit = { roof: 'tile', roofColor: '#a8644a', awnings: true, bunting: true, vista: 'hills', wallUnits: false, crateColor: '#a5794b', landmark: 'tower' };
+const DEFAULT_KIT: MapKit = { roof: 'tile', roofColor: '#a8644a', awnings: true, bunting: true, vista: 'hills', wallUnits: false, crateColor: '#a5794b', barrels: false, landmark: 'tower' };
 
 export function mapKit(def: MapDefinition): MapKit {
   return { ...DEFAULT_KIT, ...def.palette.kit };
@@ -69,6 +71,10 @@ export function mapKit(def: MapDefinition): MapKit {
 export interface MapPalette {
   sky: [string, string];
   fog: string;
+  /** How strongly the clouds stand out, 0 (faint, the default) to 1 (bright white on a blue sky). */
+  clouds?: number;
+  /** Darkens the soldiers' clothes on maps with pale walls (1 = as modelled, the default). */
+  uniformShade?: number;
   mood?: Partial<MapMood>;
   kit?: Partial<MapKit>;
   zones: Record<string, { wall: string; floor: string; accent: string }>;

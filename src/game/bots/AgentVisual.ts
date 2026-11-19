@@ -129,7 +129,7 @@ const isSkin = (name: string) => /^Human\.body/.test(name);
  * Make a character material give off some of its own colour, so a figure standing in shadow or far
  * away never goes dark: the outfit keeps its hues and simply stops sinking into the scenery.
  */
-function selfLight(mat: unknown) {
+function selfLight(mat: unknown, clothShade = 1) {
   const m = mat as {
     name?: string;
     albedoTexture?: unknown;
@@ -141,9 +141,15 @@ function selfLight(mat: unknown) {
   };
   if (!m || m.emissiveColor === undefined || m.emissiveTexture) return; // a material that already glows is left alone
   const texture = m.albedoTexture ?? m.diffuseTexture;
+  const skin = isSkin(m.name ?? '');
+  // On a map of pale walls the clothes are darkened, so a soldier stands out against them (skin is left alone).
+  if (!skin && clothShade !== 1) {
+    if (m.albedoColor) m.albedoColor = m.albedoColor.scale(clothShade);
+    else if (m.diffuseColor) m.diffuseColor = m.diffuseColor.scale(clothShade);
+  }
   const colour = m.albedoColor ?? m.diffuseColor ?? new Color3(1, 1, 1);
   if (texture) m.emissiveTexture = texture;
-  m.emissiveColor = colour.scale(isSkin(m.name ?? '') ? SKIN_LIGHT : SELF_LIGHT);
+  m.emissiveColor = colour.scale(skin ? SKIN_LIGHT : SELF_LIGHT);
 }
 
 /** Per-session agent template: the loaded model plus measurements of its rest pose. */
@@ -161,7 +167,7 @@ export class AgentAssets {
   /** Weapon skin the bots carry (null = blocky rifle). */
   rifle: WeaponSkin | null = null;
 
-  static async load(scene: Scene, url: string, bot: BotAssets): Promise<AgentAssets> {
+  static async load(scene: Scene, url: string, bot: BotAssets, clothShade = 1): Promise<AgentAssets> {
     const container = await loadContainer(scene, url);
     // Measure the rest pose on a throw-away instance.
     const probe = container.instantiateModelsToScene((n) => n, false, {
@@ -181,7 +187,7 @@ export class AgentAssets {
     // the bots come out a fifth too small.)
     const scale = EYE_HEIGHT / Math.max(0.5, eye.y);
     for (const r of probe.rootNodes) r.dispose(false, false); // materials are shared with the template
-    for (const mat of container.materials) selfLight(mat);
+    for (const mat of container.materials) selfLight(mat, clothShade);
     for (const s of probe.skeletons) s.dispose();
     holder.dispose();
     return new AgentAssets(scene, container, bot, scale, yawFix);

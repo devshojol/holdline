@@ -255,7 +255,7 @@ export function stoneTexture(scene: Scene, base: string, seed: number) {
 }
 
 /** Sky dome: zenith-to-horizon gradient, a haze band at the horizon and soft painted clouds. */
-export function skyTexture(scene: Scene, top: string, horizon: string, seed = 5) {
+export function skyTexture(scene: Scene, top: string, horizon: string, seed = 5, clouds = 0) {
   const w = 1024;
   const h = 512;
   const tex = new DynamicTexture('sky', { width: w, height: h }, scene, false);
@@ -291,8 +291,8 @@ export function skyTexture(scene: Scene, top: string, horizon: string, seed = 5)
       const x = cx + (r() - 0.5) * span * 2;
       const y = cy + (r() - 0.5) * span * 0.25;
       const rad = 16 + r() * 30;
-      puff(x, y - rad * 0.25, rad, shade(horizon, -0.12, 0.22)); // shaded underside
-      puff(x, y + rad * 0.15, rad * 0.9, 'rgba(255,255,255,0.3)'); // lit top
+      puff(x, y - rad * 0.25, rad, shade(horizon, -0.12, 0.22 - 0.1 * clouds)); // shaded underside
+      puff(x, y + rad * 0.15, rad * 0.9, `rgba(255,255,255,${0.3 + 0.4 * clouds})`); // lit top
     }
   }
   tex.update(true);

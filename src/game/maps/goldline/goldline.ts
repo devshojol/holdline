@@ -1,5 +1,5 @@
 /**
- * "Goldline" — an original city block at golden hour.
+ * "Goldline" — an original old-town block under a midday sun: white plaster, painted shutters, blue sky.
  * A Main bends through the A Bend, mid runs from the Arcade up into a fountain courtyard
  * with alleys to both sites, and B Main comes up past the Noodles shop.
  */
@@ -112,8 +112,8 @@ const locations = withGeneratedSpots(
 export const goldline: MapDefinition = {
   id: 'goldline',
   name: 'Goldline',
-  setting: 'Evening boulevard',
-  theme: 'Golden-hour city streets',
+  setting: 'Sunlit old town',
+  theme: 'White-walled streets at midday',
   description:
     'Original city block: A Main through the A Bend, a Arcade and fountain courtyard in mid with alleys to both sites, and B Main past the Noodles shop.',
   grid: grid(),
@@ -136,16 +136,18 @@ export const goldline: MapDefinition = {
   ],
   locations,
   palette: {
-    sky: ['#e7a46a', '#f6d3a4'],
-    fog: '#efc99f',
-    kit: { vista: 'city', landmark: 'watertank' },
-    mood: { sun: '#ffc27e', sunDir: [-0.72, -0.46, 0.4], sunIntensity: 1.65, ambient: '#c3b4dc', bounce: '#c79a6c' },
+    sky: ['#2f7fd8', '#bcdcf6'],
+    fog: '#d6e7f4',
+    clouds: 1,
+    uniformShade: 0.55,
+    kit: { vista: 'city', landmark: 'watertank', roofColor: '#c9643c', crateColor: '#d08a34', barrels: true },
+    mood: { sun: '#fff1d6', sunDir: [-0.5, -0.78, 0.38], sunIntensity: 1.7, ambient: '#cfe0ff', bounce: '#d9c7ab', saturation: 45 },
     zones: {
-      a: { wall: '#e2b48a', floor: '#a9927e', accent: '#7a4fb0' },
-      b: { wall: '#d9a07a', floor: '#a38b78', accent: '#2f8fa0' },
-      mid: { wall: '#e6c09a', floor: '#ad9782', accent: '#c4473a' },
-      defspawn: { wall: '#cfae92', floor: '#9e8b7c', accent: '#2e9c8a' },
-      atkspawn: { wall: '#dba67e', floor: '#a48a74', accent: '#e05a47' },
+      a: { wall: '#ebe7de', floor: '#c4b196', accent: '#2f6fb8' },
+      b: { wall: '#e4e8ea', floor: '#bfae96', accent: '#e07a2c' },
+      mid: { wall: '#eee9dc', floor: '#c8b69b', accent: '#d2483a' },
+      defspawn: { wall: '#e2e1dc', floor: '#bcab93', accent: '#2a9c96' },
+      atkspawn: { wall: '#e9e3d6', floor: '#c2ae92', accent: '#e0a12c' },
     },
   },
   siteMarks: [

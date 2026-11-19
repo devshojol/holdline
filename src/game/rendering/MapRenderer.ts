@@ -408,6 +408,10 @@ export function renderMap(scene: Scene, data: MapData, shadow: ShadowGenerator |
         break;
       case 'crate':
       case 'crate-low': {
+        if (kit.barrels && isBarrelProp(box)) {
+          addBarrels(box, flat);
+          break;
+        }
         const color = box.kind === 'crate' ? kit.crateColor : shade(kit.crateColor, 0.86);
         const body = getBatch(box.kind, () => mat(box.kind, crateTexture(scene, color, box.kind === 'crate' ? 11 : 23)));
         addCrates(box, body, flat, shade(color, 0.62));
@@ -493,7 +497,7 @@ export function renderMap(scene: Scene, data: MapData, shadow: ShadowGenerator |
   // Sky dome.
   const sky = CreateSphere('sky', { diameter: 600, segments: 16, sideOrientation: Mesh.BACKSIDE }, scene);
   const skyMat = new StandardMaterial('sky-mat', scene);
-  const skyTex = skyTexture(scene, def.palette.sky[0], def.palette.sky[1], zoneSeed(def.id));
+  const skyTex = skyTexture(scene, def.palette.sky[0], def.palette.sky[1], zoneSeed(def.id), def.palette.clouds ?? 0);
   skyMat.emissiveTexture = skyTex;
   skyMat.diffuseColor = Color3.Black();
   skyMat.specularColor = Color3.Black();
@@ -911,6 +915,39 @@ function addCrates(box: MapBox, body: GeometryBatch, flat: FlatBatch, frameColor
     }
     body.tint = [1, 1, 1];
   });
+}
+
+/** Which low crates are drawn as barrels instead: about half of them, picked by position. */
+function isBarrelProp(box: MapBox): boolean {
+  return box.kind === 'crate-low' && h01(Math.round(box.min[0] * 10), Math.round(box.min[2] * 10), 41) < 0.55;
+}
+
+/** Wooden barrels standing packed inside a low crate's collision box: bulged staves, iron hoops, a sunk lid. */
+function addBarrels(box: MapBox, flat: FlatBatch) {
+  const dx = box.max[0] - box.min[0];
+  const dz = box.max[2] - box.min[2];
+  const r = Math.min(dx, dz, CELL / 2) / 2;
+  const nx = Math.max(1, Math.floor(dx / (r * 2) + 0.01));
+  const nz = Math.max(1, Math.floor(dz / (r * 2) + 0.01));
+  const y0 = box.min[1];
+  const top = box.max[1] - y0;
+  for (let i = 0; i < nx; i++)
+    for (let j = 0; j < nz; j++) {
+      const cx = box.min[0] + (dx * (i + 0.5)) / nx;
+      const cz = box.min[2] + (dz * (j + 0.5)) / nz;
+      const k = 0.88 + 0.2 * h01(Math.round(cx * 10), Math.round(cz * 10), 5);
+      const wood = shade('#9a6a3c', k);
+      const end = r * 0.84;
+      const h = top;
+      // staves in three bands, widest at the middle
+      flat(wood).tube(cx, cz, y0, y0 + h * 0.3, end, r, 14);
+      flat(wood).tube(cx, cz, y0 + h * 0.3, y0 + h * 0.7, r, r, 14);
+      flat(wood).tube(cx, cz, y0 + h * 0.7, y0 + h, r, end, 14);
+      // hoops, standing a little proud of the staves
+      for (const [t, rr] of [[0.06, end + (r - end) * 0.2], [0.3, r], [0.7, r], [0.94, end + (r - end) * 0.2]] as const)
+        flat('#3b3a39').tube(cx, cz, y0 + h * t - 0.025, y0 + h * t + 0.025, rr + 0.008, rr + 0.008, 14);
+      flat(shade(wood, 1.08)).disc(cx, cz, y0 + h - 0.03, end * 0.97, 0, true, 14);
+    }
 }
 
 /** Shipping containers filling a stack collision box: two cells long where there is room, two high. */

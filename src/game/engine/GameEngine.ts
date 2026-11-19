@@ -1248,7 +1248,7 @@ export class GameEngine {
     if (!__LOCAL_MODELS__ || this.settings.graphics.botModel !== 'agent') load = Promise.resolve(null);
     else {
       load = import('../bots/AgentVisual')
-        .then((m) => m.AgentAssets.load(this.scene, getAgent(agent).model, this.botAssets))
+        .then((m) => m.AgentAssets.load(this.scene, getAgent(agent).model, this.botAssets, this.map.def.palette.uniformShade ?? 1))
         .then((assets) => {
           if (this.disposed) {
             assets.dispose();
