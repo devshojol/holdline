@@ -181,6 +181,7 @@ export type ErrorCode =
   | 'rate-limited'
   | 'name-rejected'
   | 'not-enough-players'
+  | 'not-ready'
   | 'unavailable';
 
 /* ------------------------------------------------------------------ */

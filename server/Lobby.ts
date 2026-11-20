@@ -486,6 +486,11 @@ export class Lobby {
           this.fail(session, 'not-enough-players', `A match needs at least ${MIN_PLAYERS} players. Invite a friend, or turn on bots.`);
           return;
         }
+        const waiting = this.notReady(room);
+        if (waiting > 0) {
+          this.fail(session, 'not-ready', `Waiting for ${waiting} ${waiting === 1 ? 'player' : 'players'} to press Ready.`);
+          return;
+        }
         this.setPhase(room, 'countdown', this.now + COUNTDOWN_MS);
         return;
       }
@@ -514,6 +519,11 @@ export class Lobby {
   }
 
   /** A match needs someone to play it and someone to play against: a second person, or bots. */
+  /** Connected players other than the host who haven't pressed Ready (the host's Start is their ready). */
+  private notReady(room: Room) {
+    return room.members.filter((m) => m.session.conn && m.session.id !== room.hostId && !m.ready).length;
+  }
+
   private enoughToPlay(room: Room) {
     const connected = this.connectedCount(room);
     return connected >= 1 && Math.max(connected, room.settings.botFill) >= MIN_PLAYERS;

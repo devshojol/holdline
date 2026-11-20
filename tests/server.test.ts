@@ -250,9 +250,25 @@ describe('lobby', () => {
     expect(guest.room.phase).toBe('lobby');
   });
 
+  it('waits for everyone but the host to press Ready, ignoring players who dropped out', () => {
+    const { lobby, host, guest } = roomOfTwo();
+    const third = new Client(lobby, 'Omen');
+    third.say({ t: 'room.join', code: host.room.code });
+    host.say({ t: 'room.start' });
+    expect(host.error).toBe('not-ready');
+    expect(host.room.phase).toBe('lobby');
+    guest.say({ t: 'room.ready', ready: true });
+    host.say({ t: 'room.start' });
+    expect(host.room.phase).toBe('lobby'); // Omen still isn't ready
+    third.close();
+    host.say({ t: 'room.start' });
+    expect(guest.room.phase).toBe('countdown');
+  });
+
   it('respects the join-in-progress setting', () => {
-    const { lobby, host, code } = roomOfTwo();
+    const { lobby, host, guest, code } = roomOfTwo();
     host.say({ t: 'room.settings', patch: { joinInProgress: false } });
+    guest.say({ t: 'room.ready', ready: true });
     host.say({ t: 'room.start' });
     const late = new Client(lobby, 'Omen');
     late.say({ t: 'room.join', code });

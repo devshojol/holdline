@@ -79,7 +79,10 @@ export function RoomLobby({ room }: { room: RoomState }) {
   const inLobby = room.phase === 'lobby';
   const connected = room.players.filter((p) => p.connected).length;
   // someone to play against: a second person, or bots
-  const canStart = isHost && inLobby && Math.max(connected, room.settings.botFill) >= MIN_PLAYERS;
+  const enough = Math.max(connected, room.settings.botFill) >= MIN_PLAYERS;
+  // everyone but the host has to press Ready (the host's Start is their ready); players who dropped out don't count
+  const notReady = room.players.filter((p) => p.connected && !p.host && !p.ready).length;
+  const canStart = isHost && inLobby && enough && notReady === 0;
   const teams = room.settings.mode === 'team-deathmatch';
   const slots = room.settings.maxPlayers;
   /** Places bots will take once the match starts. */
@@ -92,14 +95,19 @@ export function RoomLobby({ room }: { room: RoomState }) {
     <div className="relative flex h-full min-h-0 flex-col">
       <PageHeader kicker={quick ? 'Quick match' : 'Custom room'} title={quick ? mapName(room.settings.mapId) : `Room ${room.code}`}>
         <div className="flex flex-wrap items-center gap-2">
-          {inLobby && me && !quick && (
+          {inLobby && me && !quick && !isHost && (
             <Button variant={me.ready ? 'outline' : 'primary'} onClick={() => multiplayer.setReady(!me.ready)}>
               <Check size={18} /> {me.ready ? 'Ready — click to undo' : 'Ready'}
             </Button>
           )}
           {isHost && inLobby && (
-            <Button size="lg" disabled={!canStart} title={canStart ? undefined : `A match needs at least ${MIN_PLAYERS} players: invite a friend or turn on bots`} onClick={() => multiplayer.start()}>
-              <Play size={20} /> Start match
+            <Button
+              size="lg"
+              disabled={!canStart}
+              title={!enough ? `A match needs at least ${MIN_PLAYERS} players: invite a friend or turn on bots` : notReady > 0 ? 'Everyone has to press Ready first' : undefined}
+              onClick={() => multiplayer.start()}
+            >
+              <Play size={20} /> {enough && notReady > 0 ? `Waiting for ${notReady} ${notReady === 1 ? 'player' : 'players'}` : 'Start match'}
             </Button>
           )}
           {room.phase === 'playing' && inMatch && (
