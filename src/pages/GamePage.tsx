@@ -4,7 +4,7 @@ import type { EngineStatus, HudState, KillFeedEntry, PauseInfo, PracticeConfig, 
 import { GameEngine } from '../game/engine/GameEngine';
 import { store, useAppStore } from '../hooks/useAppStore';
 import { Hud } from '../components/hud/Hud';
-import { SessionReportBody } from '../components/SessionReport';
+import { MatchDebrief } from '../components/MatchDebrief';
 import { LoadoutMenu } from '../components/LoadoutMenu';
 import { Button, Slider } from '../components/ui';
 import { MODE_INFO, locationName, mapName } from '../utils/labels';
@@ -51,6 +51,7 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<SessionStats | null>(null);
+  const sessions = useAppStore((s) => s.sessions);
   const [renderer, setRenderer] = useState('');
   const [startIssue, setStartIssue] = useState<'cooldown' | 'blocked' | null>(null);
   /** One tip per session, for the loading screen. */
@@ -423,48 +424,53 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
       )}
 
       {report && (
-        <div className="absolute inset-0 overflow-y-auto bg-bg/95 p-8">
-          <div className="mx-auto max-w-4xl animate-in">
-            <div className="font-display text-sm font-semibold uppercase tracking-[0.25em] text-accent">Match over</div>
-            <div className="mb-4 font-display text-5xl font-bold uppercase">Your results</div>
-            {routine && (
-              <div className="mb-4 border border-accent/40 bg-accent/10 px-4 py-3 text-sm">
-                <span className="font-display font-bold uppercase tracking-widest text-accent">Daily routine</span> · round {routine.index + 1} of {routine.steps.length}
-                {' · '}
-                {routine.titles[routine.index]} · running total{' '}
-                <span className="font-semibold text-ink">{routine.scores.reduce((a, b) => a + b, 0)}</span>
-              </div>
-            )}
-            <SessionReportBody s={report} />
-            <div className="mt-6 flex flex-wrap gap-2">
-              {routine ? (
-                <Button onClick={() => store.nextRoutineStep()}>
-                  <ChevronRight size={16} /> {routine.index + 1 < routine.steps.length ? `Next: ${routine.titles[routine.index + 1]}` : 'Finish routine'}
-                </Button>
-              ) : (
-                <Button onClick={() => store.play({ ...config, ...loadout })}>
-                  <RotateCcw size={16} /> Play again
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                onClick={() => {
-                  store.stopPlaying();
-                  store.go('practice');
-                }}
-              >
-                Change setup
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  store.stopPlaying();
-                  store.go('statistics');
-                }}
-              >
-                View statistics
-              </Button>
-            </div>
+        <div className="absolute inset-0 bg-bg/95 px-8 py-6 backdrop-blur-sm">
+          <div className="mx-auto h-full max-w-5xl">
+            <MatchDebrief
+              s={report}
+              history={sessions}
+              banner={
+                routine && (
+                  <div className="mt-3 border border-accent/40 bg-accent/10 px-4 py-2 text-sm">
+                    <span className="font-display uppercase text-accent">Daily routine</span> · round {routine.index + 1} of {routine.steps.length} · {routine.titles[routine.index]} · total{' '}
+                    <span className="font-semibold text-ink">{routine.scores.reduce((a, b) => a + b, 0)}</span>
+                  </div>
+                )
+              }
+              actions={
+                <>
+                  <button
+                    type="button"
+                    data-pulse="true"
+                    className="tal-gold flex h-14 items-center gap-2 px-6 font-display text-xl uppercase"
+                    onClick={() => (routine ? store.nextRoutineStep() : store.play({ ...config, ...loadout }))}
+                  >
+                    {routine ? <ChevronRight size={20} /> : <RotateCcw size={20} />}
+                    {routine ? (routine.index + 1 < routine.steps.length ? 'Next round' : 'Finish') : 'Play again'}
+                  </button>
+                  <button
+                    type="button"
+                    className="tal-slab h-14 px-5 font-display text-base uppercase"
+                    onClick={() => {
+                      store.stopPlaying();
+                      store.go('practice');
+                    }}
+                  >
+                    Change setup
+                  </button>
+                  <button
+                    type="button"
+                    className="tal-slab h-14 px-5 font-display text-base uppercase"
+                    onClick={() => {
+                      store.stopPlaying();
+                      store.go('home');
+                    }}
+                  >
+                    Main menu
+                  </button>
+                </>
+              }
+            />
           </div>
         </div>
       )}
