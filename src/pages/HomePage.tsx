@@ -1,5 +1,5 @@
-import { Bot, ChartColumn, ChevronLeft, ChevronRight, CircleHelp, Crosshair, Map as MapIcon, Play, Settings, Swords, Users, X, type LucideIcon } from 'lucide-react';
-import { useState, type CSSProperties } from 'react';
+import { Bot, ChartColumn, CircleHelp, Crosshair, Map as MapIcon, Play, Settings, Swords, Users, X, type LucideIcon } from 'lucide-react';
+import { Suspense, lazy, useState, type CSSProperties } from 'react';
 import { store, useAppStore, type Page } from '../hooks/useAppStore';
 import { cx } from '../components/ui';
 import { AgentPortrait } from '../components/AgentPicker';
@@ -9,8 +9,11 @@ import { ensureName } from '../multiplayer/crazygamesRooms';
 import { crazyGames } from '../platform/crazygames';
 import { keyLabel, type BindAction } from '../settings/keybindings';
 import { QUICK_MATCH_SETTINGS } from '../net/settings';
-import { AGENTS, getAgent } from '../game/agents';
+import { getAgent } from '../game/agents';
 import { LOGO, PITCH, TAGLINE } from '../brand';
+
+// the 3D soldier brings the engine with it: loaded after the menu has shown, with the portrait standing in
+const SoldierViewer = lazy(() => import('../components/SoldierViewer').then((m) => ({ default: m.SoldierViewer })));
 
 /** The game's name in two colours. */
 export function Logo({ size = 'lg' }: { size?: 'lg' | 'sm' }) {
@@ -58,10 +61,6 @@ export function HomePage() {
     store.go('multiplayer');
     multiplayer.quickPlay();
   };
-  const cycle = (step: number) => {
-    const i = AGENTS.findIndex((a) => a.id === agent.id);
-    multiplayer.setAgent(AGENTS[(i + step + AGENTS.length) % AGENTS.length].id);
-  };
   const go = (page: Page) => () => store.go(page);
 
   return (
@@ -96,22 +95,19 @@ export function HomePage() {
         </div>
       </div>
 
-      {/* centre: your soldier, with arrows to pick another */}
-      <div className="absolute inset-x-0 bottom-[86px] top-[110px] z-0 flex flex-col items-center justify-end">
-        <div className="relative flex items-end gap-4">
-          <button type="button" onClick={() => cycle(-1)} className="tal-slab mb-28 grid h-12 w-12 place-items-center" aria-label="Previous soldier">
-            <ChevronLeft size={24} />
-          </button>
-          <div className="relative">
-            <div aria-hidden="true" className="absolute inset-x-[-30%] bottom-[-18px] h-16 rounded-[50%] bg-accent/25 blur-2xl" style={{ background: `${agent.accent}40` }} />
-            <AgentPortrait key={agent.id} agent={agent} className="tal-showcase h-[340px] w-[272px]" />
-          </div>
-          <button type="button" onClick={() => cycle(1)} className="tal-slab mb-28 grid h-12 w-12 place-items-center" aria-label="Next soldier">
-            <ChevronRight size={24} />
-          </button>
+      {/* centre: your soldier in 3D: drag to turn them, click to fire (they are picked on the Multiplayer screen) */}
+      <div className="absolute inset-x-0 bottom-[78px] top-[96px] z-0 flex flex-col items-center justify-end">
+        <div className="relative">
+          <div aria-hidden="true" className="absolute inset-x-[10%] bottom-[-10px] h-16 rounded-[50%] blur-2xl" style={{ background: `${agent.accent}55` }} />
+          <Suspense fallback={<AgentPortrait agent={agent} className="tal-showcase h-[420px] w-[340px]" />}>
+            <SoldierViewer key={agent.id} agentId={agent.id} className="h-[440px] w-[400px]" fallback={<AgentPortrait agent={agent} className="tal-showcase h-full w-full" />} />
+          </Suspense>
         </div>
-        <div className="mt-2 font-display text-2xl uppercase" style={{ color: agent.accent }}>
-          {agent.name}
+        <div className="pointer-events-none -mt-1 text-center">
+          <div className="font-display text-2xl uppercase" style={{ color: agent.accent }}>
+            {agent.name}
+          </div>
+          <div className="text-xs uppercase tracking-[0.25em] text-dim">Drag to turn · click to fire</div>
         </div>
       </div>
 
