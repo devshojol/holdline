@@ -60,7 +60,7 @@ const MEDALS: MedalDef[] = [
   { id: 'untouchable', name: 'Untouchable', icon: Shield, earned: (s) => s.deaths === 0 && s.kills >= 3, how: '3+ kills without dying' },
   { id: 'rampage', name: 'Rampage', icon: Flame, earned: (s) => s.kills >= 10, how: '10 kills in a match' },
   { id: 'spree', name: 'Killing spree', icon: Skull, earned: (s) => s.kills >= 5 && s.kills < 10, how: '5 kills in a match' },
-  { id: 'dominant', name: 'Dominant', icon: Trophy, earned: (s) => s.kills >= 4 && s.kills >= s.deaths * 2, how: 'Twice as many kills as deaths' },
+  { id: 'dominant', name: 'Dominant', icon: Trophy, earned: (s) => s.kills >= 4 && s.kills >= s.deaths * 2, how: '2× more kills than deaths' },
   { id: 'headhunter', name: 'Headhunter', icon: Crosshair, earned: (s) => s.hits >= 5 && hsPct(s) >= 30, how: '30% of hits to the head' },
   { id: 'sharpshooter', name: 'Sharpshooter', icon: Target, earned: (s) => s.shots >= 15 && accuracy(s) >= 35, how: '35% accuracy' },
   { id: 'quickdraw', name: 'Quick draw', icon: Zap, earned: (s) => s.reactionTimes.length >= 3 && avgMs(s.reactionTimes) <= 450, how: 'React in under 0.45 s' },
@@ -69,10 +69,10 @@ const MEDALS: MedalDef[] = [
     name: 'Disciplined',
     icon: Gauge,
     earned: (s) => s.firstShots >= 5 && (s.firstShots - (s.firstShotsMoving ?? 0)) / s.firstShots >= 0.8,
-    how: 'Stop before 80% of first shots',
+    how: 'Stood still for most shots',
   },
   { id: 'cleaner', name: 'Clean sweep', icon: Sparkles, earned: (s) => !!s.clear && s.clear.rounds > 0 && s.clear.cleared === s.clear.rounds, how: 'Win every round' },
-  { id: 'steady', name: 'Steady hands', icon: Timer, earned: (s) => !!s.spray && s.spray.avgScore >= 70, how: 'Average spray score of 70' },
+  { id: 'steady', name: 'Steady hands', icon: Timer, earned: (s) => !!s.spray && s.spray.avgScore >= 70, how: 'Spray score of 70 or more' },
 ];
 
 const applies = (m: MedalDef, s: SessionStats) =>
@@ -138,7 +138,7 @@ function useCountUp(to: number, ms = 900) {
 
 function BigStat({ label, value, sub, icon: Icon, accent }: { label: string; value: ReactNode; sub?: string; icon: LucideIcon; accent?: boolean }) {
   return (
-    <div className={cx('tal-slab flex items-center gap-3 px-4 py-3', accent && '!bg-[linear-gradient(180deg,rgba(74,62,34,0.95),rgba(36,30,18,0.95))]')}>
+    <div className={cx('tal-slab flex items-center gap-3 px-4 py-2.5', accent && '!bg-[linear-gradient(180deg,rgba(74,62,34,0.95),rgba(36,30,18,0.95))]')}>
       <Icon size={26} className="shrink-0 text-accent" />
       <div className="min-w-0">
         <div className="font-label text-xs font-semibold uppercase tracking-[0.2em] text-dim">{label}</div>
@@ -197,7 +197,7 @@ export function MatchDebrief({ s, history, banner, actions }: { s: SessionStats;
       {banner}
       <p className="mt-2 shrink-0 text-lg text-ink">{summaryOf(s, grade)}</p>
 
-      <div className="mt-4 grid min-h-0 flex-1 grid-cols-[300px_minmax(0,1fr)] gap-5">
+      <div className="mt-3 grid min-h-0 flex-1 grid-cols-[280px_minmax(0,1fr)] gap-4">
         {/* the grade, the score and your level */}
         <div className="flex min-h-0 flex-col gap-3">
           <div className="tal-slab relative flex flex-col items-center px-4 pb-5 pt-6 text-center" style={{ '--g': color } as CSSProperties}>
@@ -261,20 +261,20 @@ export function MatchDebrief({ s, history, banner, actions }: { s: SessionStats;
                 )}
               </div>
 
-              <div className="tal-slab min-h-0 flex-1 px-4 py-3">
+              <div className="tal-slab px-4 py-3">
                 <div className="mb-2 flex items-center gap-2 font-display text-sm uppercase text-accent">
                   <Medal size={16} /> {won.length ? `You earned ${won.length} ${won.length === 1 ? "medal" : "medals"}` : "Medals"}
                 </div>
                 {won.length > 0 ? (
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-4 gap-2">
                     {won.map((m, i) => (
-                      <div key={m.id} className="tal-medal flex items-center gap-2 border border-accent/40 bg-accent/10 px-2.5 py-2" style={{ animationDelay: `${300 + i * 140}ms` }}>
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[radial-gradient(circle,#ffd56a,#c9781a)] text-[#1c1203] shadow-[0_0_14px_rgba(245,165,36,0.6)]">
+                      <div key={m.id} className="tal-medal flex items-center gap-2 border border-accent/40 bg-accent/10 px-2 py-1.5" style={{ animationDelay: `${300 + i * 140}ms` }}>
+                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[radial-gradient(circle,#ffd56a,#c9781a)] text-[#1c1203] shadow-[0_0_14px_rgba(245,165,36,0.6)]">
                           <m.icon size={18} />
                         </span>
                         <span className="min-w-0">
-                          <span className="block truncate font-display text-sm uppercase text-ink">{m.name}</span>
-                          <span className="block truncate text-xs text-mute">{m.how}</span>
+                          <span className="block truncate font-label text-base font-bold uppercase leading-tight text-ink">{m.name}</span>
+                          <span className="block text-xs leading-tight text-mute">{m.how}</span>
                         </span>
                       </div>
                     ))}
@@ -283,7 +283,7 @@ export function MatchDebrief({ s, history, banner, actions }: { s: SessionStats;
                   <p className="text-sm text-mute">No medals this time. They are easier than they look:</p>
                 )}
                 {next && (
-                  <div className="mt-3 flex items-center gap-2 text-sm text-dim">
+                  <div className="mt-2 flex items-center gap-2 text-sm text-dim">
                     <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-white/15 text-mute">
                       <next.icon size={14} />
                     </span>
@@ -291,7 +291,7 @@ export function MatchDebrief({ s, history, banner, actions }: { s: SessionStats;
                   </div>
                 )}
                 {tip && (
-                  <div className="mt-3 border-l-2 border-accent bg-black/25 px-3 py-2 text-sm text-ink">
+                  <div className="mt-2 border-l-2 border-accent bg-black/25 px-3 py-1.5 text-sm text-ink">
                     <span className="font-display text-xs uppercase text-accent">Tip for next time · </span>
                     {tip}
                   </div>

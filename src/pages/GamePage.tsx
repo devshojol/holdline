@@ -5,6 +5,7 @@ import { GameEngine } from '../game/engine/GameEngine';
 import { store, useAppStore } from '../hooks/useAppStore';
 import { Hud } from '../components/hud/Hud';
 import { MatchDebrief } from '../components/MatchDebrief';
+import { useUiScale } from '../hooks/useUiScale';
 import { LoadoutMenu } from '../components/LoadoutMenu';
 import { Button, Slider } from '../components/ui';
 import { MODE_INFO, locationName, mapName } from '../utils/labels';
@@ -52,6 +53,7 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<SessionStats | null>(null);
   const sessions = useAppStore((s) => s.sessions);
+  const uiScale = useUiScale();
   const [renderer, setRenderer] = useState('');
   const [startIssue, setStartIssue] = useState<'cooldown' | 'blocked' | null>(null);
   /** One tip per session, for the loading screen. */
@@ -424,8 +426,9 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
       )}
 
       {report && (
-        <div className="absolute inset-0 bg-bg/95 px-8 py-6 backdrop-blur-sm">
-          <div className="mx-auto h-full max-w-5xl">
+        <div className="absolute inset-0 bg-bg/95 backdrop-blur-sm" style={uiScale === 1 ? undefined : { zoom: uiScale }}>
+          {/* laid out for the menus' 1200×675 screen and scaled to the window like them, so it fills a big screen */}
+          <div className="mx-auto h-full max-w-[1100px] px-8 py-4">
             <MatchDebrief
               s={report}
               history={sessions}
