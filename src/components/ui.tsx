@@ -205,7 +205,7 @@ export function Badge({ children, tone = 'mute' }: { children: ReactNode; tone?:
     ok: 'border-ok/40 text-ok',
     warn: 'border-warn/40 text-warn',
   };
-  return <span className={cx('inline-flex items-center border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider', tones[tone])}>{children}</span>;
+  return <span className={cx('inline-flex items-center border px-2 py-0.5 text-xs font-semibold uppercase tracking-wider', tones[tone])}>{children}</span>;
 }
 
 /** Two-step destructive action (no browser confirm() — it is unavailable in embedded viewers). */

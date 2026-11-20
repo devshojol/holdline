@@ -38,7 +38,7 @@ export const RECONNECT_GRACE_MS = 30000;
 /** Fewest players a match starts with. */
 export const MIN_PLAYERS = 2;
 /** Quick match: how long a group of at least `MIN_PLAYERS` waits for more before its match starts. */
-export const QUEUE_START_DELAY_MS = 15000;
+export const QUEUE_START_DELAY_MS = 6000;
 /** Quick match: a running match takes newcomers only while it has more than this much time and this many kills left. */
 export const QUICK_MIN_TIME_LEFT_MS = 90_000;
 export const QUICK_MIN_KILLS_LEFT = 10;

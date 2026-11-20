@@ -278,6 +278,10 @@ Rules that apply to both:
 
 **Quick match rules (fixed):** Deathmatch, 5 minutes, first to 40 kills, all weapons, 10 players.
 
+**Nobody waits on a sleeping server.** If Quick Play has not reached the game server after 12 seconds (the
+free server can take up to a minute to wake), the search screen starts a deathmatch against bots instead;
+the player can also choose "Play bots now" or "Keep waiting".
+
 **Small matches use the middle of the map.** While a match has 6 players or fewer (bots included), everyone
 spawns in the 45% of the map nearest its centre on foot, and bots roam only there, so players meet within
 seconds. From the seventh player on the whole map is used. Nothing is walled off: the rest of the map can
@@ -315,7 +319,7 @@ The server looks at the queue once a second and, for each waiting player in orde
 1. **Join a running match.** If a quick match on an accepted map has a free slot and more than 90 seconds
    or 10 kills left, the player joins it. This is what keeps waits short when few people are online.
 2. **Start a new match.** Otherwise the player waits. When 10 players accept a common map, the match
-   starts immediately. As soon as **1** does (bots will fill the rest), a 15-second timer starts for that group; anyone who arrives
+   starts immediately. As soon as **1** does (bots will fill the rest), a 6-second timer starts for that group; anyone who arrives
    meanwhile is added, and the match starts when the timer ends. It then stays open to newcomers under
    rule 1.
 3. **Any map.** A player who chose Any map goes wherever rule 1 or 2 is satisfied first. When a new match

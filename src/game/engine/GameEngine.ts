@@ -74,6 +74,7 @@ import type { NetLink } from '../net/NetLink';
 import { Prediction } from '../net/Prediction';
 import { actionMask, captureMasks, type Command } from '../../net/command';
 import { INPUT_RATE, INTERP_DELAY_MS, PF_ALIVE, type MatchEvent, type ServerMessage } from '../../net/protocol';
+import { keysOf } from '../../settings/keybindings';
 
 const DEG = Math.PI / 180;
 const BASE_HFOV = 103 * DEG;
@@ -1748,9 +1749,10 @@ export class GameEngine {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillText(spike.progress > 0 ? 'DEFUSING…' : 'HOLD E TO DEFUSE', cx + dpr, by - 5 * dpr);
+      const prompt = spike.progress > 0 ? 'DEFUSING…' : `HOLD ${keysOf(this.settings.keys, 'use').split(' / ')[0].toUpperCase()} TO DEFUSE`;
+      ctx.fillText(prompt, cx + dpr, by - 5 * dpr);
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(spike.progress > 0 ? 'DEFUSING…' : 'HOLD E TO DEFUSE', cx, by - 6 * dpr);
+      ctx.fillText(prompt, cx, by - 6 * dpr);
       ctx.fillStyle = 'rgba(10,14,20,0.7)';
       ctx.fillRect(cx - bw / 2, by, bw, bh);
       ctx.fillStyle = '#5ee0c8';

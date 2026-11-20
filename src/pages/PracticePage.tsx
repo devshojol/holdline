@@ -117,7 +117,7 @@ export function PracticePage() {
                     !m.playable && 'cursor-not-allowed opacity-45 hover:border-line',
                   )}
                 >
-                  <div className="tabular font-display text-[11px] font-bold tracking-widest text-dim">{String(i + 1).padStart(2, '0')}</div>
+                  <div className="tabular font-display text-xs font-bold tracking-widest text-dim">{String(i + 1).padStart(2, '0')}</div>
                   <div className="font-display text-lg font-bold uppercase leading-tight">{m.playable ? m.name : m.setting}</div>
                   <div className="text-xs text-mute">{m.playable ? m.setting : 'Not built yet'}</div>
                   {!m.playable && <Lock size={12} className="mt-1 text-dim" />}
@@ -295,7 +295,7 @@ export function PracticePage() {
             )}
             {cfg.mode === 'jiggle' && <p className="text-sm text-mute">Jiggle training mixes jiggle peeks, shoulder baits and occasional committed peeks/swings.</p>}
             {cfg.mode === 'site-clear' && <p className="text-sm text-mute">Defenders start hidden at cover around this location and are placed differently every round. Walk (Shift) to stay quiet: they turn towards footsteps and gunfire.</p>}
-            {cfg.mode === 'retake' && <p className="text-sm text-mute">The spike sits on the nearest site, or among the defenders when there is none close. Stand next to it and hold E (or 4) for 5 seconds; letting go starts the defuse over. The fuse is 45 seconds.</p>}
+            {cfg.mode === 'retake' && <p className="text-sm text-mute">The charge sits on the nearest site, or among the defenders when there is none close. Stand next to it and hold E (or 4) for 5 seconds; letting go starts the defuse over. The fuse is 45 seconds.</p>}
             {cfg.mode === 'deathmatch' && <p className="text-sm text-mute">Deathmatch bots navigate the whole map, react to your gunfire and footsteps, and take cover when hurt.</p>}
             {advanced && (
               <div className="mt-3 grid gap-x-6 border-t border-line pt-3 md:grid-cols-2">

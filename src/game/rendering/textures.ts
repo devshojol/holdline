@@ -28,6 +28,41 @@ function shade(hex: string, f: number, alpha = 1): string {
 
 let lowQuality = false;
 
+/**
+ * A normal map made from a texture's own picture: darker reads as lower (mortar joints, cracks, grime,
+ * the gaps between planks), so lit surfaces show relief instead of looking printed on. `strength` scales
+ * the slopes. Low texture quality skips it (null).
+ */
+export function reliefTexture(scene: Scene, source: DynamicTexture, strength = 2.5): DynamicTexture | null {
+  if (lowQuality) return null;
+  const src = source.getContext() as unknown as CanvasRenderingContext2D;
+  const { width: w, height: h } = source.getSize();
+  const data = src.getImageData(0, 0, w, h).data;
+  const height = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) height[i] = (data[i * 4] * 0.3 + data[i * 4 + 1] * 0.59 + data[i * 4 + 2] * 0.11) / 255;
+  const tex = new DynamicTexture(`${source.name}-relief`, { width: w, height: h }, scene, true);
+  const ctx = tex.getContext() as unknown as CanvasRenderingContext2D;
+  const out = ctx.createImageData(w, h);
+  const at = (x: number, y: number) => height[((y + h) % h) * w + ((x + w) % w)];
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const dx = (at(x + 1, y) - at(x - 1, y)) * strength;
+      const dy = (at(x, y + 1) - at(x, y - 1)) * strength;
+      const len = Math.hypot(dx, dy, 1);
+      const o = (y * w + x) * 4;
+      out.data[o] = Math.round(((-dx / len) * 0.5 + 0.5) * 255);
+      out.data[o + 1] = Math.round(((dy / len) * 0.5 + 0.5) * 255);
+      out.data[o + 2] = Math.round(((1 / len) * 0.5 + 0.5) * 255);
+      out.data[o + 3] = 255;
+    }
+  ctx.putImageData(out, 0, 0);
+  tex.update(true);
+  tex.wrapU = source.wrapU;
+  tex.wrapV = source.wrapV;
+  tex.anisotropicFilteringLevel = 8;
+  return tex;
+}
+
 /** Map textures at half size with no anisotropic filtering (low-end GPUs). Set before a scene is built. */
 export function setTextureQuality(q: 'low' | 'high') {
   lowQuality = q === 'low';
@@ -92,6 +127,43 @@ export function wallTexture(scene: Scene, base: string, accent: string, seed: nu
         ctx.fillRect(x + dx - rad, y - rad, rad * 2, rad * 2);
       }
     }
+    // plaster grain: fine, low-contrast flecks that catch the light once turned into relief
+    for (let i = 0; i < 2600; i++) {
+      const tone = (r() - 0.5) * 0.12;
+      ctx.fillStyle = shade(base, tone, 0.35);
+      const sz = 1 + r() * 2.2;
+      ctx.fillRect(r() * s, r() * s * 0.84, sz, sz);
+    }
+    // weathering: rain streaks running down from the cornice and grime rising from the ground
+    for (let i = 0; i < 9; i++) {
+      const x = r() * s;
+      const len = s * (0.15 + r() * 0.35);
+      const g = ctx.createLinearGradient(0, s * 0.05, 0, s * 0.05 + len);
+      g.addColorStop(0, shade(base, -0.16, 0.38));
+      g.addColorStop(1, shade(base, -0.16, 0));
+      ctx.fillStyle = g;
+      for (const dx of [-s, 0, s]) ctx.fillRect(x + dx, s * 0.05, 6 + r() * 16, len);
+    }
+    const grime = ctx.createLinearGradient(0, s * 0.62, 0, s * 0.84);
+    grime.addColorStop(0, shade(base, -0.2, 0));
+    grime.addColorStop(1, shade(base, -0.2, 0.45));
+    ctx.fillStyle = grime;
+    ctx.fillRect(0, s * 0.62, s, s * 0.22);
+    // a few hairline cracks
+    ctx.strokeStyle = shade(base, -0.32, 0.55);
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 4; i++) {
+      let x = r() * s;
+      let y = s * (0.15 + r() * 0.55);
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      for (let k = 0; k < 6; k++) {
+        x += (r() - 0.5) * 22;
+        y += 6 + r() * 12;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
     // top cornice band with an accent stripe
     ctx.fillStyle = shade(base, -0.16);
     ctx.fillRect(0, 0, s, s * 0.04);
@@ -115,33 +187,42 @@ export function wallTexture(scene: Scene, base: string, accent: string, seed: nu
   });
 }
 
-/** Paved floor: texture spans 4×4 m with 2 m slabs, thin joints and soft tone variation. */
+/**
+ * Paved floor: texture spans 4×4 m of stone setts about 0.5 m long in running bond, each with its own tone
+ * and a worn, lighter top, set in darker joints, with broad patches of wear and grime over the whole.
+ */
 export function floorTexture(scene: Scene, base: string, seed: number) {
   return makeTexture(scene, `floor-${seed}`, 512, (ctx, s) => {
     const r = rng(seed);
-    ctx.fillStyle = shade(base, -0.2);
+    ctx.fillStyle = shade(base, -0.34);
     ctx.fillRect(0, 0, s, s);
-    const n = 2;
-    const t = s / n;
-    const j = Math.max(1, s / 256);
-    for (let row = 0; row < n; row++)
-      for (let i = 0; i < n; i++) {
-        const off = row % 2 === 0 ? 0 : t / 2;
-        const tone = (r() - 0.5) * 0.07;
-        for (const dx of [0, -s]) {
-          const x = i * t + off + dx;
-          ctx.fillStyle = shade(base, tone);
-          ctx.fillRect(x + j, row * t + j, t - j * 2, t - j * 2);
-          ctx.fillStyle = shade(base, tone + 0.07, 0.5);
-          ctx.fillRect(x + j, row * t + j, t - j * 2, j * 1.5);
+    const rows = 10;
+    const th = s / rows;
+    const j = Math.max(1.5, s / 220);
+    for (let row = 0; row < rows; row++) {
+      let x = row % 2 ? -th * 0.6 : 0;
+      while (x < s) {
+        const w = th * (1.1 + r() * 0.7);
+        const tone = (r() - 0.5) * 0.12;
+        const y = row * th;
+        for (const dx of [0, -s, s]) {
+          const g = ctx.createLinearGradient(0, y, 0, y + th);
+          g.addColorStop(0, shade(base, tone + 0.05));
+          g.addColorStop(1, shade(base, tone - 0.06));
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.roundRect(x + dx + j, y + j, w - j * 2, th - j * 2, j * 1.6);
+          ctx.fill();
         }
+        x += w;
       }
+    }
     // broad worn patches
     for (let i = 0; i < 14; i++) {
       const x = r() * s;
       const y = r() * s;
       const rad = 50 + r() * 90;
-      const tone = (r() - 0.5) * 0.08;
+      const tone = (r() - 0.5) * 0.1;
       for (const dx of [-s, 0, s])
         for (const dy of [-s, 0, s]) {
           const g = ctx.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, rad);
@@ -151,7 +232,7 @@ export function floorTexture(scene: Scene, base: string, seed: number) {
           ctx.fillRect(x + dx - rad, y + dy - rad, rad * 2, rad * 2);
         }
     }
-    speckle(ctx, s, base, 500, r, 0.06);
+    speckle(ctx, s, base, 1400, r, 0.08);
   });
 }
 

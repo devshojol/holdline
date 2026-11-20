@@ -39,7 +39,7 @@ export function Hud({ hud, flags, feed, renderer }: { hud: HudState; flags: HudS
         {flags.showKills && (
           <div className="flex min-w-20 flex-col items-center justify-center bg-black/45 px-4 py-1">
             <div className="font-display text-2xl font-bold leading-none tabular">{hud.kills}</div>
-            <div className="text-[10px] uppercase tracking-widest text-white/60">Kills</div>
+            <div className="text-xs uppercase tracking-widest text-white/60">Kills</div>
           </div>
         )}
         {flags.showTimer && (
@@ -49,13 +49,13 @@ export function Hud({ hud, flags, feed, renderer }: { hud: HudState; flags: HudS
                 ? `${Math.floor(hud.timeLeft / 60)}:${String(hud.timeLeft % 60).padStart(2, '0')}`
                 : `${Math.floor(hud.elapsed / 60)}:${String(hud.elapsed % 60).padStart(2, '0')}`}
             </div>
-            <div className="text-[10px] uppercase tracking-widest text-accent">{hud.modeLabel}</div>
+            <div className="text-xs uppercase tracking-widest text-accent">{hud.modeLabel}</div>
           </div>
         )}
         {flags.showKills && (
           <div className="flex min-w-20 flex-col items-center justify-center bg-black/45 px-4 py-1">
             <div className="font-display text-2xl font-bold leading-none tabular">{hud.deaths}</div>
-            <div className="text-[10px] uppercase tracking-widest text-white/60">Deaths</div>
+            <div className="text-xs uppercase tracking-widest text-white/60">Deaths</div>
           </div>
         )}
       </div>
@@ -129,13 +129,13 @@ export function Hud({ hud, flags, feed, renderer }: { hud: HudState; flags: HudS
           </div>
           {hud.reloading && (
             <div className="mt-2">
-              <div className="mb-1 text-[10px] uppercase tracking-widest text-warn">Reloading</div>
+              <div className="mb-1 text-xs uppercase tracking-widest text-warn">Reloading</div>
               <div className="h-1 w-full bg-black/50">
                 <div className="h-full bg-warn" style={{ width: `${hud.reloadProgress * 100}%` }} />
               </div>
             </div>
           )}
-          {hud.ads && <div className="mt-1 text-[10px] uppercase tracking-widest text-info">{hud.scopeZoom ? `Scoped ${hud.scopeZoom}×` : 'ADS'}</div>}
+          {hud.ads && <div className="mt-1 text-xs uppercase tracking-widest text-info">{hud.scopeZoom ? `Scoped ${hud.scopeZoom}×` : 'ADS'}</div>}
         </div>
       )}
 

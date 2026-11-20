@@ -2,6 +2,7 @@ import { mapKit, mapMood, type MapBox, type MapData, type MapKit, type PropKind 
 import { CELL, WALL_HEIGHT, shapeOf } from '../maps/GridMap';
 import {
   Color3,
+  DynamicTexture,
   CreatePlane,
   CreateSphere,
   Mesh,
@@ -18,6 +19,7 @@ import {
   metalTexture,
   occlusionTexture,
   radialTexture,
+  reliefTexture,
   roofTexture,
   signTexture,
   skyTexture,
@@ -326,9 +328,18 @@ export function renderMap(scene: Scene, data: MapData, shadow: ShadowGenerator |
   const { def } = data;
   const meshes: Mesh[] = [];
   const materials: StandardMaterial[] = [];
-  const mat = (name: string, tex: Texture | null, color?: Color3, spec = 0.06) => {
+  const mat = (name: string, tex: Texture | null, color?: Color3, spec = 0.06, relief = 0) => {
     const m = new StandardMaterial(name, scene);
     if (tex) m.diffuseTexture = tex;
+    // surfaces with relief: a normal map from the texture itself, and a little more sheen for it to catch
+    if (tex && relief > 0) {
+      const bump = reliefTexture(scene, tex as DynamicTexture, relief);
+      if (bump) {
+        bump.coordinatesIndex = tex.coordinatesIndex;
+        m.bumpTexture = bump;
+        spec = Math.max(spec, 0.1);
+      }
+    }
     if (color) m.diffuseColor = color;
     m.specularColor = new Color3(spec, spec, spec);
     m.specularPower = 32;
@@ -380,9 +391,9 @@ export function renderMap(scene: Scene, data: MapData, shadow: ShadowGenerator |
         // Wall tops get stone capping; raised floors (Heaven, stairs) get the zone's floor paving.
         const top =
           box.kind === 'raised'
-            ? getBatch(`floor-${box.zone}`, () => mat(`floor-${box.zone}`, floorTexture(scene, zone.floor, seed + 101)), false)
-            : getBatch(`cap-${box.zone}`, () => mat(`cap-${box.zone}`, stoneTexture(scene, zone.wall, seed + 7)));
-        getBatch(`wall-${box.zone}`, () => mat(`wall-${box.zone}`, wallTexture(scene, zone.wall, zone.accent, seed))).box(
+            ? getBatch(`floor-${box.zone}`, () => mat(`floor-${box.zone}`, floorTexture(scene, zone.floor, seed + 101), undefined, 0.06, 3), false)
+            : getBatch(`cap-${box.zone}`, () => mat(`cap-${box.zone}`, stoneTexture(scene, zone.wall, seed + 7), undefined, 0.06, 3));
+        getBatch(`wall-${box.zone}`, () => mat(`wall-${box.zone}`, wallTexture(scene, zone.wall, zone.accent, seed), undefined, 0.06, 2.5)).box(
           box.min,
           box.max,
           { kind: 'world', tile: 4, vHeight: WALL_HEIGHT },
@@ -394,7 +405,7 @@ export function renderMap(scene: Scene, data: MapData, shadow: ShadowGenerator |
           addRoof(
             box,
             kit.roof,
-            getBatch('roof', () => mat('roof', kit.roof === 'tile' ? roofTexture(scene, kit.roofColor, 17) : null, kit.roof === 'tile' ? undefined : Color3.FromHexString(kit.roofColor))),
+            getBatch('roof', () => mat('roof', kit.roof === 'tile' ? roofTexture(scene, kit.roofColor, 17) : null, kit.roof === 'tile' ? undefined : Color3.FromHexString(kit.roofColor), 0.06, 3)),
             getBatch(`eave-${box.zone}`, () => mat(`eave-${box.zone}`, null, Color3.FromHexString(shade(zone.wall, 0.86)))),
           );
         }
@@ -402,7 +413,7 @@ export function renderMap(scene: Scene, data: MapData, shadow: ShadowGenerator |
       }
       case 'pillar':
       case 'rail':
-        getBatch(`stone-${box.zone}`, () => mat(`stone-${box.zone}`, stoneTexture(scene, zone.wall, seed + 7))).box(
+        getBatch(`stone-${box.zone}`, () => mat(`stone-${box.zone}`, stoneTexture(scene, zone.wall, seed + 7), undefined, 0.06, 3)).box(
           box.min,
           box.max,
           { kind: 'world', tile: 2, vHeight: 1.5 },
@@ -415,14 +426,14 @@ export function renderMap(scene: Scene, data: MapData, shadow: ShadowGenerator |
           break;
         }
         const color = box.kind === 'crate' ? kit.crateColor : shade(kit.crateColor, 0.86);
-        const body = getBatch(box.kind, () => mat(box.kind, crateTexture(scene, color, box.kind === 'crate' ? 11 : 23)));
+        const body = getBatch(box.kind, () => mat(box.kind, crateTexture(scene, color, box.kind === 'crate' ? 11 : 23), undefined, 0.06, 4));
         addCrates(box, body, flat, shade(color, 0.62));
         break;
       }
       case 'stack':
         addContainers(
           box,
-          getBatch(`stack-${box.zone}`, () => mat(`stack-${box.zone}`, metalTexture(scene, zone.accent, seed + 3), undefined, 0.15)),
+          getBatch(`stack-${box.zone}`, () => mat(`stack-${box.zone}`, metalTexture(scene, zone.accent, seed + 3), undefined, 0.15, 3)),
           flat,
           shade(zone.accent, 0.62),
         );
@@ -454,15 +465,15 @@ export function renderMap(scene: Scene, data: MapData, shadow: ShadowGenerator |
     kit,
     (zoneId) => {
       const z = zones[zoneId] ?? Object.values(zones)[0];
-      return getBatch(`wall-${zoneId}`, () => mat(`wall-${zoneId}`, wallTexture(scene, z.wall, z.accent, zoneSeed(zoneId))));
+      return getBatch(`wall-${zoneId}`, () => mat(`wall-${zoneId}`, wallTexture(scene, z.wall, z.accent, zoneSeed(zoneId)), undefined, 0.06, 2.5));
     },
-    getBatch('roof', () => mat('roof', kit.roof === 'tile' ? roofTexture(scene, kit.roofColor, 17) : null, kit.roof === 'tile' ? undefined : Color3.FromHexString(kit.roofColor))),
+    getBatch('roof', () => mat('roof', kit.roof === 'tile' ? roofTexture(scene, kit.roofColor, 17) : null, kit.roof === 'tile' ? undefined : Color3.FromHexString(kit.roofColor), 0.06, 3)),
     detail,
   );
 
   for (const f of data.floors) {
     const zone = zones[f.zone] ?? Object.values(zones)[0];
-    getBatch(`floor-${f.zone}`, () => mat(`floor-${f.zone}`, floorTexture(scene, zone.floor, zoneSeed(f.zone) + 101)), false).floor(
+    getBatch(`floor-${f.zone}`, () => mat(`floor-${f.zone}`, floorTexture(scene, zone.floor, zoneSeed(f.zone) + 101), undefined, 0.06, 3), false).floor(
       f.minX,
       f.minZ,
       f.maxX,
@@ -765,8 +776,8 @@ function addFacadeDetail(
       };
       const trim = shade(zone.wall, 0.78);
       const frame = shade(zone.wall, 1.12);
-      const paint = shade(zone.accent, 0.8);
-      const paintDark = shade(zone.accent, 0.58);
+      const paint = shade(dull(zone.accent, 0.3), 0.8);
+      const paintDark = shade(dull(zone.accent, 0.3), 0.58);
       /** Shop awning: striped canopy on an iron frame with side cheeks, stays to the wall and a scalloped valance. */
       const awning = (k: number, width: number, yWall: number, yFront: number, reach: number) => {
         const w = width / 2;

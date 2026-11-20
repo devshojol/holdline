@@ -401,16 +401,16 @@ describe('quick match', () => {
     const a = new Client(lobby, 'Sova');
     a.say({ t: 'queue.join', maps: ['vellora'] });
     const startsAt = t.now() + QUEUE_START_DELAY_MS;
-    t.wait(5000);
+    t.wait(2000);
     const b = new Client(lobby, 'Jett');
     b.say({ t: 'queue.join', maps: ['vellora'] });
     expect(a.queue).toEqual({ maps: ['vellora'], waiting: 2, startsAt });
-    t.wait(5000);
+    t.wait(2000);
     const c = new Client(lobby, 'Omen');
     c.say({ t: 'queue.join', maps: [] }); // any map
     expect(c.queue).toMatchObject({ waiting: 3, startsAt });
     expect(a.inRoom).toBeNull();
-    t.wait(QUEUE_START_DELAY_MS - 10_000 + 1000);
+    t.wait(QUEUE_START_DELAY_MS - 4000 + 1000);
     for (const p of [a, b, c]) {
       expect(p.queue).toBeNull();
       expect(p.room).toMatchObject({ kind: 'quick', phase: 'countdown', settings: { mapId: 'vellora', mode: 'deathmatch', killLimit: 40, timeLimitMin: 5 } });

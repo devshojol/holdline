@@ -147,7 +147,7 @@ export const tamarind: MapDefinition = {
     clouds: 0.7,
     uniformShade: 0.55,
     kit: { roof: 'flat', roofColor: '#7f9a5c', awnings: false, bunting: false, landmark: 'ziggurat', prop: 'block', crateColor: '#b5843f' },
-    mood: { sun: '#fff2c8', sunDir: [-0.5, -0.78, 0.38], sunIntensity: 1.65, ambient: '#d6dfea', bounce: '#c2bba4', saturation: 36 },
+    mood: { sun: '#fff2c8', sunDir: [-0.5, -0.78, 0.38], sunIntensity: 1.65, ambient: '#d6dfea', bounce: '#c2bba4', saturation: 18 },
     zones: {
       a: { wall: '#ddd5c4', floor: '#aba894', accent: '#e0a52e' },
       b: { wall: '#d8d4c0', floor: '#a8a690', accent: '#1f9a8c' },

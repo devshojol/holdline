@@ -141,7 +141,7 @@ export const coralis: MapDefinition = {
     clouds: 1,
     uniformShade: 0.55,
     kit: { roofColor: '#d0704a', landmark: 'lighthouse', prop: 'planter', crateColor: '#c98a3c' },
-    mood: { sun: '#fff5d8', sunDir: [-0.46, -0.8, 0.4], sunIntensity: 1.75, ambient: '#c8ecf6', bounce: '#e0d2a8', saturation: 42 },
+    mood: { sun: '#fff5d8', sunDir: [-0.46, -0.8, 0.4], sunIntensity: 1.75, ambient: '#c8ecf6', bounce: '#e0d2a8', saturation: 18 },
     zones: {
       a: { wall: '#f3e6c4', floor: '#dccba0', accent: '#18b0b0' },
       b: { wall: '#efdcb4', floor: '#d6c498', accent: '#f07a3a' },

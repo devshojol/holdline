@@ -91,7 +91,7 @@ export function WeaponsPage() {
                 }
               />
             </Suspense>
-            <div className="pointer-events-none absolute bottom-2 right-3 text-[10px] uppercase tracking-widest text-dim">Drag to turn</div>
+            <div className="pointer-events-none absolute bottom-2 right-3 text-xs uppercase tracking-widest text-dim">Drag to turn</div>
           </div>
           <div>
             <div>

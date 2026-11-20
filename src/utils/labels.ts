@@ -20,7 +20,7 @@ export const MODE_INFO: Record<PracticeMode, { label: string; short: string; des
   retake: {
     label: 'Retake',
     short: 'Retake',
-    desc: 'The spike is planted and defenders hold it. Fight your way in and hold E on the spike to defuse before the 45-second fuse runs out.',
+    desc: 'A charge is planted and defenders hold it. Fight your way in and hold E on the charge to defuse it before the 45-second fuse runs out.',
   },
   deathmatch: {
     label: 'Deathmatch',

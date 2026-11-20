@@ -141,7 +141,7 @@ export const goldline: MapDefinition = {
     clouds: 1,
     uniformShade: 0.55,
     kit: { vista: 'city', landmark: 'watertank', roofColor: '#c9643c', crateColor: '#d08a34', prop: 'barrel' },
-    mood: { sun: '#fff1d6', sunDir: [-0.5, -0.78, 0.38], sunIntensity: 1.7, ambient: '#cfe0ff', bounce: '#d9c7ab', saturation: 45 },
+    mood: { sun: '#fff1d6', sunDir: [-0.5, -0.78, 0.38], sunIntensity: 1.7, ambient: '#cfe0ff', bounce: '#d9c7ab', saturation: 18 },
     zones: {
       a: { wall: '#ebe7de', floor: '#c4b196', accent: '#2f6fb8' },
       b: { wall: '#e4e8ea', floor: '#bfae96', accent: '#e07a2c' },

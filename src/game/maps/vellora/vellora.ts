@@ -291,7 +291,7 @@ export const vellora: MapDefinition = {
     clouds: 0.8,
     uniformShade: 0.55,
     kit: { prop: 'jar', roofColor: '#c8623c', crateColor: '#c98f45' },
-    mood: { sun: '#fff0d2', sunDir: [-0.5, -0.76, 0.42], sunIntensity: 1.7, ambient: '#cfe0ff', bounce: '#dcc6a4', saturation: 45 },
+    mood: { sun: '#fff0d2', sunDir: [-0.5, -0.76, 0.42], sunIntensity: 1.7, ambient: '#cfe0ff', bounce: '#dcc6a4', saturation: 18 },
     zones: {
       a: { wall: '#f2d9a8', floor: '#c9b596', accent: '#2f7d6a' },
       mid: { wall: '#f0bd9e', floor: '#c4b6a4', accent: '#3b78b8' },

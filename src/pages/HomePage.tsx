@@ -1,227 +1,114 @@
-import { ChartColumn, Check, ChevronRight, Crosshair, Flame, Play, SlidersHorizontal, Swords, Users, type LucideIcon } from 'lucide-react';
-import type { CSSProperties } from 'react';
-import type { PracticeConfig, PracticeMode } from '../types';
+import { Bot, Play, Settings, Users, type LucideIcon } from 'lucide-react';
+import type { CSSProperties, ReactNode } from 'react';
 import { store, useAppStore } from '../hooks/useAppStore';
-import { Badge, Button, cx } from '../components/ui';
-import { MapPreview } from '../components/MapPreview';
-import { WeaponIcon } from '../components/WeaponIcon';
-import { WEAPONS } from '../game/weapons/weaponConfigs';
-import { getMapDefinition } from '../game/maps/registry';
-import { DIFFICULTY_LABEL, MODE_INFO, accuracy, dayKey, fmtDate, hsPct, locationName } from '../utils/labels';
+import { cx } from '../components/ui';
 import { normaliseConfig } from './PracticePage';
 import { multiplayer, useMultiplayer } from '../multiplayer/client';
 import { ensureName } from '../multiplayer/crazygamesRooms';
 import { crazyGames } from '../platform/crazygames';
+import { keyLabel, type BindAction } from '../settings/keybindings';
+import { QUICK_MATCH_SETTINGS } from '../net/settings';
 
-const DAILY: { mode: PracticeMode; title: string; target: string; patch: Partial<PracticeConfig> }[] = [
-  { mode: 'angle-hold', title: 'Warm-up: hold A Main', target: '2 min angle hold', patch: { locationId: 'a-main', side: 'defend', behavior: 'mixed', durationSec: 120, botCount: 2 } },
-  { mode: 'jiggle', title: "Don't take the bait", target: '2 min jiggle drill', patch: { locationId: 'mid', side: 'attack', durationSec: 120, botCount: 2 } },
-  { mode: 'site-clear', title: 'Take the site', target: '3 min site clear', patch: { locationId: 'a-main', side: 'attack', durationSec: 180, botCount: 3 } },
-  { mode: 'retake', title: 'Defuse under pressure', target: '3 min retake', patch: { locationId: 'a-main', side: 'attack', durationSec: 180, botCount: 3 } },
-  { mode: 'deathmatch', title: 'Live fire', target: '5 min deathmatch', patch: { durationSec: 300, botCount: 5 } },
-];
-const ROUTINE_MINUTES = Math.round(DAILY.reduce((a, d) => a + (d.patch.durationSec ?? 0), 0) / 60);
-
-/** One line of the main menu. */
-function MenuItem({ index, label, hint, icon: Icon, primary, onClick }: { index: number; label: string; hint: string; icon: LucideIcon; primary?: boolean; onClick: () => void }) {
+/** A secondary way in: practice, friends, settings. */
+function Choice({ index, label, hint, icon: Icon, onClick }: { index: number; label: string; hint: string; icon: LucideIcon; onClick: () => void }) {
   return (
-    <button onClick={onClick} data-primary={primary} className="tal-menu-item tal-rise" style={{ '--i': index } as CSSProperties}>
-      <span className={cx('font-display tabular w-7 text-sm font-bold', primary ? 'text-white/70' : 'text-dim')}>{String(index + 1).padStart(2, '0')}</span>
+    <button onClick={onClick} className="tal-menu-item tal-rise" style={{ '--i': index } as CSSProperties}>
+      <Icon size={22} className="shrink-0 text-accent" />
       <span className="min-w-0 flex-1">
-        <span className={cx('block font-display font-bold uppercase leading-none tracking-[0.08em]', primary ? 'text-3xl' : 'text-2xl')}>{label}</span>
-        <span className={cx('mt-1 block truncate text-xs', primary ? 'text-white/80' : 'text-mute')}>{hint}</span>
+        <span className="block font-display text-xl font-bold uppercase leading-none tracking-[0.08em]">{label}</span>
+        <span className="mt-1 block truncate text-sm text-mute">{hint}</span>
       </span>
-      <Icon size={primary ? 26 : 20} className={primary ? 'text-white' : 'text-dim'} />
     </button>
   );
 }
 
-/** A titled block in the right-hand column. */
-function Panel({ title, right, children, index }: { title: string; right?: React.ReactNode; children: React.ReactNode; index: number }) {
+/** One key and what it does, for the controls card. */
+function Key({ k, children }: { k: string; children: ReactNode }) {
   return (
-    <section className="tal-card tal-panel tal-rise border p-4" style={{ '--i': index } as CSSProperties}>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="tal-card-title font-display text-base font-semibold uppercase tracking-[0.14em] text-ink">{title}</h2>
-        {right}
-      </div>
-      {children}
-    </section>
+    <div className="flex items-center gap-2">
+      <kbd className="min-w-[2.4rem] border border-white/20 bg-black/50 px-1.5 py-0.5 text-center font-display text-sm font-bold uppercase text-ink">{k}</kbd>
+      <span className="text-sm text-mute">{children}</span>
+    </div>
   );
 }
 
+/**
+ * The first screen: one big Play button. Quick Play puts the player in an online deathmatch (bots fill the
+ * room until people arrive); practice against bots and playing with friends sit just under it.
+ */
 export function HomePage() {
   const practice = useAppStore((s) => s.practice);
-  const sessions = useAppStore((s) => s.sessions);
-  const routineHistory = useAppStore((s) => s.routineHistory);
-  const cfg = normaliseConfig(practice);
-  const last = sessions[0];
-  const today = dayKey(Date.now());
-  const todays = sessions.filter((s) => dayKey(s.startedAt) === today);
-  const def = getMapDefinition(cfg.mapId);
-  const primary = WEAPONS[cfg.primary];
-  const secondary = WEAPONS[cfg.secondary];
-  const routineToday = routineHistory.find((r) => r.day === today)?.total;
-
+  const keys = useAppStore((s) => s.settings.keys);
   const online = useMultiplayer((s) => s.available);
-  /** The drill set up under Custom setup: practice alone against bots. */
-  const practiceNow = () => store.play(cfg);
+  const cfg = normaliseConfig(practice);
+  const k = (a: BindAction) => keyLabel(keys[a][0] || keys[a][1]) || '—';
+  const move = [k('forward'), k('left'), k('back'), k('right')].join('');
+
   /** Quick Play: an online deathmatch on any map. The server finds a match with room, or starts one that bots fill. */
   const quick = async () => {
-    if (!online) return practiceNow(); // a build with no game server has nothing to search
+    if (!online) return store.play({ ...cfg, mode: 'deathmatch', botCount: 5, durationSec: 300 }); // no game server in this build
     if (crazyGames.enabled) await ensureName(); // their players arrive with a name; ours are asked once
     store.go('multiplayer');
     multiplayer.quickPlay();
   };
-  const drill = (d: (typeof DAILY)[number]) => normaliseConfig({ ...practice, ...d.patch, mode: d.mode, playerSpawnId: '', enemySpotIds: [] });
-  const routine = () =>
-    store.startRoutine(
-      DAILY.map(drill),
-      DAILY.map((d) => d.title),
-    );
+  const botsNow = () => store.play(normaliseConfig({ ...cfg, mode: 'deathmatch', botCount: 5, durationSec: 300, playerSpawnId: '', enemySpotIds: [] }));
 
   return (
-    <div className="grid gap-6 lg:h-full lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)_minmax(300px,360px)] lg:gap-8">
-      {/* ---- left: title and main menu (above the tilted map, whose corners reach over the column edges) ---- */}
-      <div className="relative z-10 flex min-h-0 flex-col justify-center">
-        <div className="mb-6">
-          <div className="font-display text-xs font-semibold uppercase tracking-[0.4em] text-accent">Tactical shooter training</div>
-          <h1 className="tal-title-in mt-1 font-display text-6xl font-extrabold uppercase leading-[0.86] tracking-[0.04em] text-ink xl:text-7xl">
-            Hold
-            <span className="text-accent">line</span>
+    <div className="relative h-full min-h-[520px] overflow-hidden">
+      {/* the key art, fading into the menu on the left */}
+      <div aria-hidden="true" className="absolute inset-0 -z-0">
+        <img src="images/home-hero.jpg" alt="" className="absolute inset-y-0 right-0 h-full w-[78%] object-cover object-[60%_30%]" draggable={false} />
+        <div className="absolute inset-0 bg-gradient-to-r from-bg via-bg/90 to-transparent" style={{ backgroundSize: '100% 100%' }} />
+        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-bg to-transparent" />
+      </div>
+
+      <div className="relative z-10 flex h-full flex-col justify-center gap-6 lg:max-w-[440px]">
+        <div className="tal-rise" style={{ '--i': 0 } as CSSProperties}>
+          <div className="font-display text-sm font-semibold uppercase tracking-[0.35em] text-accent">Online FPS · {QUICK_MATCH_SETTINGS.timeLimitMin}-minute deathmatch</div>
+          <h1 className="tal-title-in mt-1 font-display text-7xl font-extrabold uppercase leading-[0.86] tracking-[0.04em] text-ink">
+            Hold<span className="text-accent">line</span>
           </h1>
-          <p className="mt-3 max-w-xs text-sm text-mute">Win the gunfight before the round.</p>
-        </div>
-        <nav aria-label="Main menu" className="space-y-2">
-          <MenuItem index={0} primary label="Quick play" hint={online ? 'Online deathmatch · any map · bots fill in' : `${MODE_INFO[cfg.mode].label} · ${def.name} · ${locationName(cfg.mapId, cfg.locationId)}`} icon={Play} onClick={() => void quick()} />
-          <MenuItem index={1} label="Custom setup" hint="Practice alone: map, location, bots, weapons" icon={SlidersHorizontal} onClick={() => store.go('practice')} />
-          <MenuItem index={2} label="Multiplayer" hint="A room with friends, or pick your maps" icon={Users} onClick={() => store.go('multiplayer')} />
-          <MenuItem index={3} label="Daily routine" hint={`${DAILY.length} drills back to back · ${ROUTINE_MINUTES} min`} icon={Flame} onClick={routine} />
-          <MenuItem index={4} label="Armory" hint="Every weapon, its damage and recoil" icon={Swords} onClick={() => store.go('weapons')} />
-          <MenuItem index={5} label="Career" hint={sessions.length ? `${sessions.length} sessions recorded` : 'Your results and progress'} icon={ChartColumn} onClick={() => store.go('statistics')} />
-        </nav>
-      </div>
-
-      {/* ---- centre: the next drill on the map table ---- */}
-      <div className="flex min-h-0 min-w-0 flex-col">
-        <div className="tal-rise flex flex-wrap items-end justify-between gap-x-6 gap-y-2" style={{ '--i': 1 } as CSSProperties}>
-          <div>
-            <div className="font-display text-xs font-semibold uppercase tracking-[0.3em] text-info">Practice drill</div>
-            <div className="font-display text-4xl font-bold uppercase leading-none tracking-[0.05em]">{def.name}</div>
-            <div className="mt-1 text-sm text-mute">
-              {MODE_INFO[cfg.mode].label} · {cfg.side === 'attack' ? 'Attacking' : 'Defending'} · {primary.name}
-            </div>
-          </div>
-          <Badge tone="accent">{DIFFICULTY_LABEL[cfg.difficulty]}</Badge>
+          <p className="mt-3 text-base text-mute">Jump into a match in seconds. Bots fill the room until other players arrive.</p>
         </div>
 
-        <div className="tal-holo relative my-2 min-h-[220px] flex-1">
-          <div className="absolute inset-0 grid place-items-center">
-            <div className="tal-holo-plate aspect-square h-[88%] max-h-[600px] max-w-[88%]">
-              <MapPreview mapId={cfg.mapId} locationId={cfg.locationId} side={cfg.side} spawnId={cfg.playerSpawnId} spotIds={cfg.enemySpotIds} focus={false} className="h-full w-full" />
-              <div className="tal-holo-scan" />
-            </div>
-          </div>
-        </div>
-
-        <div className="tal-rise" style={{ '--i': 3 } as CSSProperties}>
-          <div className="mb-2 text-xs uppercase tracking-widest text-dim">Location</div>
-          <div className="flex flex-wrap gap-1.5">
-            {def.locations.map((l) => (
-              <button
-                key={l.id}
-                title={l.description}
-                aria-pressed={l.id === cfg.locationId}
-                onClick={() => store.updatePractice(normaliseConfig({ ...practice, locationId: l.id, playerSpawnId: '', enemySpotIds: [] }))}
-                className={cx(
-                  'border px-3 py-1.5 font-display text-sm font-semibold uppercase tracking-wider transition-colors',
-                  l.id === cfg.locationId ? 'border-accent bg-accent/20 text-ink' : 'border-white/10 bg-black/30 text-mute hover:border-mute hover:text-ink',
-                )}
-              >
-                {l.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ---- right: loadout, daily drills, last session ---- */}
-      <div className="relative z-10 flex min-h-0 flex-col justify-center gap-4 lg:overflow-y-auto lg:pr-1">
-        <Panel index={2} title="Loadout" right={<Badge>{primary.category}</Badge>}>
-          <WeaponIcon id={primary.id} className="h-14 w-full" color={primary.color} />
-          <div className="mt-2 flex items-end justify-between gap-3">
-            <div>
-              <div className="font-display text-3xl font-bold uppercase leading-none" style={{ color: primary.color }}>
-                {primary.name}
-              </div>
-              <div className="mt-1 text-xs text-mute">
-                {primary.fireRate} rounds/s · {primary.magazine} in the magazine · {primary.damage[0].head} to the head
-              </div>
-            </div>
-            <div className="shrink-0 text-right">
-              <WeaponIcon id={secondary.id} className="ml-auto h-6 w-16" color="#8a96a5" />
-              <div className="font-display text-sm font-semibold uppercase tracking-wider text-mute">{secondary.name}</div>
-            </div>
-          </div>
-        </Panel>
-
-        <Panel
-          index={3}
-          title="Daily training"
-          right={
-            <span className="text-xs text-dim">
-              {todays.length} today{routineToday !== undefined && ` · routine ${routineToday}`}
-            </span>
-          }
+        <button
+          onClick={() => void quick()}
+          className="tal-rise clip-angle-sm group flex items-center gap-4 bg-accent px-6 py-5 text-left text-[#1a1206] shadow-[0_0_40px_-8px_rgba(245,165,36,0.7)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
+          style={{ '--i': 1 } as CSSProperties}
         >
-          <div className="space-y-1">
-            {DAILY.map((d) => {
-              const done = todays.some((s) => s.mode === d.mode);
-              return (
-                <button
-                  key={d.mode}
-                  onClick={() => store.play(drill(d))}
-                  className={cx('flex w-full items-center gap-2.5 border px-2.5 py-1.5 text-left transition-colors', done ? 'border-ok/30 bg-ok/5' : 'border-white/10 bg-black/20 hover:border-mute')}
-                >
-                  <span className={cx('grid h-5 w-5 shrink-0 place-items-center border', done ? 'border-ok text-ok' : 'border-line text-dim')}>{done ? <Check size={12} /> : <Crosshair size={11} />}</span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">{d.title}</span>
-                  <span className="shrink-0 text-xs text-mute">{d.target}</span>
-                  <ChevronRight size={14} className="shrink-0 text-dim" />
-                </button>
-              );
-            })}
-          </div>
-        </Panel>
+          <Play size={34} className="shrink-0 fill-current" />
+          <span className="min-w-0 flex-1">
+            <span className="block font-display text-4xl font-extrabold uppercase leading-none tracking-[0.06em]">Play now</span>
+            <span className="mt-1 block text-sm font-semibold opacity-80">{online ? 'Online match · any map · up to 10 players' : 'Deathmatch against bots'}</span>
+          </span>
+        </button>
 
-        <Panel index={4} title="Last session" right={last ? <span className="text-xs text-dim">{fmtDate(last.startedAt)}</span> : undefined}>
-          {last ? (
-            <>
-              <div className="font-display text-lg font-bold uppercase leading-tight">
-                {MODE_INFO[last.mode].label} <span className="text-mute">· {locationName(last.mapId, last.locationId)}</span>
-              </div>
-              <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-                {(
-                  [
-                    ['Score', last.score],
-                    ['Accuracy', `${accuracy(last)}%`],
-                    ['Headshots', `${hsPct(last)}%`],
-                  ] as const
-                ).map(([label, value]) => (
-                  <div key={label} className="border border-white/10 bg-black/25 py-1.5">
-                    <div className="font-display tabular text-2xl font-bold leading-none text-ink">{value}</div>
-                    <div className="mt-0.5 text-[10px] uppercase tracking-widest text-dim">{label}</div>
-                  </div>
-                ))}
-              </div>
-              <Button className="mt-3 w-full" variant="outline" size="sm" onClick={practiceNow}>
-                <Play size={14} /> Continue previous drill
-              </Button>
-            </>
-          ) : (
-            <p className="text-sm text-mute">
-              No practice sessions yet. Set one up under <span className="text-ink">Custom setup</span>: your history and progress build up from there.
-            </p>
-          )}
-        </Panel>
+        <nav aria-label="More ways to play" className="grid gap-2">
+          <Choice index={2} label="Play with friends" hint="Make a room and send the link" icon={Users} onClick={() => store.go('multiplayer')} />
+          <Choice index={3} label="Practice vs bots" hint="Offline, any map, your own rules" icon={Bot} onClick={() => store.go('practice')} />
+        </nav>
+
+        <div className="tal-rise flex flex-wrap items-center justify-between gap-3" style={{ '--i': 4 } as CSSProperties}>
+          <button onClick={botsNow} className={cx('text-sm text-mute underline-offset-4 hover:text-ink hover:underline', !online && 'hidden')}>
+            Or start a bot match right now
+          </button>
+          <button onClick={() => store.go('settings')} className="inline-flex items-center gap-1.5 text-sm text-mute hover:text-ink">
+            <Settings size={15} /> Controls and settings
+          </button>
+        </div>
+      </div>
+
+      {/* how to play, at a glance */}
+      <div className="tal-rise absolute bottom-2 right-2 z-10 hidden w-[300px] border border-white/10 bg-black/55 p-4 backdrop-blur-sm lg:block" style={{ '--i': 5 } as CSSProperties}>
+        <div className="mb-2 font-display text-sm font-semibold uppercase tracking-[0.25em] text-accent">How to play</div>
+        <div className="grid gap-1.5">
+          <Key k={move}>Move</Key>
+          <Key k="Mouse">Aim · click to shoot</Key>
+          <Key k={k('reload')}>Reload</Key>
+          <Key k={k('crouch')}>Crouch · {k('walk')} walk quietly</Key>
+          <Key k={k('mapToggle')}>Map · hold {k('mapHold')} for scores</Key>
+        </div>
+        <p className="mt-2 text-sm text-dim">Most kills when the time runs out wins.</p>
       </div>
     </div>
   );

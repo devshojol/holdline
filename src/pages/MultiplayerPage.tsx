@@ -1,9 +1,10 @@
-import { Check, LogIn, Pencil, Plus, RotateCcw, Search, Timer, Users, X } from 'lucide-react';
+import { Bot, Check, LogIn, Pencil, Plus, RotateCcw, Search, Timer, Users, X } from 'lucide-react';
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Button, Card, PageHeader, cx } from '../components/ui';
 import { AgentPicker, AgentPortrait } from '../components/AgentPicker';
 import { getAgent } from '../game/agents';
-import { store } from '../hooks/useAppStore';
+import { store, useAppStore } from '../hooks/useAppStore';
+import { normaliseConfig } from './PracticePage';
 import { showSettingsSection } from './SettingsPage';
 import { MatchResultView } from '../components/Scoreboard';
 import { MAP_SUMMARIES } from '../game/maps/registry';
@@ -66,7 +67,7 @@ export function PlayerTag() {
       <AgentPortrait agent={agent} className="h-14 w-14 shrink-0" />
       <div className="min-w-0 self-center">
         <div className="max-w-[14rem] truncate font-display text-xl font-bold uppercase leading-none tracking-wide text-ink">{sanitizeName(name) ?? 'No name'}</div>
-        <div className="mt-1 text-[11px] uppercase tracking-widest" style={{ color: agent.accent }}>
+        <div className="mt-1 text-xs uppercase tracking-widest" style={{ color: agent.accent }}>
           {agent.name}
         </div>
       </div>
@@ -267,8 +268,13 @@ function QuickMatchCard({ disabled }: { disabled: boolean }) {
   );
 }
 
+/** Seconds of "connecting" (a sleeping server takes up to a minute to wake) before a bot match starts instead. */
+const BOT_FALLBACK_SEC = 12;
+
 function Searching() {
   const queue = useMultiplayer((s) => s.queue);
+  const practice = useAppStore((s) => s.practice);
+  const [keepWaiting, setKeepWaiting] = useState(false);
   const since = useMultiplayer((s) => s.queueSince);
   const status = useMultiplayer((s) => s.status);
   const clockOffset = useMultiplayer((s) => s.clockOffset);
@@ -280,6 +286,17 @@ function Searching() {
   if (!queue) return null;
 
   const elapsed = Math.max(0, Math.floor((now - since) / 1000));
+  const waking = status !== 'online';
+  const botsIn = BOT_FALLBACK_SEC - elapsed;
+  const playBots = () => {
+    multiplayer.cancelSearch();
+    store.play(normaliseConfig({ ...practice, mode: 'deathmatch', botCount: 5, durationSec: 300, playerSpawnId: '', enemySpotIds: [] }));
+  };
+  if (waking && !keepWaiting && botsIn <= 0) {
+    // nobody should sit looking at a spinner: play against bots while the server wakes
+    queueMicrotask(playBots);
+    return null;
+  }
   const startsIn = queue.startsAt > 0 ? Math.max(0, Math.ceil((queue.startsAt - (now + clockOffset)) / 1000)) : null;
   const others = queue.waiting - 1;
   const alone = others <= 0 && elapsed >= 60;
@@ -311,8 +328,10 @@ function Searching() {
           <div role="status" className="mt-4">
             <div className="text-xs uppercase tracking-widest text-dim">Status</div>
             <div className="text-base text-ink">
-              {status !== 'online'
-                ? 'Connecting to the game server… (up to a minute if it was asleep)'
+              {waking
+                ? keepWaiting
+                  ? 'Waking the game server… (up to a minute)'
+                  : `Waking the game server… a match against bots starts in ${Math.max(0, botsIn)} s`
                 : startsIn !== null
                   ? `${others > 0 ? `${queue.waiting} players searching` : 'Bots will join you'} · match starts in ${startsIn} s`
                   : others > 0
@@ -320,9 +339,21 @@ function Searching() {
                     : 'Looking for a match'}
             </div>
           </div>
-          <Button variant="outline" className="mt-6" onClick={() => multiplayer.cancelSearch()}>
-            <X size={18} /> Cancel
-          </Button>
+          <div className="mt-6 flex flex-wrap gap-2">
+            {waking && (
+              <Button onClick={playBots}>
+                <Bot size={18} /> Play bots now
+              </Button>
+            )}
+            {waking && !keepWaiting && (
+              <Button variant="outline" onClick={() => setKeepWaiting(true)}>
+                Keep waiting
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => multiplayer.cancelSearch()}>
+              <X size={18} /> Cancel
+            </Button>
+          </div>
         </div>
       </div>
       {alone && (

@@ -71,7 +71,7 @@ function Brand() {
       </span>
       <span className="text-left leading-none">
         <span className="block font-display text-lg font-bold uppercase tracking-[0.14em] text-ink">Holdline</span>
-        <span className="block font-display text-[11px] font-semibold uppercase tracking-[0.42em] text-accent">Aim trainer</span>
+        <span className="block font-display text-xs font-semibold uppercase tracking-[0.42em] text-accent">Online FPS</span>
       </span>
     </button>
   );
@@ -82,8 +82,8 @@ function TabButton({ tab, active, compact }: { tab: Tab; active: boolean; compac
   return (
     <button onClick={() => store.go(tab.id)} aria-current={active ? 'page' : undefined} title={compact ? tab.label : undefined} className={cx('tal-tab', compact ? 'text-sm' : 'text-[15px] xl:text-base')}>
       <Icon size={compact ? 16 : 17} className={active ? 'text-accent' : 'opacity-70'} />
-      {/* compact tabs show only their icon on narrower screens; the name stays for screen readers */}
-      <span className={compact ? 'max-2xl:sr-only' : undefined}>{tab.label}</span>
+      {/* set-up tabs show only their icon (with a tooltip); the name stays for screen readers */}
+      <span className={compact ? 'sr-only' : undefined}>{tab.label}</span>
     </button>
   );
 }
@@ -109,10 +109,11 @@ function Footer({ page }: { page: Page }) {
         {TIPS[tip]}
       </span>
       {name && <span className="hidden shrink-0 text-ink md:inline">{name}</span>}
-      {available && (
-        <span className="hidden shrink-0 items-center gap-1.5 md:flex" title={online ? 'Connected to the game server' : 'Not connected to the game server (it connects when you play)'}>
-          <span className={cx('h-1.5 w-1.5 rounded-full', online ? 'bg-ok shadow-[0_0_6px_1px_rgba(61,220,151,0.8)]' : 'bg-dim')} />
-          {online ? 'Online' : 'Offline'}
+      {/* shown once connected: before that "Offline" read as if the game were broken (it connects when you play) */}
+      {available && online && (
+        <span className="hidden shrink-0 items-center gap-1.5 md:flex" title="Connected to the game server">
+          <span className="h-1.5 w-1.5 rounded-full bg-ok shadow-[0_0_6px_1px_rgba(61,220,151,0.8)]" />
+          Online
         </span>
       )}
       <span className="tabular shrink-0 text-dim">v{version}</span>
@@ -154,8 +155,8 @@ function useMenuFeel(active: boolean) {
 }
 
 /** The screen the menus are laid out for. */
-const DESIGN_WIDTH = 1600;
-const DESIGN_HEIGHT = 900;
+const DESIGN_WIDTH = 1200;
+const DESIGN_HEIGHT = 675;
 /** Narrower than this is a phone: it gets the stacked layout at its real size (same as `--breakpoint-lg`). */
 const PHONE_WIDTH = 768;
 

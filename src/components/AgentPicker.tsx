@@ -25,17 +25,17 @@ export function AgentPicker({ note, compact }: { note?: string; compact?: boolea
   const current = useMultiplayer((s) => s.agent);
   const agent = getAgent(current);
   return (
-    <section className="tal-agent-select" data-compact={compact} style={{ '--agent': agent.accent } as CSSProperties} aria-label="Agent select">
+    <section className="tal-agent-select" data-compact={compact} style={{ '--agent': agent.accent } as CSSProperties} aria-label="Soldier select">
       <div className="tal-agent-hero">
         {/* the key replays the entrance when another agent is picked */}
         <AgentPortrait key={agent.id} agent={agent} className="tal-agent-hero-pic" />
         <div className="tal-agent-hero-text">
-          <div className="font-display text-xs font-semibold uppercase tracking-[0.4em] text-mute">Your agent</div>
+          <div className="font-display text-xs font-semibold uppercase tracking-[0.4em] text-mute">Your soldier</div>
           <div className={cx('font-display font-extrabold uppercase leading-[0.9] tracking-[0.04em] text-white', compact ? 'text-4xl' : 'text-6xl xl:text-7xl')}>{agent.name}</div>
-          <div className="mt-2 text-xs text-mute">{note ?? 'How other players see you. Bots play a random agent.'}</div>
+          <div className="mt-2 text-xs text-mute">{note ?? 'How other players see you. Bots play a random soldier.'}</div>
         </div>
       </div>
-      <div className="tal-agent-roster" role="radiogroup" aria-label="Agent">
+      <div className="tal-agent-roster" role="radiogroup" aria-label="Soldier">
         {AGENTS.map((a) => (
           <button
             key={a.id}

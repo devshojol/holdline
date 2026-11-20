@@ -161,7 +161,7 @@ export const sanctum: MapDefinition = {
     clouds: 0.9,
     uniformShade: 0.55,
     kit: { roofColor: '#3d6470', landmark: 'pagoda', prop: 'lantern', string: 'banners', crateColor: '#a8703c' },
-    mood: { sun: '#fff4dc', sunDir: [-0.55, -0.74, 0.4], sunIntensity: 1.65, ambient: '#d2e2fb', bounce: '#cfc8b4', saturation: 42 },
+    mood: { sun: '#fff4dc', sunDir: [-0.55, -0.74, 0.4], sunIntensity: 1.65, ambient: '#d2e2fb', bounce: '#cfc8b4', saturation: 18 },
     zones: {
       a: { wall: '#f1e7d0', floor: '#b9b4a6', accent: '#c8392f' },
       b: { wall: '#f4ecd8', floor: '#bdb8aa', accent: '#2f8a4f' },

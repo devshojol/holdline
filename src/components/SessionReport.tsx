@@ -34,7 +34,7 @@ export function SessionReportBody({ s }: { s: SessionStats }) {
         <Stat label="Spray acc." value={p(s.sprayHits, s.sprayShots)} sub="bullet 4+" />
         <Stat label="Moving-shot acc." value={p(s.movingHits, s.movingShots)} sub={`${s.movingShots} shots while moving`} />
         <Stat label="Damage" value={`${s.damageDealt}`} sub={`taken ${s.damageTaken}`} />
-        {s.clear && <Stat label={s.mode === 'retake' ? 'Spikes defused' : 'Rounds cleared'} value={`${s.clear.cleared} / ${s.clear.rounds}`} sub={s.mode === 'retake' ? 'before the fuse ran out' : 'defenders all down'} />}
+        {s.clear && <Stat label={s.mode === 'retake' ? 'Charges defused' : 'Rounds cleared'} value={`${s.clear.cleared} / ${s.clear.rounds}`} sub={s.mode === 'retake' ? 'before the fuse ran out' : 'defenders all down'} />}
         {s.clear && (
           <Stat
             label={s.mode === 'retake' ? 'Avg time to defuse' : 'Avg clear time'}

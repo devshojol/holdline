@@ -214,7 +214,7 @@ met nobody for 8 seconds. Straight streets of 30 m or more are broken by a chica
 Deathmatch against other people, up to 10 in a match. Full detail, including how to run and deploy it, is in [`docs/multiplayer.md`](docs/multiplayer.md).
 
 - **Custom rooms**: create a room, invite friends with a 6-character code or a link, and set the map, time limit, kill limit, allowed weapons, respawn delay and more. The host starts the match; afterwards everyone returns to the room with the final score.
-- **Quick match**: pick the maps you accept and search. A match starts within 15 seconds (at once with 10 players), filled to six with bots, and later arrivals take a bot's place while the match has time left. Idle players are removed.
+- **Quick match**: pick the maps you accept and search. A match starts within 6 seconds (at once with 10 players), filled to six with bots, and later arrivals take a bot's place while the match has time left. Idle players are removed.
 - **Bots** (`server/MatchBot.ts`) fill a match so one person can play: they roam, fight whoever they see, including each other, chase for a moment and turn on whoever shoots them, at three difficulties. A custom room can fill to any size.
 - **The server decides.** A Node game server (`server/`) owns every room and match. It runs the same `PlayerController`, `CollisionWorld` and hitbox code as the client (the files are shared, and a test fails if any of them touches the browser or Babylon), so a client can't teleport, deal extra damage or score for itself.
 - **Movement** is predicted on the client and corrected by the server: each simulation step is sent as a command and replayed there. Other players are drawn 100 ms in the past, blended between snapshots that arrive 30 times a second.

@@ -13,14 +13,14 @@ function Tile({ id, active, onPick }: { id: WeaponId; active: boolean; onPick: (
       className={cx('tal-tile border p-3 text-left', active ? 'border-accent bg-accent/15' : 'border-line bg-bg/60 hover:border-mute')}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] uppercase tracking-widest text-dim">{w.category}</span>
-        {active && <span className="text-[10px] font-semibold uppercase tracking-widest text-accent">Equipped</span>}
+        <span className="text-xs uppercase tracking-widest text-dim">{w.category}</span>
+        {active && <span className="text-xs font-semibold uppercase tracking-widest text-accent">Equipped</span>}
       </div>
       <WeaponIcon id={id} className="my-1 h-10 w-full" color={active ? w.color : '#8a96a5'} />
       <div className="font-display text-xl font-bold uppercase leading-none" style={{ color: active ? w.color : undefined }}>
         {w.name}
       </div>
-      <div className="mt-1 text-[11px] text-mute tabular">
+      <div className="mt-1 text-xs text-mute tabular">
         {d.head} / {d.body} dmg · {w.fireRate} rps · {w.magazine} rounds
       </div>
     </button>

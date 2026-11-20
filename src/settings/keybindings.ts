@@ -16,7 +16,7 @@ export const DEFAULT_KEYS: KeyBindings = {
   left: ['KeyA', 'ArrowLeft'],
   right: ['KeyD', 'ArrowRight'],
   walk: ['ShiftLeft', 'ShiftRight'],
-  crouch: ['ControlLeft', 'KeyC'],
+  crouch: ['KeyC', ''],
   jump: ['Space', ''],
   fire: ['Mouse0', ''],
   alt: ['Mouse2', ''],
@@ -45,7 +45,7 @@ export const BIND_GROUPS: BindGroup[] = [
       { action: 'left', label: 'Strafe left' },
       { action: 'right', label: 'Strafe right' },
       { action: 'walk', label: 'Walk', hint: 'Hold: silent and more accurate' },
-      { action: 'crouch', label: 'Crouch', hint: 'Hold. Outside fullscreen, Ctrl + W closes the tab: use C there' },
+      { action: 'crouch', label: 'Crouch', hint: 'Hold. Avoid Ctrl: Ctrl + W closes the browser tab' },
       { action: 'jump', label: 'Jump' },
     ],
   },
@@ -55,7 +55,7 @@ export const BIND_GROUPS: BindGroup[] = [
       { action: 'fire', label: 'Fire' },
       { action: 'alt', label: 'Aim down sights', hint: 'Scope on the Monarch, burst on the Pilot' },
       { action: 'reload', label: 'Reload' },
-      { action: 'use', label: 'Use / defuse', hint: 'Hold to defuse the spike in Retake' },
+      { action: 'use', label: 'Use / defuse', hint: 'Hold to defuse the charge in Retake' },
     ],
   },
   {
@@ -159,7 +159,7 @@ export function bindKey(keys: KeyBindings, action: BindAction, slot: 0 | 1, code
         }
   }
   next[action][slot] = code;
-  // keep a single key in the first slot
-  if (!next[action][0] && next[action][1]) next[action] = [next[action][1], ''];
+  // an action left with one key keeps it in the first slot
+  for (const a of Object.keys(next) as BindAction[]) if (!next[a][0] && next[a][1]) next[a] = [next[a][1], ''];
   return { keys: next, movedFrom };
 }

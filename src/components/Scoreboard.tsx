@@ -47,7 +47,7 @@ export function Scoreboard({ scores, settings, me, winner }: { scores: ScoreLine
 
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="text-left text-[11px] uppercase tracking-widest text-dim">
+          <tr className="text-left text-xs uppercase tracking-widest text-dim">
             <th className="w-8 py-1.5 font-normal">#</th>
             <th className="py-1.5 font-normal">Player</th>
             {teams && <th className="py-1.5 font-normal">Team</th>}
@@ -65,7 +65,7 @@ export function Scoreboard({ scores, settings, me, winner }: { scores: ScoreLine
               <td className="max-w-0 truncate py-1.5 text-ink">
                 {s.name}
                 {s.id === me && <span className="ml-2 text-xs text-dim">you</span>}
-                {s.bot && <span className="ml-2 border border-white/15 px-1 text-[10px] font-semibold uppercase tracking-wider text-dim">Bot</span>}
+                {s.bot && <span className="ml-2 border border-white/15 px-1 text-xs font-semibold uppercase tracking-wider text-dim">Bot</span>}
               </td>
               {teams && <td className="py-1.5">{s.team ? TEAM_NAME[s.team] : '—'}</td>}
               <td className="tabular py-1.5 text-right font-semibold text-ink">{s.kills}</td>

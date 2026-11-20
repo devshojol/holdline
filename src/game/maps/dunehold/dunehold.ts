@@ -149,7 +149,7 @@ export const dunehold: MapDefinition = {
     clouds: 0.3,
     uniformShade: 0.55,
     kit: { roof: 'flat', roofColor: '#dcc18e', wallUnits: false, landmark: 'minaret', prop: 'basket', string: 'cloth', crateColor: '#b9803c' },
-    mood: { sun: '#ffe9b8', sunDir: [-0.44, -0.82, 0.36], sunIntensity: 1.8, ambient: '#d6e2f6', bounce: '#e0c491', saturation: 48 },
+    mood: { sun: '#ffe9b8', sunDir: [-0.44, -0.82, 0.36], sunIntensity: 1.8, ambient: '#d6e2f6', bounce: '#e0c491', saturation: 18 },
     zones: {
       a: { wall: '#ecc98a', floor: '#d6bc8c', accent: '#1f9a9a' },
       b: { wall: '#e8ba78', floor: '#d0b382', accent: '#c9372f' },

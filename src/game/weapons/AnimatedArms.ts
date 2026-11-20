@@ -122,6 +122,14 @@ export class ArmsRigTemplate {
       container.dispose();
       throw new Error(`arms pack: missing ${missing.join(', ')}`);
     }
+    // the bare skin is fully matte in the file, which made the forearm read as a smooth plastic tube:
+    // a little sheen shows its shape, and slightly darker skin sits better against bright maps
+    for (const m of container.materials) {
+      const pbr = m as unknown as { name: string; roughness?: number; albedoColor?: { scaleInPlace(k: number): unknown } };
+      if (pbr.name !== 'Hand_D' || pbr.roughness === undefined) continue;
+      pbr.roughness = 0.62;
+      pbr.albedoColor?.scaleInPlace(0.82);
+    }
     return new ArmsRigTemplate(container);
   }
 

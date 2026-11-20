@@ -172,7 +172,7 @@ export const kitsune: MapDefinition = {
     clouds: 0.6,
     uniformShade: 0.55,
     kit: { roof: 'flat', roofColor: '#59616e', vista: 'city', wallUnits: true, landmark: 'sign', crateColor: '#3f9aa6', prop: 'cabinet', string: 'lanterns' },
-    mood: { sun: '#fff0e0', sunDir: [-0.58, -0.68, 0.44], sunIntensity: 1.6, ambient: '#cdd8f8', bounce: '#b4b2bc', saturation: 50 },
+    mood: { sun: '#fff0e0', sunDir: [-0.58, -0.68, 0.44], sunIntensity: 1.6, ambient: '#cdd8f8', bounce: '#b4b2bc', saturation: 18 },
     zones: {
       a: { wall: '#e7e3ec', floor: '#9ba2ad', accent: '#f0447f' },
       b: { wall: '#dfe9ea', floor: '#959fa6', accent: '#1fb8c4' },

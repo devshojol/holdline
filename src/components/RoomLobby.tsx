@@ -209,7 +209,7 @@ export function RoomLobby({ room }: { room: RoomState }) {
                   <li key={`empty-${i}`} className="tal-slot items-center justify-center gap-1 text-center text-dim" data-empty="true">
                     {bot ? <Bot size={22} /> : <UserPlus size={22} className="opacity-50" />}
                     <span className="font-display text-sm font-semibold uppercase tracking-widest">{bot ? 'Bot' : 'Open'}</span>
-                    {bot && <span className="text-[11px]">{DIFFICULTY_LABEL[room.settings.botDifficulty]} · joins at the start</span>}
+                    {bot && <span className="text-xs">{DIFFICULTY_LABEL[room.settings.botDifficulty]} · joins at the start</span>}
                   </li>
                 );
               })}
@@ -251,14 +251,14 @@ function PlayerCard({ player, me, isHost, teams, editable, showReady }: { player
               <Crown size={11} className="mr-1" /> Host
             </Badge>
           )}
-          <span className="tabular text-[11px] text-dim">{player.connected && player.ping >= 0 ? `${player.ping} ms` : '—'}</span>
+          <span className="tabular text-xs text-dim">{player.connected && player.ping >= 0 ? `${player.ping} ms` : '—'}</span>
         </span>
       </div>
       <div className="mt-2 min-w-0 flex-1">
         <div className="truncate font-display text-lg font-bold uppercase leading-tight tracking-wide text-ink" title={player.name}>
           {player.name}
         </div>
-        <div className="text-[11px] uppercase tracking-widest text-dim">
+        <div className="text-xs uppercase tracking-widest text-dim">
           {me ? 'You' : 'Player'} · <span style={{ color: getAgent(player.agent).accent }}>{getAgent(player.agent).name}</span>
         </div>
       </div>

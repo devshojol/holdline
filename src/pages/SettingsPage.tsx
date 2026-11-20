@@ -100,7 +100,7 @@ export function SettingsPage() {
               <sec.icon size={18} className="shrink-0" />
               <span className="min-w-0 text-left">
                 <span className="block">{sec.label}</span>
-                <span className="hidden truncate text-[11px] normal-case tracking-normal text-dim lg:block">{sec.blurb}</span>
+                <span className="hidden truncate text-xs normal-case tracking-normal text-dim lg:block">{sec.blurb}</span>
               </span>
             </button>
           ))}
@@ -214,7 +214,7 @@ function ControlsCard() {
 
         {BIND_GROUPS.map((group) => (
           <Group key={group.title} title={group.title}>
-            <div className="hidden grid-cols-[minmax(0,1fr)_8.5rem_8.5rem] gap-2 pb-1 text-[11px] uppercase tracking-widest text-dim sm:grid">
+            <div className="hidden grid-cols-[minmax(0,1fr)_8.5rem_8.5rem] gap-2 pb-1 text-xs uppercase tracking-widest text-dim sm:grid">
               <span>Action</span>
               <span className="text-center">Key</span>
               <span className="text-center">Second key</span>
@@ -332,7 +332,7 @@ function GraphicsCard() {
           {!__CRAZYGAMES__ && (
             <Toggle
               label="Fullscreen on start"
-              hint="Stops Ctrl (crouch) + W from closing the tab. When off, crouch with C instead."
+              hint="Fills the screen when a session starts."
               checked={g.fullscreen}
               onChange={(v) => setG({ fullscreen: v, preset: g.preset })}
             />
@@ -416,7 +416,7 @@ function GraphicsCard() {
                 value={g.botModel}
                 onChange={(v) => setG({ botModel: v })}
                 options={[
-                  { value: 'agent', label: 'Agents' },
+                  { value: 'agent', label: 'Soldiers' },
                   { value: 'dummy', label: 'Practice dummy' },
                 ]}
               />
@@ -650,7 +650,7 @@ function ProfileCard() {
         </Button>
       </form>
       <p className="mt-3 text-xs text-dim">
-        Your agent ({agent.name}) is picked on the Multiplayer screen.
+        Your soldier ({agent.name}) is picked on the Multiplayer screen.
         {inRoom && ' A room keeps the name you joined with: the new one shows from the next room.'}
       </p>
     </Card>
