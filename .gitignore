@@ -16,3 +16,6 @@ dist-cg-test
 
 # preview videos for the CrazyGames page: uploaded there, too large for the repository
 marketing/**/*.mp4
+
+# covers kept on this computer only, never pushed
+marketing/crazygames/local/
