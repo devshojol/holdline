@@ -22,7 +22,7 @@ function GunPicker({ ids, value, onChange }: { ids: readonly WeaponId[]; value: 
         return (
           <button key={id} type="button" aria-pressed={on} onClick={() => onChange(id)} className="tal-gun" style={{ '--gun': w.color } as CSSProperties}>
             <WeaponIcon id={id} className="h-7 w-full" color={on ? w.color : 'currentColor'} />
-            <span className="font-display text-sm font-bold uppercase tracking-wider">{w.name}</span>
+            <span className="w-full truncate font-label text-sm font-bold uppercase tracking-wide">{w.name}</span>
           </button>
         );
       })}
@@ -133,7 +133,7 @@ export function PracticePage() {
                   onClick={() => update({ mapId: m.id })}
                   aria-pressed={m.id === cfg.mapId}
                   title={m.setting}
-                  className={cx('border px-2 py-1.5 text-left font-display text-sm uppercase transition-colors', m.id === cfg.mapId ? 'border-accent bg-accent/15 text-ink' : 'border-white/10 bg-black/20 text-mute hover:text-ink', !m.playable && 'opacity-40')}
+                  className={cx('truncate border px-2 py-1.5 text-left font-label text-base font-bold uppercase tracking-wide transition-colors', m.id === cfg.mapId ? 'border-accent bg-accent/15 text-ink' : 'border-white/10 bg-black/20 text-mute hover:text-ink', !m.playable && 'opacity-40')}
                 >
                   {m.name}
                 </button>

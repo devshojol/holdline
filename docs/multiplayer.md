@@ -279,8 +279,8 @@ Rules that apply to both:
 **Quick match rules (fixed):** Deathmatch, 5 minutes, first to 40 kills, all weapons, 10 players.
 
 **Nobody waits on a sleeping server.** If Quick Play has not reached the game server after 12 seconds (the
-free server can take up to a minute to wake), the search screen starts a deathmatch against bots instead;
-the player can also choose "Play bots now" or "Keep waiting".
+free server can take up to a minute to wake), the search screen starts a deathmatch against bots instead.
+The search screen only ever says "Looking for players…" or "Match found"; it doesn't announce bots.
 
 **Small matches use the middle of the map.** While a match has 6 players or fewer (bots included), everyone
 spawns in the 45% of the map nearest its centre on foot, and bots roam only there, so players meet within

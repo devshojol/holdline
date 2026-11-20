@@ -32,7 +32,7 @@ export function AgentPicker({ note, compact }: { note?: string; compact?: boolea
         <div className="tal-agent-hero-text">
           <div className="font-display text-xs font-semibold uppercase tracking-[0.4em] text-mute">Your soldier</div>
           <div className={cx('font-display font-extrabold uppercase leading-[0.9] tracking-[0.04em] text-white', compact ? 'text-4xl' : 'text-6xl xl:text-7xl')}>{agent.name}</div>
-          <div className="mt-2 text-xs text-mute">{note ?? 'How other players see you. Bots play a random soldier.'}</div>
+          <div className="mt-2 text-xs text-mute">{note ?? 'How other players see you.'}</div>
         </div>
       </div>
       <div className="tal-agent-roster" role="radiogroup" aria-label="Soldier">

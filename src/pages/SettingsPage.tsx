@@ -14,11 +14,11 @@ import { BIND_GROUPS, DEFAULT_KEYS, RESERVED_KEYS, bindKey, keyLabel, type BindA
 
 type Section = 'profile' | 'controls' | 'graphics' | 'audio' | 'hud' | 'data';
 const SECTIONS: { id: Section; label: string; blurb: string; icon: typeof Monitor }[] = [
-  { id: 'controls', label: 'Controls', blurb: 'Keys, mouse buttons, sensitivity', icon: Keyboard },
-  { id: 'graphics', label: 'Graphics', blurb: 'Quality, frame rate, models', icon: Monitor },
-  { id: 'audio', label: 'Audio', blurb: 'Volume of each kind of sound', icon: Volume2 },
-  { id: 'hud', label: 'HUD', blurb: 'What shows while you play', icon: LayoutDashboard },
-  { id: 'profile', label: 'Profile', blurb: 'The name other players see', icon: User },
+  { id: 'controls', label: 'Controls', blurb: 'Keys, mouse, sensitivity', icon: Keyboard },
+  { id: 'graphics', label: 'Graphics', blurb: 'Quality and frame rate', icon: Monitor },
+  { id: 'audio', label: 'Audio', blurb: 'Volume of each sound', icon: Volume2 },
+  { id: 'hud', label: 'HUD', blurb: 'What shows in a match', icon: LayoutDashboard },
+  { id: 'profile', label: 'Profile', blurb: 'Your callsign', icon: User },
   { id: 'data', label: 'Data', blurb: 'Back up, restore or reset', icon: Database },
 ];
 
@@ -275,7 +275,7 @@ function GraphicsCard() {
         <Group title="Display">
           <Slider label="Resolution" value={g.resolutionScale} min={0.5} max={1} step={0.05} onChange={(v) => setG({ resolutionScale: v })} format={(v) => `${Math.round(v * 100)}% of your screen`} />
           <Cycler
-            label="Frame rate limit"
+            label="FPS limit"
             value={g.fpsCap}
             onChange={(v) => setG({ fpsCap: v, preset: g.preset })}
             options={[

@@ -1,4 +1,4 @@
-import { Bot, Check, LogIn, Pencil, Plus, RotateCcw, Search, Timer, Users, X } from 'lucide-react';
+import { Check, LogIn, Pencil, Plus, RotateCcw, Search, Timer, Users, X } from 'lucide-react';
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Button, Card, PageHeader, cx } from '../components/ui';
 import { AgentPicker, AgentPortrait } from '../components/AgentPicker';
@@ -175,7 +175,7 @@ function Entry() {
         </MatchResultView>
       )}
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_400px] gap-4">
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_440px] gap-4">
         <AgentPicker />
 
         <div className="flex min-h-0 flex-col gap-3">
@@ -230,7 +230,7 @@ function QuickMatchCard({ disabled }: { disabled: boolean }) {
   const [maps, setMaps] = useState<string[]>(saved);
   const toggle = (id: string) => setMaps((m) => (m.includes(id) ? m.filter((x) => x !== id) : [...m, id]));
   const chip = (on: boolean) =>
-    cx('border px-1 py-1 font-display text-xs uppercase transition-colors', on ? 'border-accent bg-accent/15 text-ink' : 'border-line bg-black/30 text-mute hover:border-mute hover:text-ink');
+    cx('truncate whitespace-nowrap border px-0.5 py-1.5 font-label text-sm font-semibold uppercase transition-colors', on ? 'border-accent bg-accent/15 text-ink' : 'border-line bg-black/30 text-mute hover:border-mute hover:text-ink');
 
   return (
     <section className="tal-mode tal-rise" data-primary="true" style={{ '--i': 1 } as CSSProperties}>
@@ -241,7 +241,7 @@ function QuickMatchCard({ disabled }: { disabled: boolean }) {
       <h2 className="font-display text-4xl font-extrabold uppercase leading-none tracking-[0.05em] text-white">Quick match</h2>
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-mute">
         <span className="flex items-center gap-1.5">
-          <Users size={15} className="text-dim" /> Up to {QUICK_MATCH_SETTINGS.maxPlayers}, bots fill in
+          <Users size={15} className="text-dim" /> Up to {QUICK_MATCH_SETTINGS.maxPlayers} players
         </span>
         <span className="flex items-center gap-1.5">
           <Timer size={15} className="text-dim" /> {QUICK_MATCH_SETTINGS.timeLimitMin} min · first to {QUICK_MATCH_SETTINGS.killLimit}
@@ -274,7 +274,6 @@ const BOT_FALLBACK_SEC = 12;
 function Searching() {
   const queue = useMultiplayer((s) => s.queue);
   const practice = useAppStore((s) => s.practice);
-  const [keepWaiting, setKeepWaiting] = useState(false);
   const since = useMultiplayer((s) => s.queueSince);
   const status = useMultiplayer((s) => s.status);
   const clockOffset = useMultiplayer((s) => s.clockOffset);
@@ -292,8 +291,8 @@ function Searching() {
     multiplayer.cancelSearch();
     store.play(normaliseConfig({ ...practice, mode: 'deathmatch', botCount: 5, durationSec: 300, playerSpawnId: '', enemySpotIds: [] }));
   };
-  if (waking && !keepWaiting && botsIn <= 0) {
-    // nobody should sit looking at a spinner: play against bots while the server wakes
+  if (waking && botsIn <= 0) {
+    // nobody should sit looking at a spinner: if the server is still waking, the match starts without it
     queueMicrotask(playBots);
     return null;
   }
@@ -328,28 +327,10 @@ function Searching() {
           <div role="status" className="mt-4">
             <div className="text-xs uppercase tracking-widest text-dim">Status</div>
             <div className="text-base text-ink">
-              {waking
-                ? keepWaiting
-                  ? 'Waking the game server… (up to a minute)'
-                  : `Waking the game server… a match against bots starts in ${Math.max(0, botsIn)} s`
-                : startsIn !== null
-                  ? `${others > 0 ? `${queue.waiting} players searching` : 'Bots will join you'} · match starts in ${startsIn} s`
-                  : others > 0
-                    ? `${queue.waiting} players searching`
-                    : 'Looking for a match'}
+              {!waking && startsIn !== null ? `Match found · starting in ${startsIn} s` : 'Looking for players…'}
             </div>
           </div>
           <div className="mt-6 flex flex-wrap gap-2">
-            {waking && (
-              <Button onClick={playBots}>
-                <Bot size={18} /> Play bots now
-              </Button>
-            )}
-            {waking && !keepWaiting && (
-              <Button variant="outline" onClick={() => setKeepWaiting(true)}>
-                Keep waiting
-              </Button>
-            )}
             <Button variant="outline" onClick={() => multiplayer.cancelSearch()}>
               <X size={18} /> Cancel
             </Button>

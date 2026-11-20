@@ -71,7 +71,7 @@ export const BIND_GROUPS: BindGroup[] = [
     title: 'Map and interface',
     rows: [
       { action: 'mapToggle', label: 'Map (open / close)', keyboardOnly: true },
-      { action: 'mapHold', label: 'Map and scoreboard (hold)', keyboardOnly: true },
+      { action: 'mapHold', label: 'Scoreboard (hold)', hint: 'Shows the map and the scoreboard while held', keyboardOnly: true },
     ],
   },
 ];
@@ -80,9 +80,9 @@ export const BIND_GROUPS: BindGroup[] = [
 export const RESERVED_KEYS = new Set(['Escape']);
 
 const NAMED: Record<string, string> = {
-  Mouse0: 'Left click',
-  Mouse1: 'Middle click',
-  Mouse2: 'Right click',
+  Mouse0: 'L-Click',
+  Mouse1: 'M-Click',
+  Mouse2: 'R-Click',
   Mouse3: 'Mouse 4',
   Mouse4: 'Mouse 5',
   Space: 'Space',
@@ -114,7 +114,7 @@ const NAMED: Record<string, string> = {
   Backspace: 'Backspace',
 };
 
-/** A slot's code as players know the key: 'KeyW' → 'W', 'Digit1' → '1', 'Mouse0' → 'Left click'. */
+/** A slot's code as players know the key: 'KeyW' → 'W', 'Digit1' → '1', 'Mouse0' → 'L-Click'. */
 export function keyLabel(code: string): string {
   if (!code) return '';
   if (NAMED[code]) return NAMED[code];

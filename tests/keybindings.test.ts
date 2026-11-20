@@ -15,7 +15,7 @@ describe('key bindings', () => {
   it('labels keys the way players know them', () => {
     expect(keyLabel('KeyW')).toBe('W');
     expect(keyLabel('Digit1')).toBe('1');
-    expect(keyLabel('Mouse0')).toBe('Left click');
+    expect(keyLabel('Mouse0')).toBe('L-Click');
     expect(keysOf(DEFAULT_KEYS, 'walk')).toBe('L Shift / R Shift');
   });
   it('falls back to the default for anything malformed in a save', () => {
