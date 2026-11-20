@@ -258,7 +258,6 @@ function GraphicsCard() {
           value={g.preset}
           onChange={preset}
           options={[
-            { value: 'potato', label: 'Potato' },
             { value: 'low', label: 'Low' },
             { value: 'medium', label: 'Medium' },
             { value: 'high', label: 'High' },
@@ -300,15 +299,14 @@ function GraphicsCard() {
           <Toggle label="Colour grading" hint="Tone mapping, contrast, vignette" checked={g.postFx} onChange={(v) => setG({ postFx: v })} />
         </Group>
         <Group title="Models">
-          {__LOCAL_MODELS__ && <Cycler label="Guns" hint={`Simple guns are lighter on slow computers${next}`} value={g.gunModels} onChange={(v) => setG({ gunModels: v })} options={[{ value: 'skins', label: 'Detailed' }, { value: 'simple', label: 'Simple' }]} />}
           <Cycler
             label="Your arms"
-            hint={`Your first-person arms${next}`}
-            value={!__LOCAL_MODELS__ && g.fpArms === 'animated' ? 'rigged' : g.fpArms}
+            hint="Your first-person arms (from the next match)"
+            value={g.fpArms === 'simple' ? 'animated' : g.fpArms}
             onChange={(v) => setG({ fpArms: v })}
-            options={[...(__LOCAL_MODELS__ ? [{ value: 'animated' as const, label: 'Animated' }] : []), { value: 'rigged', label: 'Posed' }, { value: 'simple', label: 'Simple' }]}
+            options={[{ value: 'animated' as const, label: 'Animated' }, { value: 'rigged' as const, label: 'Posed' }]}
           />
-          {__LOCAL_MODELS__ && <Cycler label="Soldiers" hint={`Dummies are much lighter for big matches${next}`} value={g.botModel} onChange={(v) => setG({ botModel: v })} options={[{ value: 'agent', label: 'Soldiers' }, { value: 'dummy', label: 'Dummies' }]} />}
+          <p className="py-1 text-xs text-dim">Soldiers, guns and hands always use their full models: Low only makes the scene cheaper to draw.</p>
           <div className="h-3" />
           <Cycler label="Renderer" hint={`WebGPU falls back to WebGL 2 where unsupported${next}`} value={g.renderer} onChange={(v) => setG({ renderer: v, preset: g.preset })} options={[{ value: 'webgl2', label: 'WebGL 2' }, { value: 'webgpu', label: 'WebGPU (beta)' }]} />
           <p className="mt-1 text-xs text-dim">Shadows, effects, lighting, textures and models change from the next match.</p>

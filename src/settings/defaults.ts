@@ -113,14 +113,11 @@ export const CROSSHAIR_COLORS: { name: string; hex: string }[] = [
 export type GraphicsPresetValues = Omit<GraphicsSettings, 'preset' | 'renderer' | 'fullscreen' | 'adaptiveResolution' | 'fpsCap'>;
 
 export const GRAPHICS_PRESETS: Record<Exclude<GraphicsPreset, 'custom'>, GraphicsPresetValues> = {
-  // For machines with no dedicated GPU (or software rendering): nothing that costs per-pixel work.
-  potato: {
-    shadows: 'off', resolutionScale: 0.6, antialias: false, effects: 'low', postFx: false, lighting: 'simple', textureQuality: 'low',
-    botModel: 'dummy', gunModels: 'simple', fpArms: 'simple',
-  },
+  // Weak machines: the scene is cheaper to draw (no shadows, lower resolution and textures, simple light),
+  // but the soldiers, guns and first-person hands are always the real models, never stand-in boxes.
   low: {
-    shadows: 'off', resolutionScale: 0.75, antialias: false, effects: 'low', postFx: true, lighting: 'simple', textureQuality: 'high',
-    botModel: 'dummy', gunModels: 'skins', fpArms: 'animated',
+    shadows: 'off', resolutionScale: 0.7, antialias: false, effects: 'low', postFx: false, lighting: 'simple', textureQuality: 'low',
+    botModel: 'agent', gunModels: 'skins', fpArms: 'animated',
   },
   medium: {
     shadows: 'medium', resolutionScale: 1, antialias: true, effects: 'medium', postFx: true, lighting: 'full', textureQuality: 'high',

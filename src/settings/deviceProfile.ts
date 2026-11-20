@@ -10,7 +10,7 @@ export interface DeviceProfile {
   reason: string;
 }
 
-const ORDER: DetectedPreset[] = ['potato', 'low', 'medium', 'high'];
+const ORDER: DetectedPreset[] = ['low', 'medium', 'high'];
 
 /**
  * Pick a graphics preset from a GPU name and the machine's core count / memory.
@@ -21,7 +21,7 @@ export function classifyDevice(gpu: string, cores: number | undefined, memoryGb:
   let tier: DetectedPreset;
   let reason: string;
   if (/swiftshader|llvmpipe|softpipe|software|basic render/.test(g)) {
-    tier = 'potato';
+    tier = 'low';
     reason = 'software rendering (no GPU acceleration)';
   } else if (/rtx|gtx (9|1\d)\d\d|radeon (pro )?rx|radeon pro w|arc\(tm\) [ab]\d|\barc [ab]\d|quadro rtx|apple m\d+ (pro|max|ultra)/.test(g)) {
     tier = 'high';
@@ -63,7 +63,7 @@ export function detectDevice(): DeviceProfile {
   } catch {
     /* fall through */
   }
-  if (!hasGl) return { preset: 'potato', gpu: '', reason: 'WebGL unavailable' };
+  if (!hasGl) return { preset: 'low', gpu: '', reason: 'WebGL unavailable' };
   const nav = navigator as Navigator & { deviceMemory?: number };
   return classifyDevice(gpu, nav.hardwareConcurrency, nav.deviceMemory);
 }

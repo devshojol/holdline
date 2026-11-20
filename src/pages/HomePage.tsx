@@ -95,19 +95,23 @@ export function HomePage() {
         </div>
       </div>
 
-      {/* centre: your soldier in 3D: drag to turn them, click to fire (they are picked on the Multiplayer screen) */}
-      <div className="absolute inset-x-0 bottom-[78px] top-[96px] z-0 flex flex-col items-center justify-end">
-        <div className="relative">
-          <div aria-hidden="true" className="absolute inset-x-[10%] bottom-[-10px] h-16 rounded-[50%] blur-2xl" style={{ background: `${agent.accent}55` }} />
-          <Suspense fallback={<AgentPortrait agent={agent} className="tal-showcase h-[420px] w-[340px]" />}>
-            <SoldierViewer key={agent.id} agentId={agent.id} className="h-[440px] w-[400px]" fallback={<AgentPortrait agent={agent} className="tal-showcase h-full w-full" />} />
+      {/* centre: your soldier in 3D from the waist up, filling the middle: drag to turn them (picked on the Multiplayer screen) */}
+      <div className="absolute inset-x-0 bottom-0 top-[70px] z-0 flex justify-center">
+        <div className="relative h-full w-[560px]">
+          <div aria-hidden="true" className="absolute inset-x-[12%] bottom-[8%] h-40 rounded-[50%] blur-3xl" style={{ background: `${agent.accent}40` }} />
+          <Suspense fallback={<AgentPortrait agent={agent} className="tal-showcase h-full w-full" />}>
+            <SoldierViewer
+              key={agent.id}
+              agentId={agent.id}
+              className="h-full w-full [mask-image:linear-gradient(180deg,#000_70%,transparent_96%)]"
+              fallback={<AgentPortrait agent={agent} className="tal-showcase h-full w-full" />}
+            />
           </Suspense>
-        </div>
-        <div className="pointer-events-none -mt-1 text-center">
-          <div className="font-display text-2xl uppercase" style={{ color: agent.accent }}>
-            {agent.name}
+          <div className="pointer-events-none absolute inset-x-0 bottom-[86px] text-center">
+            <div className="font-display text-3xl uppercase drop-shadow-[0_2px_0_rgba(0,0,0,0.7)]" style={{ color: agent.accent }}>
+              {agent.name}
+            </div>
           </div>
-          <div className="text-xs uppercase tracking-[0.25em] text-dim">Drag to turn · click to fire</div>
         </div>
       </div>
 

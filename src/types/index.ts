@@ -271,7 +271,7 @@ export interface CrosshairPreset {
   settings: CrosshairSettings;
 }
 
-export type GraphicsPreset = 'potato' | 'low' | 'medium' | 'high' | 'custom';
+export type GraphicsPreset = 'low' | 'medium' | 'high' | 'custom';
 
 export interface GraphicsSettings {
   preset: GraphicsPreset;

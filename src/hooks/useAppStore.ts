@@ -52,7 +52,11 @@ function migrateSettings(s: GameSettings): GameSettings {
   if (fpArms === 'rigged' && !load('arms-anim-migrated', false)) fpArms = 'animated';
   save('arms-anim-migrated', true);
   const keys = cleanKeys(s.keys);
-  return { ...s, keys, graphics: fpArms === s.graphics.fpArms ? s.graphics : { ...s.graphics, fpArms } };
+  // the Potato preset and the stand-in models are gone: soldiers, guns and hands are always the real models
+  let graphics = { ...s.graphics, fpArms };
+  if ((graphics.preset as string) === 'potato') graphics = { ...graphics, ...GRAPHICS_PRESETS.low, preset: 'low' };
+  graphics = { ...graphics, botModel: 'agent', gunModels: 'skins', fpArms: graphics.fpArms === 'simple' ? 'animated' : graphics.fpArms };
+  return { ...s, keys, graphics };
 }
 
 /** Settings on first run: the defaults with a graphics preset picked for this machine. */

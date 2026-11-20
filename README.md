@@ -227,7 +227,7 @@ Deathmatch against other people, up to 10 in a match. Full detail, including how
 
 - **Seeing enemies at range**: a light distance haze in each map's own pale colour softens far scenery (about a fifth at 45 m), while characters are left out of it and give off a third of their own colour as light. A far enemy stays crisp and saturated against a softened background instead of sinking into it.
 - `MapRenderer` batches the merged boxes into a few meshes with world-space UVs, so textures tile evenly at any box size. Wall, floor, crate, metal and stone textures and the sky are drawn procedurally on canvases (`rendering/textures.ts`), seeded per map.
-- Graphics presets (Potato / Low / Medium / High) set shadows, resolution scale, anti-aliasing, effects, post-processing, lighting, texture size and which bot, gun and arm models load. Potato is for machines without a dedicated GPU. On first run `settings/deviceProfile.ts` reads the GPU name and picks a preset; Settings shows what it found.
+- Graphics presets (Low / Medium / High) set shadows, resolution scale, anti-aliasing, effects, post-processing, lighting and texture size. Every preset shows the real soldier, gun and arm models: Low only makes the scene cheaper to draw. A saved Potato preset from older builds becomes Low. On first run `settings/deviceProfile.ts` reads the GPU name and picks a preset; Settings shows what it found.
 - Adaptive resolution (on by default) lowers the render scale in steps while the frame rate is under 60 (or the FPS limit) and raises it again afterwards, down to half the chosen scale. An FPS limit (30 / 60 / 120 / 144) is available for laptops.
 - The game page and Babylon load on demand, so the menus don't download the 3D engine; it is fetched in the background once the page is idle.
 - WebGPU can be chosen in Settings and falls back to WebGL 2.
@@ -297,7 +297,7 @@ asks for instant multiplayer, `?czy_invite=true&czy_invite_params=room%3DCODE` a
 - The Monarch's scope is click-to-cycle only (no hold-to-scope option).
 - Statistics are kept in localStorage (300 sessions), not IndexedDB. Multiplayer matches aren't recorded in them.
 - Multiplayer: the free game server sleeps when nobody is playing, and Team Deathmatch has no team colours yet. Two people on two machines haven't been tried (testing used bots).
-- WebGPU and real-GPU frame rates haven't been measured; automated runs use software rendering. Use the Potato or Low preset on weak machines.
+- WebGPU and real-GPU frame rates haven't been measured; automated runs use software rendering. Use the Low preset on weak machines.
 - In a sandboxed iframe Pointer Lock may be blocked; the game falls back to free-mouse aiming. Firefox has no raw pointer input, so OS acceleration may apply.
 
 ## 5. What we can do next

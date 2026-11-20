@@ -807,7 +807,7 @@ export class GameEngine {
   private applyResolution() {
     const g = this.settings.graphics;
     // Low-end tiers never render above one canvas pixel per CSS pixel.
-    const dprCap = g.preset === 'high' ? 2 : g.preset === 'potato' || g.textureQuality === 'low' ? 1 : 1.5;
+    const dprCap = g.preset === 'high' ? 2 : g.textureQuality === 'low' ? 1 : 1.5;
     const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
     const scale = Math.max(0.35, Math.max(0.4, Math.min(1, g.resolutionScale)) * this.dynScale * dpr);
     this.engine.setHardwareScalingLevel(1 / scale);
@@ -838,9 +838,9 @@ export class GameEngine {
     // Still slow at the floor: tell the player once that a lower preset would help.
     const atFloor = !g.adaptiveResolution || this.dynScale <= 0.5;
     this.slowTime = fps < Math.min(40, target * 0.7) && atFloor ? this.slowTime + span : 0;
-    if (this.slowTime > 6 && !this.slowWarned && g.preset !== 'potato') {
+    if (this.slowTime > 6 && !this.slowWarned && g.preset !== 'low') {
       this.slowWarned = true;
-      this.emit({ type: 'notice', message: 'Low frame rate — try a lower graphics preset (Settings → Graphics → Potato or Low).' });
+      this.emit({ type: 'notice', message: 'Low frame rate — try the Low graphics preset (Settings → Graphics).' });
     }
 
     if (!g.adaptiveResolution) return;
