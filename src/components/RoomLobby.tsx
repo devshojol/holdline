@@ -217,9 +217,15 @@ export function RoomLobby({ room }: { room: RoomState }) {
                       {quick ? 'This room closes in' : 'Back to the lobby in'} <span className="tabular font-semibold text-ink">{Math.max(0, Math.ceil(remaining / 1000))}</span> s
                     </span>
                   ) : (
-                    <Button size="sm" variant="ghost" onClick={() => multiplayer.dismissResult()}>
-                      Back to the lobby
-                    </Button>
+                    <button
+                      type="button"
+                      data-pulse="true"
+                      autoFocus
+                      onClick={() => multiplayer.dismissResult()}
+                      className="tal-gold flex h-14 items-center gap-2 px-8 font-display text-xl uppercase"
+                    >
+                      Back to the lobby ▶
+                    </button>
                   )}
                 </MatchResultView>
               </div>
@@ -239,11 +245,12 @@ function SoldierCard({ note }: { note?: string }) {
   return (
     <Card className="!p-3">
       <div className="mb-1 font-display text-sm uppercase text-accent">Your soldier</div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2">
         <button type="button" className="tal-slab grid h-9 w-9 shrink-0 place-items-center" onClick={() => step(-1)} aria-label="Previous soldier">
           ◀
         </button>
-        <AgentPortrait key={agent.id} agent={agent} className="h-24 min-w-0 flex-1 border border-white/10" />
+        {/* the same 4:5 shape as the portrait image, so the whole head and shoulders show */}
+        <AgentPortrait key={agent.id} agent={agent} className="aspect-[4/5] h-32 shrink-0 border border-white/10" />
         <button type="button" className="tal-slab grid h-9 w-9 shrink-0 place-items-center" onClick={() => step(1)} aria-label="Next soldier">
           ▶
         </button>

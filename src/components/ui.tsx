@@ -273,7 +273,7 @@ export function Cycler<T extends string | number>({
         <button type="button" disabled={disabled} onClick={() => step(-1)} className={cx('tal-slab grid h-8 w-8 place-items-center text-sm', disabled && 'invisible')} aria-label={`Previous ${label}`}>
           ◀
         </button>
-        <span className="w-28 truncate px-1 text-center font-display text-sm uppercase text-ink" aria-live="polite">
+        <span className={cx('w-32 truncate px-1 text-center font-display uppercase text-ink', (current?.label.length ?? 0) > 11 ? 'text-xs' : 'text-sm')} aria-live="polite">
           {current?.label}
         </span>
         <button type="button" disabled={disabled} onClick={() => step(1)} className={cx('tal-slab grid h-8 w-8 place-items-center text-sm', disabled && 'invisible')} aria-label={`Next ${label}`}>

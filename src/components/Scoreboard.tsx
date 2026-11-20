@@ -51,11 +51,11 @@ export function Scoreboard({ scores, settings, me, winner }: { scores: ScoreLine
             <th className="w-8 py-1.5 font-normal">#</th>
             <th className="py-1.5 font-normal">Player</th>
             {teams && <th className="py-1.5 font-normal">Team</th>}
-            <th className="w-14 py-1.5 text-right font-normal">Kills</th>
-            <th className="w-14 py-1.5 text-right font-normal">Deaths</th>
-            <th className="w-14 py-1.5 text-right font-normal">Assists</th>
-            <th className="w-14 py-1.5 text-right font-normal">HS %</th>
-            <th className="w-16 py-1.5 text-right font-normal">Ping</th>
+            <th className="w-20 py-1.5 pl-3 text-right font-normal">Kills</th>
+            <th className="w-20 py-1.5 pl-3 text-right font-normal">Deaths</th>
+            <th className="w-20 py-1.5 pl-3 text-right font-normal">Assists</th>
+            <th className="w-20 py-1.5 pl-3 text-right font-normal">HS %</th>
+            <th className="w-20 py-1.5 pl-3 text-right font-normal">Ping</th>
           </tr>
         </thead>
         <tbody>
