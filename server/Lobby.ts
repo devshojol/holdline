@@ -243,7 +243,7 @@ export class Lobby {
       match.tick(now);
       if (match.over) {
         // the kill limit was reached
-        this.setPhase(room, 'scoreboard', now + SCOREBOARD_MS);
+        this.endMatch(room);
         this.flush(room);
         continue;
       }
@@ -491,7 +491,7 @@ export class Lobby {
       }
       case 'room.end': {
         if (room.phase === 'countdown') this.setPhase(room, 'lobby', 0);
-        else if (room.phase === 'playing') this.setPhase(room, 'scoreboard', this.now + SCOREBOARD_MS);
+        else if (room.phase === 'playing') this.endMatch(room);
         return;
       }
     }
@@ -758,9 +758,18 @@ export class Lobby {
     }
   }
 
+  /**
+   * A match is over. A custom room goes straight back to its lobby (each player keeps the results on screen
+   * until they close them); a quick match shows its scoreboard for a while, then the room closes.
+   */
+  private endMatch(room: Room) {
+    if (room.kind === 'quick') this.setPhase(room, 'scoreboard', this.now + SCOREBOARD_MS);
+    else this.setPhase(room, 'lobby', 0);
+  }
+
   private advancePhase(room: Room) {
     if (room.phase === 'countdown') this.setPhase(room, 'playing', this.now + room.settings.timeLimitMin * 60_000);
-    else if (room.phase === 'playing') this.setPhase(room, 'scoreboard', this.now + SCOREBOARD_MS);
+    else if (room.phase === 'playing') this.endMatch(room);
     else if (room.kind === 'quick') this.closeRoom(room, 'closed'); // a quick match's room ends with its scoreboard
     else this.setPhase(room, 'lobby', 0);
   }

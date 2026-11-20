@@ -6,7 +6,6 @@ import {
   QUEUE_START_DELAY_MS,
   PROTOCOL_VERSION,
   RECONNECT_GRACE_MS,
-  SCOREBOARD_MS,
   decodeServer,
   encode,
   type ClientMessage,
@@ -209,8 +208,7 @@ describe('lobby', () => {
     expect(guest.room).toMatchObject({ phase: 'playing', phaseEndsAt: now + 5 * 60_000 });
     now += 5 * 60_000;
     lobby.tick(now);
-    expect(guest.room).toMatchObject({ phase: 'scoreboard', phaseEndsAt: now + SCOREBOARD_MS });
-    lobby.tick(now + SCOREBOARD_MS);
+    // a custom room goes straight back to its lobby: no waiting on a scoreboard
     expect(guest.room).toMatchObject({ phase: 'lobby', phaseEndsAt: 0 });
     expect(guest.room.players.every((p) => !p.ready)).toBe(true);
   });
@@ -249,7 +247,7 @@ describe('lobby', () => {
     host.say({ t: 'room.start' });
     lobby.tick(1000 + COUNTDOWN_MS);
     host.say({ t: 'room.end' });
-    expect(guest.room.phase).toBe('scoreboard');
+    expect(guest.room.phase).toBe('lobby');
   });
 
   it('respects the join-in-progress setting', () => {
