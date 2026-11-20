@@ -24,16 +24,16 @@ export function SessionReportBody({ s }: { s: SessionStats }) {
       )}
       <div className={s.mode === 'spray' ? 'hidden' : 'grid grid-cols-2 gap-2 md:grid-cols-4'}>
         <Stat label="Score" value={s.score} accent />
-        <Stat label="Kills / Deaths" value={`${s.kills} / ${s.deaths}`} />
-        <Stat label="Accuracy" value={`${accuracy(s)}%`} sub={`${s.hits} hits / ${s.shots} shots`} />
-        <Stat label="Headshot %" value={`${hsPct(s)}%`} sub={`${s.headshots} head · ${s.bodyshots} body · ${s.legshots} legs`} />
-        <Stat label="Avg reaction" value={rt ? `${rt} ms` : '—'} sub={`${s.reactionTimes.length} samples`} />
-        <Stat label="Avg time to kill" value={kt ? `${kt} ms` : '—'} sub="from first sight" />
-        <Stat label="First-shot acc." value={p(s.firstShotHits, s.firstShots)} sub={`${s.firstShots} first bullets`} />
-        <Stat label="Stopped before shooting" value={p(s.firstShots - (s.firstShotsMoving ?? 0), s.firstShots)} sub={`${s.firstShotsMoving ?? 0} first bullets fired moving`} />
-        <Stat label="Spray acc." value={p(s.sprayHits, s.sprayShots)} sub="bullet 4+" />
-        <Stat label="Moving-shot acc." value={p(s.movingHits, s.movingShots)} sub={`${s.movingShots} shots while moving`} />
-        <Stat label="Damage" value={`${s.damageDealt}`} sub={`taken ${s.damageTaken}`} />
+        <Stat label="Enemies down / you went down" value={`${s.kills} / ${s.deaths}`} />
+        <Stat label="Shots that hit" value={`${accuracy(s)}%`} sub={`${s.hits} of ${s.shots} shots`} />
+        <Stat label="Hits to the head" value={`${hsPct(s)}%`} sub={`${s.headshots} head · ${s.bodyshots} body · ${s.legshots} legs`} />
+        <Stat label="Reaction time" value={rt ? `${(rt / 1000).toFixed(2)} s` : '—'} sub="from seeing an enemy to shooting" />
+        <Stat label="Time to take one down" value={kt ? `${(kt / 1000).toFixed(2)} s` : '—'} sub="from first seeing them" />
+        <Stat label="First bullet hits" value={p(s.firstShotHits, s.firstShots)} sub={`of ${s.firstShots} opening shots`} />
+        <Stat label="Stood still to shoot" value={p(s.firstShots - (s.firstShotsMoving ?? 0), s.firstShots)} sub={`${s.firstShotsMoving ?? 0} times you fired on the move`} />
+        <Stat label="Hits when holding fire" value={p(s.sprayHits, s.sprayShots)} sub="from the 4th bullet on" />
+        <Stat label="Hits while running" value={p(s.movingHits, s.movingShots)} sub={`${s.movingShots} shots on the move`} />
+        <Stat label="Damage dealt" value={`${s.damageDealt}`} sub={`you took ${s.damageTaken}`} />
         {s.clear && <Stat label={s.mode === 'retake' ? 'Charges defused' : 'Rounds cleared'} value={`${s.clear.cleared} / ${s.clear.rounds}`} sub={s.mode === 'retake' ? 'before the fuse ran out' : 'defenders all down'} />}
         {s.clear && (
           <Stat

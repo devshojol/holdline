@@ -11,7 +11,7 @@ import { cx } from './ui';
 
 type Grade = 'S' | 'A' | 'B' | 'C' | 'D';
 const GRADE_COLOR: Record<Grade, string> = { S: '#ffd56a', A: '#f5a524', B: '#5cc8ff', C: '#9aa86a', D: '#8a96a5' };
-const GRADE_WORD: Record<Grade, string> = { S: 'Legendary', A: 'Excellent', B: 'Solid', C: 'Getting there', D: 'Keep at it' };
+const GRADE_WORD: Record<Grade, string> = { S: 'Unstoppable', A: 'Great match', B: 'Good fight', C: 'Getting there', D: 'Rough one' };
 
 /** A 0–100 rating of the match: accuracy, headshots, kills against deaths and, in round modes, rounds won. */
 export function matchRating(s: SessionStats): number {
@@ -78,6 +78,43 @@ const MEDALS: MedalDef[] = [
 const applies = (m: MedalDef, s: SessionStats) =>
   s.mode === 'spray' ? m.id === 'steady' : m.id === 'cleaner' ? !!s.clear : m.id !== 'steady';
 
+/** "1 in 3": how often shots hit, in words people use. */
+function oneIn(hits: number, shots: number): string {
+  if (!shots) return 'no shots';
+  if (!hits) return 'none hit';
+  const n = Math.max(1, Math.round(shots / hits));
+  return n === 1 ? 'almost every shot' : `1 in ${n}`;
+}
+
+/** A sentence about the match, said the way a teammate would. */
+function summaryOf(s: SessionStats, grade: Grade): string {
+  if (s.mode === 'spray') {
+    const avg = s.spray ? Math.round(s.spray.avgScore) : 0;
+    return avg >= 70 ? 'Your sprays stayed tight. That recoil is under control.' : avg >= 40 ? 'Your sprays are getting steadier. Keep pulling down against the kick.' : 'The recoil got away from you. Pull the mouse down as you hold fire.';
+  }
+  if (s.clear && s.clear.rounds > 0) {
+    const all = s.clear.cleared === s.clear.rounds;
+    return all ? `You won all ${s.clear.rounds} rounds. Nobody held you back.` : `You won ${s.clear.cleared} of ${s.clear.rounds} rounds.`;
+  }
+  const enemies = s.kills === 1 ? '1 enemy' : `${s.kills} enemies`;
+  const downs = s.deaths === 0 ? 'and never went down' : s.deaths === 1 ? 'and went down once' : `and went down ${s.deaths} times`;
+  const opener = grade === 'S' ? 'What a match!' : grade === 'A' ? 'Great match!' : grade === 'B' ? 'Good fight.' : grade === 'C' ? 'Not bad.' : 'Tough one.';
+  if (s.kills === 0) return `${opener} No takedowns this time, but every match teaches you something.`;
+  return `${opener} You took down ${enemies} ${downs}.`;
+}
+
+/** One thing to try next time: the weakest part of the match, in plain words. */
+function tipOf(s: SessionStats): string | null {
+  if (s.mode === 'spray') return 'Short bursts of 3 to 5 bullets stay accurate much longer than holding fire.';
+  const moving = s.firstShots ? (s.firstShotsMoving ?? 0) / s.firstShots : 0;
+  if (s.firstShots >= 4 && moving > 0.3) return 'You often fired while moving. Stop for a moment before you shoot: your first bullet lands where you aim.';
+  if (s.shots >= 15 && accuracy(s) < 20) return 'Most shots missed. Fire in short bursts instead of holding the trigger, and wait for the crosshair to settle.';
+  if (s.hits >= 6 && hsPct(s) < 15) return 'Keep your crosshair at head height as you move round corners: a hit to the head does far more damage.';
+  if (s.reactionTimes.length >= 3 && avgMs(s.reactionTimes) > 700) return 'Enemies had time to shoot first. Aim at the corner they will come from before they appear.';
+  if (s.deaths > s.kills && s.kills > 0) return 'You went down more than you won fights. Walk quietly near enemies and fight from cover.';
+  return null;
+}
+
 /* ------------------------------------------------------------------ */
 /* Pieces                                                              */
 /* ------------------------------------------------------------------ */
@@ -142,7 +179,7 @@ export function MatchDebrief({ s, history, banner, actions }: { s: SessionStats;
   const medals = MEDALS.filter((m) => applies(m, s));
   const won = medals.filter((m) => m.earned(s));
   const next = medals.find((m) => !m.earned(s));
-  const kd = s.deaths ? (s.kills / s.deaths).toFixed(2) : String(s.kills);
+  const tip = tipOf(s);
   const color = GRADE_COLOR[grade];
 
   return (
@@ -150,13 +187,15 @@ export function MatchDebrief({ s, history, banner, actions }: { s: SessionStats;
       <div className="flex shrink-0 items-end justify-between gap-4">
         <div>
           <div className="font-label text-sm font-semibold uppercase tracking-[0.3em] text-accent">Match over</div>
-          <div className="font-display text-4xl uppercase leading-none text-ink">Debrief</div>
+          <div className="font-display text-4xl uppercase leading-none text-ink">How you did</div>
         </div>
         <div className="text-right text-sm text-mute">
-          {MODE_INFO[s.mode].label} · {mapName(s.mapId)} · {DIFFICULTY_LABEL[s.difficulty]} · {fmtDuration(s.durationSec)}
+          {MODE_INFO[s.mode].label} · {mapName(s.mapId)} · {DIFFICULTY_LABEL[s.difficulty]}
+          {s.durationSec > 0 && ` · ${fmtDuration(s.durationSec)}`}
         </div>
       </div>
       {banner}
+      <p className="mt-2 shrink-0 text-lg text-ink">{summaryOf(s, grade)}</p>
 
       <div className="mt-4 grid min-h-0 flex-1 grid-cols-[300px_minmax(0,1fr)] gap-5">
         {/* the grade, the score and your level */}
@@ -203,20 +242,20 @@ export function MatchDebrief({ s, history, banner, actions }: { s: SessionStats;
               <div className="grid grid-cols-2 gap-2">
                 {s.mode === 'spray' ? (
                   <>
-                    <BigStat label="Avg spray" value={s.spray ? Math.round(s.spray.avgScore) : '—'} sub="0 no control · 100 perfect" icon={Gauge} accent />
+                    <BigStat label="Spray control" value={s.spray ? `${Math.round(s.spray.avgScore)} / 100` : '—'} sub="100 means no recoil at all" icon={Gauge} accent />
                     <BigStat label="Best spray" value={s.spray ? s.spray.bestScore : '—'} sub={`${s.spray?.sprays ?? 0} sprays`} icon={Trophy} />
-                    <BigStat label="Tight bullets" value={s.spray ? `${Math.round(s.spray.avgTightPct)}%` : '—'} sub="inside a head at 15 m" icon={Target} />
-                    <BigStat label="Avg error" value={s.spray ? `${s.spray.avgErrorDeg.toFixed(2)}°` : '—'} sub="from the first shot" icon={Crosshair} />
+                    <BigStat label="Bullets on the head" value={s.spray ? `${Math.round(s.spray.avgTightPct)}%` : '—'} sub="at 15 metres" icon={Target} />
+                    <BigStat label="Drift" value={s.spray ? `${s.spray.avgErrorDeg.toFixed(2)}°` : '—'} sub="how far bullets wandered" icon={Crosshair} />
                   </>
                 ) : (
                   <>
-                    <BigStat label="Kills / deaths" value={`${s.kills} / ${s.deaths}`} sub={`K/D ${kd}`} icon={Skull} accent />
-                    <BigStat label="Accuracy" value={`${accuracy(s)}%`} sub={`${s.hits} of ${s.shots} shots hit`} icon={Target} />
-                    <BigStat label="Headshots" value={`${hsPct(s)}%`} sub={`${s.headshots} to the head`} icon={Crosshair} />
+                    <BigStat label="Enemies down" value={s.kills} sub={s.deaths === 0 ? "You never went down" : `You went down ${s.deaths === 1 ? "once" : `${s.deaths} times`}`} icon={Skull} accent />
+                    <BigStat label="Shots on target" value={oneIn(s.hits, s.shots)} sub={`${s.hits} of your ${s.shots} shots hit`} icon={Target} />
+                    <BigStat label="Headshots" value={s.headshots} sub={s.hits ? `${hsPct(s)}% of your hits` : "Aim a little higher"} icon={Crosshair} />
                     {s.clear ? (
                       <BigStat label={s.mode === 'retake' ? 'Defused' : 'Rounds won'} value={`${s.clear.cleared} / ${s.clear.rounds}`} sub="rounds" icon={Trophy} />
                     ) : (
-                      <BigStat label="Damage" value={s.damageDealt} sub={`taken ${s.damageTaken}`} icon={Flame} />
+                      <BigStat label="Damage dealt" value={s.damageDealt} sub={`You took ${s.damageTaken}`} icon={Flame} />
                     )}
                   </>
                 )}
@@ -224,7 +263,7 @@ export function MatchDebrief({ s, history, banner, actions }: { s: SessionStats;
 
               <div className="tal-slab min-h-0 flex-1 px-4 py-3">
                 <div className="mb-2 flex items-center gap-2 font-display text-sm uppercase text-accent">
-                  <Medal size={16} /> Medals · {won.length} / {medals.length}
+                  <Medal size={16} /> {won.length ? `You earned ${won.length} ${won.length === 1 ? "medal" : "medals"}` : "Medals"}
                 </div>
                 {won.length > 0 ? (
                   <div className="grid grid-cols-3 gap-2">
@@ -241,14 +280,20 @@ export function MatchDebrief({ s, history, banner, actions }: { s: SessionStats;
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-mute">No medals this time.</p>
+                  <p className="text-sm text-mute">No medals this time. They are easier than they look:</p>
                 )}
                 {next && (
                   <div className="mt-3 flex items-center gap-2 text-sm text-dim">
                     <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-white/15 text-mute">
                       <next.icon size={14} />
                     </span>
-                    Next to win: <span className="font-semibold text-mute">{next.name}</span> · {next.how}
+                    Go for <span className="font-semibold text-mute">{next.name}</span> next: {next.how.charAt(0).toLowerCase() + next.how.slice(1)}
+                  </div>
+                )}
+                {tip && (
+                  <div className="mt-3 border-l-2 border-accent bg-black/25 px-3 py-2 text-sm text-ink">
+                    <span className="font-display text-xs uppercase text-accent">Tip for next time · </span>
+                    {tip}
                   </div>
                 )}
               </div>
