@@ -97,7 +97,7 @@ export function RoomLobby({ room }: { room: RoomState }) {
         <div className="flex flex-wrap items-center gap-2">
           {inLobby && me && !quick && !isHost && (
             <Button variant={me.ready ? 'outline' : 'primary'} onClick={() => multiplayer.setReady(!me.ready)}>
-              <Check size={18} /> {me.ready ? 'Ready — click to undo' : 'Ready'}
+              {me.ready ? 'Not ready' : <><Check size={18} /> Ready</>}
             </Button>
           )}
           {isHost && inLobby && (
