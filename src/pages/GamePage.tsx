@@ -306,7 +306,7 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
               <TriangleAlert /> Can't start the 3D engine
             </div>
             <p className="mt-3 text-mute">{error}</p>
-            <p className="mt-2 text-sm text-dim">Holdline needs WebGL 2 (or WebGL). Make sure hardware acceleration is enabled in your browser settings.</p>
+            <p className="mt-2 text-sm text-dim">Sunstrike needs WebGL 2 (or WebGL). Make sure hardware acceleration is enabled in your browser settings.</p>
             <Button className="mt-5" onClick={() => store.stopPlaying()}>
               Back to menu
             </Button>
@@ -393,7 +393,7 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
                   <RotateCcw size={14} /> Restart
                 </Button>
                 <Button variant="outline" size="sm" onClick={endSession} disabled={status === 'ready'}>
-                  <Square size={14} /> End session
+                  <Square size={14} /> End match
                 </Button>
                 <Button variant="danger" size="sm" onClick={quit}>
                   <LogOut size={14} /> Quit
@@ -425,11 +425,11 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
       {report && (
         <div className="absolute inset-0 overflow-y-auto bg-bg/95 p-8">
           <div className="mx-auto max-w-4xl animate-in">
-            <div className="font-display text-sm font-semibold uppercase tracking-[0.25em] text-accent">Session complete</div>
-            <div className="mb-4 font-display text-5xl font-bold uppercase">Session report</div>
+            <div className="font-display text-sm font-semibold uppercase tracking-[0.25em] text-accent">Match over</div>
+            <div className="mb-4 font-display text-5xl font-bold uppercase">Your results</div>
             {routine && (
               <div className="mb-4 border border-accent/40 bg-accent/10 px-4 py-3 text-sm">
-                <span className="font-display font-bold uppercase tracking-widest text-accent">Daily routine</span> · drill {routine.index + 1} of {routine.steps.length}
+                <span className="font-display font-bold uppercase tracking-widest text-accent">Daily routine</span> · round {routine.index + 1} of {routine.steps.length}
                 {' · '}
                 {routine.titles[routine.index]} · running total{' '}
                 <span className="font-semibold text-ink">{routine.scores.reduce((a, b) => a + b, 0)}</span>
@@ -439,7 +439,7 @@ export function GamePage({ config, net }: { config: PracticeConfig; net?: NetLin
             <div className="mt-6 flex flex-wrap gap-2">
               {routine ? (
                 <Button onClick={() => store.nextRoutineStep()}>
-                  <ChevronRight size={16} /> {routine.index + 1 < routine.steps.length ? `Next drill: ${routine.titles[routine.index + 1]}` : 'Finish routine'}
+                  <ChevronRight size={16} /> {routine.index + 1 < routine.steps.length ? `Next: ${routine.titles[routine.index + 1]}` : 'Finish routine'}
                 </Button>
               ) : (
                 <Button onClick={() => store.play({ ...config, ...loadout })}>

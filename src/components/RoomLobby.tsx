@@ -1,5 +1,5 @@
 import { Bot, Check, Copy, Crown, Link as LinkIcon, LogOut, Play, Square, UserPlus, UserX, WifiOff } from 'lucide-react';
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import type { WeaponId } from '../types';
 import { MAP_SUMMARIES } from '../game/maps/registry';
 import { ALL_WEAPONS, WEAPONS } from '../game/weapons/weaponConfigs';
@@ -7,11 +7,11 @@ import { multiplayer, useMultiplayer } from '../multiplayer/client';
 import { MIN_PLAYERS, type RoomPlayer, type RoomState, type Team } from '../net/protocol';
 import { ROOM_OPTIONS, type BotDifficulty, type MatchMode, type RoomSettings, type WeaponRule } from '../net/settings';
 import { mapName } from '../utils/labels';
-import { AgentPicker, AgentPortrait } from './AgentPicker';
-import { getAgent } from '../game/agents';
+import { AgentPortrait } from './AgentPicker';
+import { AGENTS, getAgent } from '../game/agents';
 import { MapPreview } from './MapPreview';
 import { MatchResultView } from './Scoreboard';
-import { Badge, Button, Card, ConfirmButton, Field, PageHeader, Segmented, Toggle, cx } from './ui';
+import { Badge, Button, Card, ConfirmButton, Cycler, PageHeader, Toggle, cx } from './ui';
 
 const MODE_LABEL: Record<MatchMode, string> = { deathmatch: 'Deathmatch', 'team-deathmatch': 'Team Deathmatch' };
 const WEAPON_RULE_LABEL: Record<WeaponRule, string> = {
@@ -89,7 +89,7 @@ export function RoomLobby({ room }: { room: RoomState }) {
   const quick = room.kind === 'quick';
 
   return (
-    <div>
+    <div className="relative flex h-full min-h-0 flex-col">
       <PageHeader kicker={quick ? 'Quick match' : 'Custom room'} title={quick ? mapName(room.settings.mapId) : `Room ${room.code}`}>
         <div className="flex flex-wrap items-center gap-2">
           {inLobby && me && !quick && (
@@ -119,12 +119,12 @@ export function RoomLobby({ room }: { room: RoomState }) {
       </PageHeader>
 
       {status === 'reconnecting' && (
-        <div role="status" className="mb-5 flex items-center gap-2 border border-warn/40 bg-warn/10 px-4 py-3 text-sm text-warn">
+        <div role="status" className="mb-3 flex shrink-0 items-center gap-2 border border-warn/40 bg-warn/10 px-4 py-2 text-sm text-warn">
           <WifiOff size={16} /> Connection lost. Reconnecting — your place in the room is kept for 30 seconds.
         </div>
       )}
       {error && (
-        <div role="alert" className="mb-5 flex items-center justify-between gap-3 border border-accent/50 bg-accent/10 px-4 py-3 text-sm text-ink">
+        <div role="alert" className="mb-3 flex shrink-0 items-center justify-between gap-3 border border-accent/50 bg-accent/10 px-4 py-2 text-sm text-ink">
           <span>{error}</span>
           <Button size="sm" variant="ghost" onClick={() => multiplayer.clearError()}>
             Dismiss
@@ -132,20 +132,6 @@ export function RoomLobby({ room }: { room: RoomState }) {
         </div>
       )}
 
-      {room.phase === 'countdown' && (
-        <div role="status" className="tal-result mb-5" style={{ '--ink': '#fff', '--glow': 'rgba(255,70,85,0.3)', '--edge': 'rgba(255,70,85,0.55)' } as CSSProperties}>
-          <div className="font-display text-xs font-semibold uppercase tracking-[0.4em] text-mute">{quick ? 'Match found' : 'Match starting'}</div>
-          <div className="font-display tabular text-8xl font-extrabold leading-none text-white">
-            {/* the key restarts the pop each second */}
-            <span key={Math.ceil(remaining / 1000)} className="tal-count">
-              {Math.max(0, Math.ceil(remaining / 1000))}
-            </span>
-          </div>
-          <div className="mt-1 font-display text-lg font-semibold uppercase tracking-[0.2em] text-ink">
-            {mapName(room.settings.mapId)} · {MODE_LABEL[room.settings.mode]}
-          </div>
-        </div>
-      )}
       {room.phase === 'playing' && (
         <PhaseBanner
           tone="ok"
@@ -154,62 +140,44 @@ export function RoomLobby({ room }: { room: RoomState }) {
           note={inMatch ? 'You stepped out to the room. Your player is still standing in the match.' : undefined}
         />
       )}
-      {result && room.phase !== 'playing' && room.phase !== 'countdown' && (
-        <MatchResultView scores={result.scores} settings={result.settings} winner={result.winner} me={myId}>
-          {room.phase === 'scoreboard' ? (
-            <span role="status" className="text-sm text-mute">
-              {quick ? 'This room closes in' : 'Back to the lobby in'} <span className="tabular font-semibold text-ink">{Math.max(0, Math.ceil(remaining / 1000))}</span> s
-            </span>
-          ) : (
-            <Button size="sm" variant="ghost" onClick={() => multiplayer.dismissResult()}>
-              Hide
-            </Button>
-          )}
-        </MatchResultView>
-      )}
-
-      <div className="grid gap-6 xl:grid-cols-[1fr_440px]">
-        <div className="space-y-5">
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_270px_320px] gap-4">
+        <div className="flex min-h-0 flex-col gap-3">
           {!quick && (
-            <Card title="Invite friends">
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-                <div>
-                  <div className="text-xs uppercase tracking-widest text-dim">Room code</div>
-                  <div className="select-all font-display text-5xl font-bold leading-none tracking-[0.2em] text-ink">{room.code}</div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <CopyButton text={link}>
-                    <LinkIcon size={16} /> Copy invite link
-                  </CopyButton>
-                  <CopyButton text={room.code}>
-                    <Copy size={16} /> Copy code
-                  </CopyButton>
-                </div>
+            <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2 border border-white/10 bg-black/30 px-4 py-2.5">
+              <div>
+                <div className="text-xs uppercase tracking-widest text-dim">Room code</div>
+                <div className="select-all font-display text-3xl leading-none tracking-[0.15em] text-ink">{room.code}</div>
               </div>
-              <div className="mt-3 select-all break-all text-xs text-dim">{link}</div>
-            </Card>
+              <div className="flex flex-wrap gap-2">
+                <CopyButton text={link}>
+                  <LinkIcon size={15} /> Copy invite link
+                </CopyButton>
+                <CopyButton text={room.code}>
+                  <Copy size={15} /> Code
+                </CopyButton>
+              </div>
+            </div>
           )}
-
-          <Card
-            title={`Players · ${room.players.length} / ${slots}`}
-            right={
-              <span className="text-xs text-dim">
-                {botSlots > 0 && `${botSlots} ${botSlots === 1 ? 'bot fills' : 'bots fill'} in · `}
-                {!inLobby || quick ? MODE_LABEL[room.settings.mode] : isHost ? 'You are the host' : 'Waiting for the host to start'}
+          <Card className="flex min-h-0 flex-1 flex-col !p-3">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <span className="font-display text-sm uppercase text-accent">
+                Players · {room.players.length} / {slots}
               </span>
-            }
-          >
-            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              <span className="truncate text-xs text-dim">
+                {botSlots > 0 && `${botSlots} ${botSlots === 1 ? 'bot fills' : 'bots fill'} in · `}
+                {!inLobby || quick ? MODE_LABEL[room.settings.mode] : isHost ? 'You are the host' : 'Waiting for the host'}
+              </span>
+            </div>
+            <ul className="grid min-h-0 flex-1 grid-cols-5 grid-rows-2 gap-1.5">
               {room.players.map((p) => (
                 <PlayerCard key={p.id} player={p} me={p.id === myId} isHost={isHost} teams={teams} editable={inLobby} showReady={!quick} />
               ))}
               {Array.from({ length: slots - room.players.length }, (_, i) => {
                 const bot = i < botSlots;
                 return (
-                  <li key={`empty-${i}`} className="tal-slot items-center justify-center gap-1 text-center text-dim" data-empty="true">
-                    {bot ? <Bot size={22} /> : <UserPlus size={22} className="opacity-50" />}
-                    <span className="font-display text-sm font-semibold uppercase tracking-widest">{bot ? 'Bot' : 'Open'}</span>
-                    {bot && <span className="text-xs">{DIFFICULTY_LABEL[room.settings.botDifficulty]} · joins at the start</span>}
+                  <li key={`empty-${i}`} className="tal-slot items-center justify-center gap-1 text-center text-dim" data-empty="true" title={bot ? `${DIFFICULTY_LABEL[room.settings.botDifficulty]} bot, joins at the start` : undefined}>
+                    {bot ? <Bot size={20} /> : <UserPlus size={20} className="opacity-50" />}
+                    <span className="font-display text-xs uppercase">{bot ? 'Bot' : 'Open'}</span>
                   </li>
                 );
               })}
@@ -217,22 +185,103 @@ export function RoomLobby({ room }: { room: RoomState }) {
           </Card>
         </div>
 
-        <div className="space-y-5">
-          <AgentPicker compact note={inLobby ? 'How other players see you.' : 'A change shows from the next match.'} />
-          <SettingsPanel settings={room.settings} editable={isHost && inLobby} players={room.players.length} fixed={quick} />
+        <div className="flex min-h-0 flex-col gap-3">
+          <SoldierCard note={inLobby ? undefined : 'Shows from the next match'} />
+          <MapCard settings={room.settings} editable={isHost && inLobby} fixed={quick} />
+        </div>
+
+        <RulesCard settings={room.settings} editable={isHost && inLobby} players={room.players.length} />
+      </div>
+
+      {/* the countdown and the result sit over the lobby instead of pushing it off the screen */}
+      {(room.phase === 'countdown' || (result && room.phase !== 'playing')) && (
+        <div className="absolute inset-0 z-20 grid place-items-center bg-black/70 backdrop-blur-sm">
+          {room.phase === 'countdown' ? (
+            <div role="status" className="text-center">
+              <div className="font-display text-sm uppercase tracking-[0.3em] text-mute">{quick ? 'Match found' : 'Match starting'}</div>
+              <div className="font-display tabular text-9xl leading-none text-white">
+                <span key={Math.ceil(remaining / 1000)} className="tal-count">
+                  {Math.max(0, Math.ceil(remaining / 1000))}
+                </span>
+              </div>
+              <div className="mt-2 font-display text-xl uppercase text-accent">
+                {mapName(room.settings.mapId)} · {MODE_LABEL[room.settings.mode]}
+              </div>
+            </div>
+          ) : (
+            result && (
+              <div className="w-[min(760px,94%)]">
+                <MatchResultView scores={result.scores} settings={result.settings} winner={result.winner} me={myId}>
+                  {room.phase === 'scoreboard' ? (
+                    <span role="status" className="text-sm text-mute">
+                      {quick ? 'This room closes in' : 'Back to the lobby in'} <span className="tabular font-semibold text-ink">{Math.max(0, Math.ceil(remaining / 1000))}</span> s
+                    </span>
+                  ) : (
+                    <Button size="sm" variant="ghost" onClick={() => multiplayer.dismissResult()}>
+                      Back to the lobby
+                    </Button>
+                  )}
+                </MatchResultView>
+              </div>
+            )
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Your soldier, with arrows to change. */
+function SoldierCard({ note }: { note?: string }) {
+  const agent = getAgent(useMultiplayer((s) => s.agent));
+  const i = AGENTS.findIndex((a) => a.id === agent.id);
+  const step = (d: number) => multiplayer.setAgent(AGENTS[(i + d + AGENTS.length) % AGENTS.length].id);
+  return (
+    <Card className="!p-3">
+      <div className="mb-1 font-display text-sm uppercase text-accent">Your soldier</div>
+      <div className="flex items-center gap-2">
+        <button type="button" className="tal-slab grid h-9 w-9 shrink-0 place-items-center" onClick={() => step(-1)} aria-label="Previous soldier">
+          ◀
+        </button>
+        <AgentPortrait key={agent.id} agent={agent} className="h-24 min-w-0 flex-1 border border-white/10" />
+        <button type="button" className="tal-slab grid h-9 w-9 shrink-0 place-items-center" onClick={() => step(1)} aria-label="Next soldier">
+          ▶
+        </button>
+      </div>
+      <div className="mt-1 text-center font-display text-lg uppercase" style={{ color: agent.accent }}>
+        {agent.name}
+      </div>
+      {note && <div className="text-center text-xs text-dim">{note}</div>}
+    </Card>
+  );
+}
+
+function MapCard({ settings, editable, fixed }: { settings: RoomSettings; editable: boolean; fixed: boolean }) {
+  return (
+    <Card className="flex min-h-0 flex-1 flex-col !p-3">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="font-display text-sm uppercase text-accent">Map</span>
+        {!editable && !fixed && <span className="text-xs text-dim">Host picks</span>}
+      </div>
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        <div className="absolute inset-0 grid place-items-center">
+          <div className="aspect-[52/48] max-h-full w-full">
+            <MapPreview mapId={settings.mapId} focus={false} showSight={false} className="h-full w-full" />
+          </div>
         </div>
       </div>
-    </div>
+      <Cycler label="Map" disabled={!editable} value={settings.mapId} onChange={(mapId) => multiplayer.updateSettings({ mapId })} options={MAP_SUMMARIES.map((m) => ({ value: m.id, label: m.name, title: m.setting }))} />
+    </Card>
   );
 }
 
 function PhaseBanner({ tone, label, value, note }: { tone: 'accent' | 'ok' | 'mute'; label: string; value: string; note?: string }) {
   const tones = { accent: 'border-accent/50 bg-accent/10', ok: 'border-ok/40 bg-ok/10', mute: 'border-line bg-panel2' };
   return (
-    <div role="status" className={cx('mb-5 flex flex-wrap items-center gap-x-6 gap-y-2 border px-5 py-4', tones[tone])}>
+    <div role="status" className={cx('mb-3 flex shrink-0 flex-wrap items-center gap-x-6 gap-y-2 border px-4 py-2', tones[tone])}>
       <div>
         <div className="text-xs uppercase tracking-widest text-mute">{label}</div>
-        <div className="font-display tabular text-5xl font-bold leading-none text-ink">{value}</div>
+        <div className="font-display tabular text-3xl leading-none text-ink">{value}</div>
       </div>
       {note && <p className="max-w-xl text-sm text-mute">{note}</p>}
     </div>
@@ -241,53 +290,43 @@ function PhaseBanner({ tone, label, value, note }: { tone: 'accent' | 'ok' | 'mu
 
 function PlayerCard({ player, me, isHost, teams, editable, showReady }: { player: RoomPlayer; me: boolean; isHost: boolean; teams: boolean; editable: boolean; showReady: boolean }) {
   const canMove = editable && (me || isHost);
+  const agent = getAgent(player.agent);
   return (
-    <li className={cx('tal-slot', !player.connected && 'opacity-50')} data-me={me} data-ready={showReady && player.ready && player.connected}>
-      <div className="flex items-start justify-between gap-2">
-        <AgentPortrait agent={getAgent(player.agent)} className="h-20 w-16 shrink-0 border border-white/10" />
-        <span className="flex flex-col items-end gap-1">
-          {player.host && (
-            <Badge tone="accent">
-              <Crown size={11} className="mr-1" /> Host
-            </Badge>
-          )}
-          <span className="tabular text-xs text-dim">{player.connected && player.ping >= 0 ? `${player.ping} ms` : '—'}</span>
-        </span>
+    <li className={cx('tal-slot min-h-0 !p-1.5', !player.connected && 'opacity-50')} data-me={me} data-ready={showReady && player.ready && player.connected} title={`${player.name} · ${agent.name}${player.ping >= 0 ? ` · ${player.ping} ms` : ''}`}>
+      <div className="relative min-h-0 flex-1">
+        <AgentPortrait agent={agent} className="absolute inset-0 h-full w-full border border-white/10" />
+        {player.host && (
+          <span className="absolute left-1 top-1 grid h-5 w-5 place-items-center bg-accent text-[#1c1203]" title="Host">
+            <Crown size={12} />
+          </span>
+        )}
       </div>
-      <div className="mt-2 min-w-0 flex-1">
-        <div className="truncate font-display text-lg font-bold uppercase leading-tight tracking-wide text-ink" title={player.name}>
-          {player.name}
-        </div>
-        <div className="text-xs uppercase tracking-widest text-dim">
-          {me ? 'You' : 'Player'} · <span style={{ color: getAgent(player.agent).accent }}>{getAgent(player.agent).name}</span>
-        </div>
-      </div>
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        {!player.connected ? <Badge tone="warn">Reconnecting</Badge> : !showReady ? null : player.ready ? <Badge tone="ok">Ready</Badge> : <Badge>Not ready</Badge>}
+      <div className="mt-1 truncate font-display text-xs uppercase text-ink">{player.name}</div>
+      <div className="flex items-center gap-1">
+        {!player.connected ? (
+          <span className="text-xs text-warn">Away</span>
+        ) : showReady ? (
+          <span className={cx('text-xs', player.ready ? 'text-ok' : 'text-dim')}>{player.ready ? 'Ready' : 'Not ready'}</span>
+        ) : (
+          <span className="text-xs text-dim">{me ? 'You' : agent.name}</span>
+        )}
         {teams &&
           player.team &&
           (canMove ? (
-            <Segmented<Team>
-              value={player.team}
-              onChange={(t) => multiplayer.setTeam(t, me ? undefined : player.id)}
-              options={[
-                { value: 'a', label: 'A' },
-                { value: 'b', label: 'B' },
-              ]}
-            />
+            <button type="button" className="ml-auto border border-line px-1 font-display text-xs uppercase" title="Switch team" onClick={() => multiplayer.setTeam(player.team === 'a' ? 'b' : 'a', me ? undefined : player.id)}>
+              {player.team.toUpperCase()}
+            </button>
           ) : (
-            <Badge>{TEAM_LABEL[player.team]}</Badge>
+            <span className="ml-auto text-xs text-mute">{TEAM_LABEL[player.team]}</span>
           ))}
         {isHost && !me && (
           <span className="ml-auto flex">
-            <Button size="sm" variant="ghost" className="!px-1.5" title={`Make ${player.name} the host`} disabled={!player.connected} onClick={() => multiplayer.makeHost(player.id)}>
-              <Crown size={15} />
-              <span className="sr-only">Make host</span>
-            </Button>
-            <Button size="sm" variant="ghost" className="!px-1.5" title={`Remove ${player.name} from the room`} onClick={() => multiplayer.kick(player.id)}>
-              <UserX size={15} />
-              <span className="sr-only">Remove</span>
-            </Button>
+            <button type="button" className="p-0.5 text-dim hover:text-accent disabled:opacity-40" title={`Make ${player.name} the host`} disabled={!player.connected} onClick={() => multiplayer.makeHost(player.id)}>
+              <Crown size={13} />
+            </button>
+            <button type="button" className="p-0.5 text-dim hover:text-accent" title={`Remove ${player.name}`} onClick={() => multiplayer.kick(player.id)}>
+              <UserX size={13} />
+            </button>
           </span>
         )}
       </div>
@@ -295,117 +334,43 @@ function PlayerCard({ player, me, isHost, teams, editable, showReady }: { player
   );
 }
 
-/** `fixed`: quick match rules, which nobody sets. */
-function SettingsPanel({ settings, editable, players, fixed }: { settings: RoomSettings; editable: boolean; players: number; fixed: boolean }) {
+/** The match rules: one line each, the host changes them, everyone else sees them. */
+function RulesCard({ settings, editable, players }: { settings: RoomSettings; editable: boolean; players: number }) {
   const update = (patch: Partial<RoomSettings>) => multiplayer.updateSettings(patch);
-  /** Options for a Segmented: everything but the current value is disabled for players who can't edit. */
-  const opts = <T extends string | number>(values: readonly T[], current: T, label: (v: T) => string) =>
-    values.map((v) => ({ value: v, label: label(v), disabled: !editable && v !== current }));
+  const o = <T extends string | number>(values: readonly T[], label: (v: T) => string) => values.map((v) => ({ value: v, label: label(v) }));
   const teams = settings.mode === 'team-deathmatch';
-
   return (
-    <>
-      <Card title="Map" right={!editable && !fixed ? <span className="text-xs text-dim">Set by the host</span> : undefined}>
-        <MapPreview mapId={settings.mapId} focus={false} showSight={false} className="mb-3" />
-        <div className="grid grid-cols-2 gap-1.5">
-          {MAP_SUMMARIES.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              disabled={!editable && m.id !== settings.mapId}
-              aria-pressed={m.id === settings.mapId}
-              onClick={() => editable && update({ mapId: m.id })}
-              className={cx(
-                'border px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-35',
-                m.id === settings.mapId ? 'border-accent bg-accent/10' : 'border-line bg-bg/50 hover:border-mute',
-              )}
-            >
-              <div className="font-display text-base font-bold uppercase leading-tight">{m.name}</div>
-              <div className="text-xs text-mute">{m.setting}</div>
-            </button>
-          ))}
-        </div>
-      </Card>
-
-      <Card title="Rules">
-        <Field label="Mode">
-          <Segmented value={settings.mode} onChange={(mode) => update({ mode })} options={opts(ROOM_OPTIONS.mode, settings.mode, (m) => MODE_LABEL[m])} />
-        </Field>
-        <Field label="Time limit">
-          <Segmented value={settings.timeLimitMin} onChange={(timeLimitMin) => update({ timeLimitMin })} options={opts(ROOM_OPTIONS.timeLimitMin, settings.timeLimitMin, (m) => `${m} min`)} />
-        </Field>
-        <Field label={teams ? 'Kill limit (team total)' : 'Kill limit'}>
-          <Segmented value={settings.killLimit} onChange={(killLimit) => update({ killLimit })} options={opts(ROOM_OPTIONS.killLimit, settings.killLimit, (k) => (k === 0 ? 'Off' : String(k)))} />
-        </Field>
-        <Field label="Max players">
-          <Segmented
-            value={settings.maxPlayers}
-            onChange={(maxPlayers) => update({ maxPlayers })}
-            options={[2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => ({
-              value: n,
-              label: String(n),
-              disabled: (!editable && n !== settings.maxPlayers) || n < players,
-              title: n < players ? 'There are already more players than this in the room' : undefined,
-            }))}
-          />
-        </Field>
-        <Field label="Weapons">
-          <Segmented value={settings.weapons} onChange={(weapons) => update({ weapons })} options={opts(ROOM_OPTIONS.weapons, settings.weapons, (w) => WEAPON_RULE_LABEL[w])} />
-          {settings.weapons === 'single' && (
-            <Segmented<WeaponId>
-              className="mt-2"
-              value={settings.singleWeapon}
-              onChange={(singleWeapon) => update({ singleWeapon })}
-              options={opts(ALL_WEAPONS, settings.singleWeapon, (id) => WEAPONS[id].name)}
-            />
-          )}
-        </Field>
-        <Field label="Respawn delay">
-          <Segmented value={settings.respawnDelaySec} onChange={(respawnDelaySec) => update({ respawnDelaySec })} options={opts(ROOM_OPTIONS.respawnDelaySec, settings.respawnDelaySec, (s) => `${s} s`)} />
-        </Field>
-        <Field label="Spawn protection">
-          <Segmented
-            value={settings.spawnProtectionSec}
-            onChange={(spawnProtectionSec) => update({ spawnProtectionSec })}
-            options={opts(ROOM_OPTIONS.spawnProtectionSec, settings.spawnProtectionSec, (s) => (s === 0 ? 'Off' : `${s} s`))}
-          />
-        </Field>
-        <Field label="Bots">
-          <Segmented
-            value={settings.botFill}
-            onChange={(botFill) => update({ botFill })}
-            options={opts(ROOM_OPTIONS.botFill, settings.botFill, (n) => (n === 0 ? 'Off' : `Fill to ${n}`))}
-          />
-          {settings.botFill > 0 && (
-            <Segmented<BotDifficulty>
-              className="mt-2"
-              value={settings.botDifficulty}
-              onChange={(botDifficulty) => update({ botDifficulty })}
-              options={opts(ROOM_OPTIONS.botDifficulty, settings.botDifficulty, (d) => DIFFICULTY_LABEL[d])}
-            />
-          )}
-          <p className="mt-2 text-xs text-dim">{settings.botFill > 0 ? 'Bots make up the numbers and step out as people join.' : 'With bots on, you can start a match on your own.'}</p>
-        </Field>
-        <div className="mt-2 border-t border-line pt-2">
-          <Switch label="Headshots only" hint="Body and leg hits deal no damage" checked={settings.headshotsOnly} editable={editable} onChange={(headshotsOnly) => update({ headshotsOnly })} />
-          <Switch label="Infinite ammo" hint="No reserve limit; reloads still happen" checked={settings.infiniteAmmo} editable={editable} onChange={(infiniteAmmo) => update({ infiniteAmmo })} />
-          <Switch label="Join in progress" hint="Friends can join after the match has started" checked={settings.joinInProgress} editable={editable} onChange={(joinInProgress) => update({ joinInProgress })} />
-          {teams && <Switch label="Friendly fire" hint="Teammates can hurt each other" checked={settings.friendlyFire} editable={editable} onChange={(friendlyFire) => update({ friendlyFire })} />}
-        </div>
-      </Card>
-    </>
+    <Card className="flex min-h-0 flex-col !p-3">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="font-display text-sm uppercase text-accent">Rules</span>
+        {!editable && <span className="text-xs text-dim">Host sets these</span>}
+      </div>
+      <Cycler label="Mode" disabled={!editable} value={settings.mode} onChange={(mode) => update({ mode })} options={o(ROOM_OPTIONS.mode, (m) => MODE_LABEL[m])} />
+      <Cycler label="Time" disabled={!editable} value={settings.timeLimitMin} onChange={(timeLimitMin) => update({ timeLimitMin })} options={o(ROOM_OPTIONS.timeLimitMin, (m) => `${m} min`)} />
+      <Cycler label={teams ? 'Team kills' : 'Kill limit'} disabled={!editable} value={settings.killLimit} onChange={(killLimit) => update({ killLimit })} options={o(ROOM_OPTIONS.killLimit, (k) => (k === 0 ? 'Off' : String(k)))} />
+      <Cycler label="Players" disabled={!editable} value={settings.maxPlayers} onChange={(maxPlayers) => update({ maxPlayers })} options={[2, 3, 4, 5, 6, 7, 8, 9, 10].filter((n) => n >= players).map((n) => ({ value: n, label: String(n) }))} />
+      <Cycler label="Weapons" disabled={!editable} value={settings.weapons} onChange={(weapons) => update({ weapons })} options={o(ROOM_OPTIONS.weapons, (w) => WEAPON_RULE_LABEL[w])} />
+      {settings.weapons === 'single' && <Cycler label="The gun" disabled={!editable} value={settings.singleWeapon} onChange={(singleWeapon: WeaponId) => update({ singleWeapon })} options={o(ALL_WEAPONS, (id) => WEAPONS[id].name)} />}
+      <Cycler label="Respawn" disabled={!editable} value={settings.respawnDelaySec} onChange={(respawnDelaySec) => update({ respawnDelaySec })} options={o(ROOM_OPTIONS.respawnDelaySec, (s) => `${s} s`)} />
+      <Cycler label="Spawn shield" disabled={!editable} value={settings.spawnProtectionSec} onChange={(spawnProtectionSec) => update({ spawnProtectionSec })} options={o(ROOM_OPTIONS.spawnProtectionSec, (s) => (s === 0 ? 'Off' : `${s} s`))} />
+      <Cycler label="Bots" hint="Bots make up the numbers and step out as people join" disabled={!editable} value={settings.botFill} onChange={(botFill) => update({ botFill })} options={o(ROOM_OPTIONS.botFill, (n) => (n === 0 ? 'Off' : `Fill to ${n}`))} />
+      {settings.botFill > 0 && <Cycler label="Bot skill" disabled={!editable} value={settings.botDifficulty} onChange={(botDifficulty: BotDifficulty) => update({ botDifficulty })} options={o(ROOM_OPTIONS.botDifficulty, (d) => DIFFICULTY_LABEL[d])} />}
+      <div className="mt-1 grid grid-cols-2 gap-x-3 border-t border-line pt-1">
+        <Switch label="Headshots only" checked={settings.headshotsOnly} editable={editable} onChange={(headshotsOnly) => update({ headshotsOnly })} />
+        <Switch label="Endless ammo" checked={settings.infiniteAmmo} editable={editable} onChange={(infiniteAmmo) => update({ infiniteAmmo })} />
+        <Switch label="Late join" checked={settings.joinInProgress} editable={editable} onChange={(joinInProgress) => update({ joinInProgress })} />
+        {teams && <Switch label="Friendly fire" checked={settings.friendlyFire} editable={editable} onChange={(friendlyFire) => update({ friendlyFire })} />}
+      </div>
+    </Card>
   );
 }
 
 /** A toggle the host can flip; everyone else sees its value. */
-function Switch({ label, hint, checked, editable, onChange }: { label: string; hint: string; checked: boolean; editable: boolean; onChange: (v: boolean) => void }) {
-  if (editable) return <Toggle label={label} hint={hint} checked={checked} onChange={onChange} />;
+function Switch({ label, checked, editable, onChange }: { label: string; checked: boolean; editable: boolean; onChange: (v: boolean) => void }) {
+  if (editable) return <Toggle label={label} checked={checked} onChange={onChange} />;
   return (
-    <div className="flex items-center justify-between gap-4 py-2">
-      <span>
-        <span className="block text-sm text-ink">{label}</span>
-        <span className="block text-xs text-dim">{hint}</span>
-      </span>
+    <div className="flex items-center justify-between gap-2 py-2">
+      <span className="text-sm text-ink">{label}</span>
       <Badge tone={checked ? 'ok' : 'mute'}>{checked ? 'On' : 'Off'}</Badge>
     </div>
   );

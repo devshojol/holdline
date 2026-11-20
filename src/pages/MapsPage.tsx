@@ -2,7 +2,7 @@ import { Play } from 'lucide-react';
 import { useState } from 'react';
 import type { Side } from '../types';
 import { store, useAppStore } from '../hooks/useAppStore';
-import { Badge, Button, Card, PageHeader, Segmented, cx } from '../components/ui';
+import { Card, PageHeader, Segmented, cx } from '../components/ui';
 import { MapPreview } from '../components/MapPreview';
 import { MAP_DEFINITIONS, getMapDefinition } from '../game/maps/registry';
 import { normaliseConfig } from './PracticePage';
@@ -22,38 +22,45 @@ export function MapsPage() {
   };
 
   return (
-    <div>
-      <PageHeader kicker="Maps" title="Tactical environments" />
-      <div className="mb-6 grid grid-cols-2 gap-2 md:grid-cols-4">
-        {MAP_DEFINITIONS.map((m) => (
-          <button
-            key={m.id}
-            onClick={() => pickMap(m.id)}
-            className={cx('border p-2 text-left transition-colors', m.id === def.id ? 'border-accent bg-accent/10' : 'border-line bg-panel hover:border-mute')}
-          >
-            <div className="aspect-[52/48] w-full border border-line/60">
-              <MapPreview mapId={m.id} focus={false} showSight={false} className="h-full w-full" />
-            </div>
-            <div className="mt-2 flex items-baseline justify-between gap-2 px-1">
-              <span className="font-display text-lg font-bold uppercase">{m.name}</span>
-              <span className="text-xs text-mute">{m.setting}-inspired</span>
-            </div>
-            <div className="px-1 text-xs text-dim">{m.theme}</div>
-          </button>
-        ))}
-      </div>
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader kicker="The battlegrounds" title="Maps" />
+      <div className="grid min-h-0 flex-1 grid-cols-[300px_minmax(0,1fr)_300px] gap-4">
+        {/* every map, small */}
+        <div className="grid min-h-0 grid-cols-2 grid-rows-4 gap-2">
+          {MAP_DEFINITIONS.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => pickMap(m.id)}
+              aria-pressed={m.id === def.id}
+              className={cx('flex min-h-0 flex-col border p-1.5 text-left transition-colors', m.id === def.id ? 'border-accent bg-accent/10' : 'border-line bg-panel/80 hover:border-mute')}
+            >
+              <div className="min-h-0 flex-1 border border-line/60">
+                <MapPreview mapId={m.id} focus={false} showSight={false} className="h-full w-full" />
+              </div>
+              <span className="mt-1 truncate font-display text-sm uppercase">{m.name}</span>
+            </button>
+          ))}
+        </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <Card title={`${def.name}: ${def.setting}-inspired`} right={<Badge tone="ok">{def.locations.length} locations</Badge>}>
-          <p className="mb-4 max-w-3xl text-sm text-mute">{def.description}</p>
-          <div className="aspect-[52/48] w-full border border-line">
-            <MapPreview mapId={def.id} locationId={location.id} side={side} focus={false} className="h-full w-full" />
+        {/* the chosen map, big */}
+        <Card className="flex min-h-0 flex-col !p-3">
+          <div className="relative min-h-0 flex-1">
+            <div className="absolute inset-0 grid place-items-center">
+              <div className="aspect-[52/48] h-full max-w-full border border-line">
+                <MapPreview mapId={def.id} locationId={location.id} side={side} focus={false} className="h-full w-full" />
+              </div>
+            </div>
           </div>
         </Card>
-        <div className="space-y-6">
-          <Card title="Locations">
-            <Segmented value={location.id} onChange={setLocId} options={def.locations.map((l) => ({ value: l.id, label: l.name }))} />
-            <div className="mt-3">
+
+        {/* about it, and play it */}
+        <div className="flex min-h-0 flex-col gap-3">
+          <Card className="min-h-0 flex-1">
+            <div className="font-label text-xs font-semibold uppercase tracking-[0.25em] text-accent">{def.setting}</div>
+            <div className="font-display text-3xl uppercase leading-none">{def.name}</div>
+            <p className="mt-2 text-sm text-mute">{def.description}</p>
+            <div className="mt-4 space-y-2">
+              <Segmented value={location.id} onChange={setLocId} options={def.locations.map((l) => ({ value: l.id, label: l.name }))} />
               <Segmented
                 value={side}
                 onChange={setSide}
@@ -64,22 +71,20 @@ export function MapsPage() {
               />
             </div>
             <p className="mt-3 text-sm text-mute">{location.description}</p>
-            <div className="mt-3 aspect-square border border-line">
-              <MapPreview mapId={def.id} locationId={location.id} side={side} className="h-full w-full" />
-            </div>
-            <div className="mt-3 text-xs text-dim">
-              {setup.playerSpawns.length} player spawns · {setup.enemySpots.length} enemy positions: {setup.enemySpots.map((s) => s.name).join(', ')}
-            </div>
-            <Button
-              className="mt-4 w-full"
-              onClick={() => {
-                store.updatePractice(normaliseConfig({ ...practice, mapId: def.id, locationId: location.id, side, playerSpawnId: '', enemySpotIds: [] }));
-                store.go('practice');
-              }}
-            >
-              <Play size={16} /> Practice here
-            </Button>
+            <p className="mt-2 text-xs text-dim">
+              {setup.playerSpawns.length} spawns · {setup.enemySpots.length} enemy positions
+            </p>
           </Card>
+          <button
+            type="button"
+            className="tal-gold flex h-16 shrink-0 items-center justify-center gap-3 font-display text-xl uppercase"
+            onClick={() => {
+              store.updatePractice(normaliseConfig({ ...practice, mapId: def.id, locationId: location.id, side, playerSpawnId: '', enemySpotIds: [] }));
+              store.go('practice');
+            }}
+          >
+            <Play size={22} className="fill-current" /> Practice here
+          </button>
         </div>
       </div>
     </div>

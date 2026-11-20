@@ -3,34 +3,34 @@ import { MAP_SUMMARIES } from '../game/maps/registry';
 
 export const MODE_INFO: Record<PracticeMode, { label: string; short: string; desc: string }> = {
   'angle-hold': {
-    label: 'Angle Holding',
-    short: 'Angle Hold',
-    desc: 'Hold an angle while bots peek from cover with real tactics. Kill them before they retreat — escapes cost points.',
+    label: 'Hold the Angle',
+    short: 'Hold',
+    desc: 'Lock down a corner while enemies peek from cover. Drop them before they duck back: every escape costs points.',
   },
   jiggle: {
-    label: 'Jiggle Peek Training',
-    short: 'Jiggle',
-    desc: 'Bots jiggle and shoulder-peek to bait your shots, then occasionally commit. Wasted bait shots are tracked.',
+    label: 'Bait & Peek',
+    short: 'Bait',
+    desc: 'Enemies flash a shoulder to bait your shots, then swing for real. Keep your bullets for the real peek.',
   },
   'site-clear': {
-    label: 'Site Clear',
-    short: 'Site Clear',
-    desc: 'Push in and clear every defender. They hold hidden posts, turn to your footsteps and fight back. Each clear is timed; dying restarts the round.',
+    label: 'Clear the Site',
+    short: 'Clear',
+    desc: 'Push in and take out every defender. They hide in new spots each round and turn to your footsteps. Clears are timed.',
   },
   retake: {
-    label: 'Retake',
-    short: 'Retake',
-    desc: 'A charge is planted and defenders hold it. Fight your way in and hold E on the charge to defuse it before the 45-second fuse runs out.',
+    label: 'Defuse Run',
+    short: 'Defuse',
+    desc: 'A charge is ticking and defenders guard it. Fight through and hold E on it before the 45-second fuse runs out.',
   },
   deathmatch: {
     label: 'Deathmatch',
     short: 'Deathmatch',
-    desc: 'Bots roam the whole map, hunt you by sound and sight, take cover when hurt and re-peek.',
+    desc: 'Free-for-all against bots that roam the map, hunt you by sound and fall back when hurt.',
   },
   spray: {
-    label: 'Spray Control',
-    short: 'Spray',
-    desc: 'No bots. Spray at a wall and pull against the recoil; a live plot scores how close you keep every bullet to the first shot.',
+    label: 'Recoil Range',
+    short: 'Recoil',
+    desc: 'No enemies: spray at a wall and pull against the kick. Every spray is scored on how tight you keep it.',
   },
 };
 
@@ -48,7 +48,7 @@ export const DIFFICULTY_LABEL: Record<Difficulty, string> = {
   easy: 'Easy',
   normal: 'Normal',
   hard: 'Hard',
-  radiant: 'Radiant',
+  radiant: 'Elite',
   custom: 'Custom',
 };
 

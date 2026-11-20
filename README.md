@@ -1,6 +1,6 @@
-# Holdline
+# Sunstrike
 
-A browser-based 3D aim trainer for tactical shooters. Open it in Chrome, pick a map and a spot to hold, set your sensitivity and crosshair, choose a weapon and fight AI bots that peek, swing, spray and reposition the way real players do. Or play Deathmatch against other people, in a private room with friends or a quick match. No install, no account: practice runs entirely in the page, and multiplayer adds one small game server.
+An online browser FPS: five-minute deathmatches in sunlit towns, up to ten players, with bots filling every room so a match starts in seconds. Press **Quick play** and you are in. Play with friends in a private room with an invite link, or practise alone against bots that peek, swing and spray like people. No install, no account; multiplayer runs on one small game server.
 
 ![Holding A Main on Vellora with the Kestrel](docs/screenshots/gameplay.png)
 
@@ -10,7 +10,7 @@ Everything in it is original or freely licensed: the maps, textures, guns, camou
 
 ## 1. What we're trying to build
 
-Most aim trainers drill clicking on dots. In a real round of a tactical shooter the hard part is different: you hold an angle, an enemy jiggles to bait your shot, shoulder-peeks, swings wide or sprays from a crouch, and you have to react with the right crosshair placement, a counter-strafe and a controlled first bullet. **The goal of Holdline is to recreate those duels** so they can be practised over and over, measured, and improved.
+Most aim trainers drill clicking on dots. In a real round of a tactical shooter the hard part is different: you hold an angle, an enemy jiggles to bait your shot, shoulder-peeks, swings wide or sprays from a crouch, and you have to react with the right crosshair placement, a counter-strafe and a controlled first bullet. **The goal of Sunstrike is to recreate those duels** so they can be practised over and over, measured, and improved.
 
 What that means in practice:
 
@@ -269,7 +269,7 @@ Deathmatch against other people, up to 10 in a match. Full detail, including how
 ### 3.16 The CrazyGames build
 
 `npm run build:crazygames` makes the build for crazygames.com in `dist-crazygames/` and zips it as
-`holdline-crazygames.zip` (about 17 MB zipped, 36 MB and under 300 files unpacked; their limits are 50 MB and
+`sunstrike-crazygames.zip` (about 17 MB zipped, 36 MB and under 300 files unpacked; their limits are 50 MB and
 1,500 files). It differs from the site's build in four ways, all switched by `__CRAZYGAMES__` (see `vite.config.ts`):
 
 - every file is referenced by a relative path, as their site requires;

@@ -1,7 +1,7 @@
 import { Suspense, lazy, useState } from 'react';
 import type { WeaponId } from '../types';
 import { store, useAppStore } from '../hooks/useAppStore';
-import { Badge, Button, Card, PageHeader, Slider, cx } from '../components/ui';
+import { Badge, Card, PageHeader, Slider, cx } from '../components/ui';
 import { SprayPattern } from '../components/Charts';
 import { ALL_WEAPONS, WEAPONS } from '../game/weapons/weaponConfigs';
 import { RUN_SPEED } from '../game/player/PlayerController';
@@ -30,6 +30,7 @@ export function WeaponsPage() {
   const sessions = useAppStore((s) => s.sessions);
   const [sel, setSel] = useState<WeaponId>(practice.primary);
   const [bullets, setBullets] = useState(WEAPONS[practice.primary].magazine);
+  const [tab, setTab] = useState<'stats' | 'damage' | 'spray'>('stats');
   const w = WEAPONS[sel];
   const usage = sessions.reduce(
     (acc, s) => {
@@ -46,46 +47,73 @@ export function WeaponsPage() {
   );
   const equipped = practice.primary === sel || practice.secondary === sel;
 
+  const facts: [string, string][] = [
+    ['Fire rate', `${w.fireRate}/s · ${w.auto ? 'auto' : 'semi'}`],
+    ['Magazine', `${w.magazine} / ${w.reserve}`],
+    ['Reload', `${w.reloadTime} s`],
+    ['Equip', `${w.equipTime} s`],
+    ['Spread (hip / aim)', `${w.spread.base}° / ${w.spread.ads}°`],
+    ['Spread per shot', `+${w.spread.firingPerShot}° (max ${w.spread.firingMax}°)`],
+    ['Running', `${w.spread.moveMax}° · steady under ${(w.spread.accurateSpeedFraction * RUN_SPEED).toFixed(1)} m/s`],
+    ['In the air', `${w.spread.air}°`],
+    ['Right click', w.altFire === 'ads' ? (w.ads.scope ? `Scope ${w.ads.zoom}×${w.ads.zoom2 ? ` / ${w.ads.zoom2}×` : ''}` : `Aim ${w.ads.zoom}×`) : `${w.burst?.count}-round burst`],
+    ['Recoil recovery', `${w.recoil.recoveryRate}/s after ${w.recoil.recoveryDelay} s`],
+    ['Tracers', w.tracer ? 'Visible' : 'Hidden'],
+  ];
+  const isEquipped = w.slot === 'primary' ? practice.primary === sel : practice.secondary === sel;
+
   return (
-    <div>
-      <PageHeader kicker="Arsenal" title="Weapons" />
-      <div className="mb-6 grid grid-cols-2 gap-2 md:grid-cols-4">
-        {ORDER.map((id) => {
-          const x = WEAPONS[id];
-          return (
-            <button
-              key={id}
-              onClick={() => {
-                setSel(id);
-                setBullets(x.magazine);
-              }}
-              data-active={id === sel}
-              className={cx('tal-tile border p-4 text-left', id === sel ? 'border-accent bg-accent/10' : 'border-line bg-panel hover:border-mute')}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="text-xs uppercase tracking-widest text-dim">{x.category}</div>
-                <WeaponIcon id={id} className="h-7 w-20 shrink-0 opacity-80" color={id === sel ? x.color : '#5b6776'} />
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader kicker="Your arsenal" title="Loadout" />
+      <div className="grid min-h-0 flex-1 grid-cols-[230px_minmax(0,1fr)_330px] gap-4">
+        {/* every gun */}
+        <div className="flex min-h-0 flex-col gap-1.5">
+          {ORDER.map((id) => {
+            const x = WEAPONS[id];
+            const on = id === sel;
+            const eq = practice.primary === id || practice.secondary === id;
+            return (
+              <button
+                key={id}
+                onClick={() => {
+                  setSel(id);
+                  setBullets(x.magazine);
+                }}
+                aria-pressed={on}
+                className={cx('flex min-h-0 flex-1 items-center gap-2 border px-2.5 text-left transition-colors', on ? 'border-accent bg-accent/15' : 'border-white/10 bg-black/30 hover:border-mute')}
+              >
+                <WeaponIcon id={id} className="h-6 w-16 shrink-0" color={on ? x.color : '#7b8696'} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-display text-sm uppercase" style={{ color: on ? x.color : undefined }}>
+                    {x.name}
+                  </span>
+                  <span className="block truncate text-xs text-dim">{x.category}</span>
+                </span>
+                {eq && <span className="h-2 w-2 shrink-0 rounded-full bg-ok" title="Equipped" />}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* the gun itself */}
+        <Card className="flex min-h-0 flex-col !p-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <div>
+              <div className="font-label text-xs font-semibold uppercase tracking-[0.25em] text-dim">{w.category}</div>
+              <div className="font-display text-4xl uppercase leading-none" style={{ color: w.color }}>
+                {w.name}
               </div>
-              <div className="font-display text-3xl font-bold uppercase leading-tight" style={{ color: x.color }}>
-                {x.name}
-              </div>
-              <div className="text-xs text-mute">
-                {x.fireRate} rps · {x.magazine} rounds
-              </div>
-            </button>
-          );
-        })}
-      </div>
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <Card title={`${w.name} profile`} right={equipped ? <Badge tone="ok">Equipped</Badge> : undefined}>
-          <div className="relative mb-5 border border-line bg-bg/50">
-            <Suspense fallback={<div className="h-64" />}>
+            </div>
+            {equipped && <Badge tone="ok">Equipped</Badge>}
+          </div>
+          <div className="relative my-3 min-h-0 flex-1 border border-line bg-bg/50">
+            <Suspense fallback={<div className="h-full" />}>
               <GunViewer
                 key={sel}
                 id={sel}
-                className="block h-64 w-full"
+                className="absolute inset-0 block h-full w-full"
                 fallback={
-                  <div className="grid h-64 place-items-center p-6">
+                  <div className="grid h-full place-items-center p-6">
                     <WeaponIcon id={sel} className="h-28 w-full" color={w.color} />
                   </div>
                 }
@@ -93,105 +121,97 @@ export function WeaponsPage() {
             </Suspense>
             <div className="pointer-events-none absolute bottom-2 right-3 text-xs uppercase tracking-widest text-dim">Drag to turn</div>
           </div>
-          <div>
-            <div>
-              <p className="text-sm text-mute">{w.description}</p>
-              <div className="mt-4 space-y-2">
-                {ratings(sel).map(([label, v]) => (
-                  <div key={label} className="flex items-center gap-3 text-xs">
-                    <span className="w-20 uppercase tracking-widest text-dim">{label}</span>
-                    <div className="h-1.5 flex-1 bg-bg">
-                      <div className="h-full transition-[width] duration-300" style={{ width: `${Math.round(v * 100)}%`, background: w.color }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="mt-5 grid gap-x-8 gap-y-2 text-sm md:grid-cols-2">
-            {[
-              ['Fire rate', `${w.fireRate} rounds/s${w.auto ? ' · full-auto' : ' · semi-auto'}`],
-              ['Magazine / reserve', `${w.magazine} / ${w.reserve}`],
-              ['Reload', `${w.reloadTime}s`],
-              ['Equip', `${w.equipTime}s`],
-              ['First-shot spread (hip / ADS)', `${w.spread.base}° / ${w.spread.ads}°`],
-              ['Spray spread growth', `+${w.spread.firingPerShot}°/shot (max ${w.spread.firingMax}°)`],
-              ['Running inaccuracy', `${w.spread.moveMax}° (accurate below ${(w.spread.accurateSpeedFraction * RUN_SPEED).toFixed(1)} m/s)`],
-              ['Airborne inaccuracy', `${w.spread.air}°`],
-              ['Right click', w.altFire === 'ads' ? w.ads.scope ? `Scope: click to cycle ${w.ads.zoom}×${w.ads.zoom2 ? ` → ${w.ads.zoom2}×` : ''} → off` : `Aim down sights (${w.ads.zoom}× zoom)` : `${w.burst?.count}-round burst`],
-              ['Recoil recovery', `${w.recoil.recoveryRate} bullets/s after ${w.recoil.recoveryDelay}s`],
-              ['View kick', `${Math.round(w.recoil.viewKick * 100)}% of bullet recoil`],
-              ['Tracers', w.tracer ? 'Visible' : 'Hidden (suppressed)'],
-            ].map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-4 border-b border-line/60 py-1.5">
-                <span className="text-dim">{k}</span>
-                <span className="text-right tabular">{v}</span>
+          <p className="text-sm text-mute">{w.description}</p>
+          <div className="mt-3 grid grid-cols-5 gap-3">
+            {ratings(sel).map(([label, v]) => (
+              <div key={label}>
+                <div className="mb-1 text-xs uppercase tracking-wider text-dim">{label}</div>
+                <div className="h-1.5 bg-bg">
+                  <div className="h-full transition-[width] duration-300" style={{ width: `${Math.round(v * 100)}%`, background: w.color }} />
+                </div>
               </div>
             ))}
           </div>
-          <h3 className="mt-6 font-display text-lg font-semibold uppercase tracking-wider">Damage by range</h3>
-          <table className="mt-2 w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs uppercase tracking-widest text-dim">
-                <th className="py-1.5">Range</th>
-                <th>Head</th>
-                <th>Body</th>
-                <th>Legs</th>
-                <th>Body shots to kill (150 HP)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {w.damage.map((d, i) => (
-                <tr key={i} className="border-t border-line">
-                  <td className="py-1.5">{i === 0 ? '0' : w.damage[i - 1].maxRange}–{d.maxRange > 500 ? '∞' : d.maxRange} m</td>
-                  <td className="tabular text-warn">{d.head}</td>
-                  <td className="tabular">{d.body}</td>
-                  <td className="tabular">{d.legs}</td>
-                  <td className="tabular">{Math.ceil(150 / d.body)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {/* stays at the bottom of the screen while the profile scrolls */}
-          <div className="sticky bottom-0 z-10 -mx-5 -mb-5 mt-6 flex flex-wrap items-center gap-3 border-t border-line bg-panel/95 px-5 py-3 backdrop-blur">
-            <span className="font-display text-lg font-semibold uppercase tracking-wider" style={{ color: w.color }}>
-              {w.name}
-            </span>
-            <span className="text-xs uppercase tracking-widest text-dim">{w.category}</span>
-            <span className="flex-1" />
-            {w.slot === 'primary' ? (
-              <Button variant={practice.primary === sel ? 'outline' : 'primary'} onClick={() => store.updatePractice({ primary: sel })}>
-                {practice.primary === sel ? 'Primary weapon' : 'Set as primary'}
-              </Button>
-            ) : (
-              <Button variant={practice.secondary === sel ? 'outline' : 'primary'} onClick={() => store.updatePractice({ secondary: sel })}>
-                {practice.secondary === sel ? 'Sidearm' : 'Set as sidearm'}
-              </Button>
-            )}
-          </div>
         </Card>
-        <div className="space-y-6">
-          <Card title="Spray pattern">
-            <div className="flex justify-center bg-bg/60 py-2">
-              <SprayPattern pattern={w.recoil.pattern} color={w.color} count={bullets} className="h-80 w-56" />
+
+        {/* numbers, in tabs, and equip */}
+        <div className="flex min-h-0 flex-col gap-3">
+          <Card className="flex min-h-0 flex-1 flex-col !p-3">
+            <div className="mb-3 grid grid-cols-3 gap-1">
+              {(['stats', 'damage', 'spray'] as const).map((t) => (
+                <button key={t} type="button" aria-current={tab === t ? 'page' : undefined} onClick={() => setTab(t)} className="tal-slab py-2 font-display text-sm uppercase">
+                  {t === 'stats' ? 'Stats' : t === 'damage' ? 'Damage' : 'Spray'}
+                </button>
+              ))}
             </div>
-            <Slider label="Bullets shown" value={bullets} min={1} max={w.recoil.pattern.length} onChange={(v) => setBullets(Math.round(v))} />
-            <p className="mt-1 text-xs text-dim">
-              Where bullets land relative to your crosshair with zero mouse input. Pull down and against the sway to compensate.
-            </p>
-          </Card>
-          <Card title="Your history">
-            <div className="grid grid-cols-2 gap-y-1 text-sm">
-              <span className="text-dim">Shots</span>
-              <span className="text-right tabular">{usage.shots}</span>
-              <span className="text-dim">Accuracy</span>
-              <span className="text-right tabular">{usage.shots ? Math.round((usage.hits / usage.shots) * 100) : 0}%</span>
-              <span className="text-dim">Headshot %</span>
-              <span className="text-right tabular">{usage.hits ? Math.round((usage.hs / usage.hits) * 100) : 0}%</span>
-              <span className="text-dim">Kills</span>
-              <span className="text-right tabular">{usage.kills}</span>
+            <div className="min-h-0 flex-1">
+              {tab === 'stats' && (
+                <div className="text-sm">
+                  {facts.map(([k, v]) => (
+                    <div key={k} className="flex justify-between gap-3 border-b border-line/50 py-[5px]">
+                      <span className="text-dim">{k}</span>
+                      <span className="truncate text-right tabular">{v}</span>
+                    </div>
+                  ))}
+                  <div className="mt-3 grid grid-cols-4 gap-1 text-center">
+                    {[
+                      ['Shots', usage.shots],
+                      ['Acc.', `${usage.shots ? Math.round((usage.hits / usage.shots) * 100) : 0}%`],
+                      ['HS', `${usage.hits ? Math.round((usage.hs / usage.hits) * 100) : 0}%`],
+                      ['Kills', usage.kills],
+                    ].map(([k, v]) => (
+                      <div key={k} className="border border-white/10 bg-black/25 py-1">
+                        <div className="font-display text-base tabular text-ink">{v}</div>
+                        <div className="text-xs uppercase text-dim">{k}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {tab === 'damage' && (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs uppercase tracking-wider text-dim">
+                      <th className="py-1.5">Range</th>
+                      <th>Head</th>
+                      <th>Body</th>
+                      <th>Legs</th>
+                      <th>To kill</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {w.damage.map((d, i) => (
+                      <tr key={i} className="border-t border-line">
+                        <td className="py-1.5">
+                          {i === 0 ? '0' : w.damage[i - 1].maxRange}–{d.maxRange > 500 ? '∞' : d.maxRange} m
+                        </td>
+                        <td className="tabular text-warn">{d.head}</td>
+                        <td className="tabular">{d.body}</td>
+                        <td className="tabular">{d.legs}</td>
+                        <td className="tabular">{Math.ceil(150 / d.body)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {tab === 'spray' && (
+                <div className="flex h-full min-h-0 flex-col">
+                  <div className="flex min-h-0 flex-1 justify-center bg-bg/60 py-2">
+                    <SprayPattern pattern={w.recoil.pattern} color={w.color} count={bullets} className="h-full w-48" />
+                  </div>
+                  <Slider label="Bullets shown" value={bullets} min={1} max={w.recoil.pattern.length} onChange={(v) => setBullets(Math.round(v))} />
+                </div>
+              )}
             </div>
           </Card>
+          <button
+            type="button"
+            disabled={isEquipped}
+            onClick={() => store.updatePractice(w.slot === 'primary' ? { primary: sel } : { secondary: sel })}
+            className={cx('flex h-16 shrink-0 items-center justify-center font-display text-xl uppercase', isEquipped ? 'tal-slab cursor-default text-mute' : 'tal-gold')}
+          >
+            {isEquipped ? (w.slot === 'primary' ? 'Your primary' : 'Your sidearm') : w.slot === 'primary' ? 'Equip as primary' : 'Equip as sidearm'}
+          </button>
         </div>
       </div>
     </div>

@@ -2,11 +2,11 @@ import { MousePointer2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { SensitivitySettings } from '../types';
 import { store, useAppStore } from '../hooks/useAppStore';
-import { Button, Card, PageHeader, Slider, Stat, Toggle } from '../components/ui';
+import { Button, Card, Cycler, PageHeader, Slider, Stat, Toggle } from '../components/ui';
 import { YAW_DEG_PER_COUNT, cmPer360, edpi } from '../settings/defaults';
 
 const GAMES: { name: string; yaw: number }[] = [
-  { name: 'Valorant', yaw: 0.07 },
+  { name: 'Same scale (0.07°)', yaw: 0.07 },
   { name: 'CS2 / Apex', yaw: 0.022 },
   { name: 'Overwatch 2', yaw: 0.0066 },
   { name: 'Fortnite', yaw: 0.5555 },
@@ -46,7 +46,7 @@ function TurnTest({ s }: { s: SensitivitySettings }) {
             el.requestPointerLock();
           }
         }}
-        className="relative grid h-56 cursor-crosshair place-items-center overflow-hidden border border-line bg-bg"
+        className="relative grid h-60 cursor-crosshair place-items-center overflow-hidden border border-line bg-bg"
       >
         <div className="absolute inset-x-0 top-3 text-center text-xs uppercase tracking-widest text-dim">
           {locked ? 'Move your mouse — Esc to release' : 'Click to capture the mouse'}
@@ -59,17 +59,15 @@ function TurnTest({ s }: { s: SensitivitySettings }) {
             </text>
           ))}
           <g transform={`rotate(${deg})`}>
-            <line x1="0" y1="0" x2="0" y2="-80" stroke="#ff4655" strokeWidth="4" />
-            <circle r="6" fill="#ff4655" />
+            <line x1="0" y1="0" x2="0" y2="-80" stroke="#f5a524" strokeWidth="4" />
+            <circle r="6" fill="#f5a524" />
           </g>
         </svg>
         <div className="absolute bottom-3 font-display text-2xl font-bold tabular">
           {deg.toFixed(1)}° · {(deg / 360).toFixed(2)} turns
         </div>
       </div>
-      <p className="mt-2 text-xs text-dim">
-        Uses the exact formula the game camera uses: degrees = mouse counts × sensitivity × {YAW_DEG_PER_COUNT}°. Swipe your usual 360° distance to confirm it matches.
-      </p>
+      <p className="mt-2 text-xs text-dim">Swipe your usual 360° distance: the dial turns exactly as the game camera does.</p>
     </div>
   );
 }
@@ -82,98 +80,68 @@ export function SensitivityPage() {
   const converted = (srcSens * src.yaw) / YAW_DEG_PER_COUNT;
 
   return (
-    <div>
-      <PageHeader kicker="Input" title="Sensitivity" />
-      <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <div className="space-y-5">
-          <Card title="Mouse">
-            <div className="grid gap-x-6 md:grid-cols-2">
-              <Slider label="In-game sensitivity" value={s.sensitivity} min={0.01} max={5} step={0.001} onChange={(v) => set({ sensitivity: v })} />
-              <Slider label="Mouse DPI" value={s.dpi} min={100} max={6400} step={50} onChange={(v) => set({ dpi: Math.round(v) })} />
-              <Slider label="Horizontal multiplier" value={s.horizontalMult} min={0.1} max={3} step={0.01} onChange={(v) => set({ horizontalMult: v })} />
-              <Slider label="Vertical multiplier" value={s.verticalMult} min={0.1} max={3} step={0.01} onChange={(v) => set({ verticalMult: v })} />
-              <Slider label="ADS sensitivity multiplier" value={s.adsMult} min={0.1} max={3} step={0.01} onChange={(v) => set({ adsMult: v })} hint="Applied while aiming down sights" />
-              <Slider label="Scoped sensitivity multiplier" value={s.scopedMult} min={0.1} max={3} step={0.01} onChange={(v) => set({ scopedMult: v })} hint="Applies while the Monarch's scope is up. At 1 the picture moves across the screen as fast as unscoped, at both zoom levels" />
-            </div>
-            <div className="grid gap-x-6 md:grid-cols-2">
-              <Toggle label="Invert Y axis" checked={s.invertY} onChange={(v) => set({ invertY: v })} />
-              <Toggle
-                label="Raw input (unadjusted movement)"
-                hint="Bypasses OS pointer acceleration where the browser supports it (Chrome/Edge)"
-                checked={s.rawInput}
-                onChange={(v) => set({ rawInput: v })}
-              />
-            </div>
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader kicker="Aim feel" title="Sensitivity">
+        <span className="inline-flex items-center gap-2 text-xs text-dim">
+          <MousePointer2 size={14} /> Changes apply at once, even mid-match
+        </span>
+      </PageHeader>
+      <div className="grid min-h-0 flex-1 grid-cols-3 gap-4">
+        <Card className="!p-4">
+          <div className="mb-1 font-display text-sm uppercase text-accent">Mouse</div>
+          <Slider label="Sensitivity" value={s.sensitivity} min={0.01} max={5} step={0.001} onChange={(v) => set({ sensitivity: v })} />
+          <Slider label="Mouse DPI" value={s.dpi} min={100} max={6400} step={50} onChange={(v) => set({ dpi: Math.round(v) })} />
+          <div className="grid grid-cols-2 gap-x-4">
+            <Slider label="Horizontal" value={s.horizontalMult} min={0.1} max={3} step={0.01} onChange={(v) => set({ horizontalMult: v })} />
+            <Slider label="Vertical" value={s.verticalMult} min={0.1} max={3} step={0.01} onChange={(v) => set({ verticalMult: v })} />
+            <Slider label="Aiming" value={s.adsMult} min={0.1} max={3} step={0.01} onChange={(v) => set({ adsMult: v })} />
+            <Slider label="Scoped" value={s.scopedMult} min={0.1} max={3} step={0.01} onChange={(v) => set({ scopedMult: v })} />
+          </div>
+          <Toggle label="Invert look" checked={s.invertY} onChange={(v) => set({ invertY: v })} />
+          <Toggle label="Raw input" hint="Skips system mouse acceleration (Chrome, Edge)" checked={s.rawInput} onChange={(v) => set({ rawInput: v })} />
+        </Card>
+        <div className="flex min-h-0 flex-col gap-3">
+          <Card className="!p-3">
+            <TurnTest s={s} />
           </Card>
-          <Card title="Import from another game">
-            <p className="mb-3 text-sm text-mute">
-              Holdline turns 0.07° per mouse count at sensitivity 1. If your game uses the same scale, enter your sensitivity directly above. For other games, convert here:
-            </p>
-            <div className="flex flex-wrap items-end gap-3">
-              <label className="text-sm">
-                <span className="mb-1 block text-xs uppercase tracking-widest text-dim">Game</span>
-                <select
-                  value={src.name}
-                  onChange={(e) => setSrc(GAMES.find((g) => g.name === e.target.value) ?? GAMES[0])}
-                  className="border border-line bg-bg px-3 py-2 text-ink outline-none"
-                >
-                  {GAMES.map((g) => (
-                    <option key={g.name}>{g.name}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm">
-                <span className="mb-1 block text-xs uppercase tracking-widest text-dim">Their sensitivity</span>
-                <input
-                  type="number"
-                  step="0.001"
-                  value={srcSens}
-                  onChange={(e) => setSrcSens(parseFloat(e.target.value) || 0)}
-                  className="w-32 border border-line bg-bg px-3 py-2 text-ink outline-none focus:border-accent"
-                />
-              </label>
-              <div className="pb-2 text-sm">
-                = <span className="font-display text-2xl font-bold tabular text-accent">{converted.toFixed(3)}</span> here
-              </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Stat label="eDPI" value={Math.round(edpi(s.dpi, s.sensitivity))} sub="DPI × sensitivity" accent />
+            <Stat label="cm / 360°" value={cmPer360(s.dpi, s.sensitivity).toFixed(1)} sub={`${(cmPer360(s.dpi, s.sensitivity) / 2.54).toFixed(1)} in`} />
+          </div>
+        </div>
+        <div className="flex min-h-0 flex-col gap-3">
+          <Card className="!p-4">
+            <div className="mb-2 font-display text-sm uppercase text-accent">Bring yours from another game</div>
+            <Cycler label="Game" value={src.name} onChange={(v) => setSrc(GAMES.find((g) => g.name === v) ?? GAMES[0])} options={GAMES.map((g) => ({ value: g.name, label: g.name }))} />
+            <label className="mt-2 flex items-center justify-between gap-3 text-sm">
+              <span className="text-mute">Its sensitivity</span>
+              <input type="number" step="0.001" value={srcSens} onChange={(e) => setSrcSens(parseFloat(e.target.value) || 0)} className="w-28 border border-line bg-bg px-2 py-1.5 text-right text-ink outline-none focus:border-accent" />
+            </label>
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <span className="text-sm">
+                = <span className="font-display text-2xl tabular text-accent">{converted.toFixed(3)}</span> here
+              </span>
               <Button size="sm" onClick={() => set({ sensitivity: Math.round(converted * 1000) / 1000 })}>
                 Use this
               </Button>
             </div>
           </Card>
-          <Card title="Turn test">
-            <TurnTest s={s} />
-          </Card>
-        </div>
-        <div className="space-y-5">
-          <Card title="Summary">
-            <div className="grid grid-cols-2 gap-2">
-              <Stat label="eDPI" value={Math.round(edpi(s.dpi, s.sensitivity))} sub="DPI × sensitivity" accent />
-              <Stat label="cm / 360°" value={cmPer360(s.dpi, s.sensitivity).toFixed(1)} sub={`${(cmPer360(s.dpi, s.sensitivity) / 2.54).toFixed(1)} in`} />
-              <Stat label="Deg / count" value={(s.sensitivity * YAW_DEG_PER_COUNT).toFixed(4)} />
-              <Stat label="ADS cm / 360°" value={cmPer360(s.dpi, s.sensitivity * s.adsMult).toFixed(1)} />
-            </div>
-            <div className="mt-4 text-xs leading-relaxed text-dim">
-              Typical pro range is roughly 200–400 eDPI (≈ 30–60 cm/360°). Sensitivity is applied to raw Pointer Lock deltas in the 3D camera — not to
-              the desktop cursor — and is independent of frame rate.
-            </div>
-          </Card>
-          <Card title="Presets">
+          <Card className="!p-4">
+            <div className="mb-2 font-display text-sm uppercase text-accent">Quick picks</div>
             <div className="grid grid-cols-2 gap-2">
               {[
-                ['Low (400 DPI)', 400, 0.6],
-                ['Typical (800 DPI)', 800, 0.35],
-                ['Low (1600 DPI)', 1600, 0.18],
-                ['High (800 DPI)', 800, 0.6],
+                ['Slow · 400 DPI', 400, 0.6],
+                ['Typical · 800', 800, 0.35],
+                ['Slow · 1600', 1600, 0.18],
+                ['Fast · 800', 800, 0.6],
               ].map(([name, dpi, sens]) => (
                 <Button key={name as string} variant="outline" size="sm" onClick={() => set({ dpi: dpi as number, sensitivity: sens as number })}>
                   {name as string}
                 </Button>
               ))}
             </div>
+            <p className="mt-3 text-xs text-dim">Most good players sit around 200–400 eDPI (30–60 cm for a full turn).</p>
           </Card>
-          <div className="flex items-center gap-2 text-xs text-dim">
-            <MousePointer2 size={14} /> Changes apply instantly, including mid-session from the pause menu.
-          </div>
         </div>
       </div>
     </div>

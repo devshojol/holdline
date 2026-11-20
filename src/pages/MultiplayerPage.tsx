@@ -31,14 +31,14 @@ export function MultiplayerPage() {
   if (room) return <RoomLobby room={room} />;
   if (searching)
     return (
-      <div>
+      <div className="flex h-full min-h-0 flex-col">
         <PageHeader kicker="Quick match" title="Finding a match" />
         <Searching />
       </div>
     );
 
   return (
-    <div>
+    <div className="flex h-full min-h-0 flex-col">
       <PageHeader kicker="Multiplayer" title="Play with others">
         {available && hasName && <PlayerTag />}
       </PageHeader>
@@ -138,7 +138,7 @@ function Entry() {
   const codeReady = code.replace(/[\s-]/g, '').length === ROOM_CODE_LENGTH;
 
   return (
-    <div className="space-y-5">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       {invite && (
         <div className="flex flex-wrap items-center justify-between gap-3 border border-info/40 bg-info/10 px-4 py-3 text-sm text-ink">
           <span>
@@ -175,10 +175,10 @@ function Entry() {
         </MatchResultView>
       )}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_400px] gap-4">
         <AgentPicker />
 
-        <div className="flex flex-col gap-5">
+        <div className="flex min-h-0 flex-col gap-3">
           <QuickMatchCard disabled={busy} />
 
           <section className="tal-mode tal-rise" style={{ '--i': 2 } as CSSProperties}>
@@ -187,8 +187,8 @@ function Entry() {
             </span>
             <div className="font-display text-xs font-semibold uppercase tracking-[0.3em] text-info">With friends · up to {MAX_ROOM_PLAYERS}</div>
             <h2 className="font-display text-3xl font-extrabold uppercase leading-none tracking-[0.05em] text-ink">Custom room</h2>
-            <p className="mt-2 text-sm text-mute">Your map, your rules. Send the link and start when everyone is in.</p>
-            <div className="mt-4 flex flex-wrap items-stretch gap-2">
+            <p className="mt-1 text-sm text-mute">Your map, your rules. Send the link and start when everyone is in.</p>
+            <div className="mt-3 flex flex-wrap items-stretch gap-2">
               <Button variant="outline" disabled={busy} onClick={() => multiplayer.createRoom()}>
                 <Plus size={18} /> Create room
               </Button>
@@ -230,7 +230,7 @@ function QuickMatchCard({ disabled }: { disabled: boolean }) {
   const [maps, setMaps] = useState<string[]>(saved);
   const toggle = (id: string) => setMaps((m) => (m.includes(id) ? m.filter((x) => x !== id) : [...m, id]));
   const chip = (on: boolean) =>
-    cx('border px-3 py-1.5 font-display text-sm font-semibold uppercase tracking-wider transition-colors', on ? 'border-accent bg-accent/15 text-ink' : 'border-line bg-black/30 text-mute hover:border-mute hover:text-ink');
+    cx('border px-1 py-1 font-display text-xs uppercase transition-colors', on ? 'border-accent bg-accent/15 text-ink' : 'border-line bg-black/30 text-mute hover:border-mute hover:text-ink');
 
   return (
     <section className="tal-mode tal-rise" data-primary="true" style={{ '--i': 1 } as CSSProperties}>
@@ -247,8 +247,8 @@ function QuickMatchCard({ disabled }: { disabled: boolean }) {
           <Timer size={15} className="text-dim" /> {QUICK_MATCH_SETTINGS.timeLimitMin} min · first to {QUICK_MATCH_SETTINGS.killLimit}
         </span>
       </div>
-      <div className="mb-2 mt-4 text-xs uppercase tracking-widest text-dim">Maps</div>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="mb-1.5 mt-3 text-xs uppercase tracking-widest text-dim">Maps</div>
+      <div className="grid grid-cols-5 gap-1">
         <button type="button" aria-pressed={maps.length === 0} className={chip(maps.length === 0)} onClick={() => setMaps([])}>
           Any map
         </button>
@@ -261,7 +261,7 @@ function QuickMatchCard({ disabled }: { disabled: boolean }) {
       <p className="mt-2 text-xs text-dim">
         {maps.length === 0 ? 'Any map finds a match fastest.' : 'Fewer maps can mean a longer wait.'} A match starts within {QUEUE_START_DELAY_MS / 1000} seconds.
       </p>
-      <Button size="lg" className="mt-4 w-full" disabled={disabled} onClick={() => multiplayer.findMatch(maps)}>
+      <Button size="lg" className="mt-3 w-full" disabled={disabled} onClick={() => multiplayer.findMatch(maps)}>
         <Search size={20} /> Find match
       </Button>
     </section>

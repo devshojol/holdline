@@ -1,9 +1,9 @@
-import { Copy, Lock, Play, SlidersHorizontal } from 'lucide-react';
+import { Copy, Play, SlidersHorizontal } from 'lucide-react';
 import { useMemo, useState, type CSSProperties } from 'react';
 import { WeaponIcon } from '../components/WeaponIcon';
 import type { BotBehavior, BotTuning, BotWeapons, Difficulty, PracticeConfig, PracticeMode, Side, WeaponId } from '../types';
 import { store, useAppStore } from '../hooks/useAppStore';
-import { Badge, Button, Card, Field, PageHeader, Segmented, Slider, Toggle, cx } from '../components/ui';
+import { Button, Card, Cycler, PageHeader, Segmented, Slider, Toggle, cx } from '../components/ui';
 import { MapPreview, mapDataFor } from '../components/MapPreview';
 import { MAP_SUMMARIES, getMapDefinition } from '../game/maps/registry';
 import { DIFFICULTY_PRESETS } from '../settings/defaults';
@@ -58,6 +58,7 @@ export function PracticePage() {
   const cfg = useMemo(() => normaliseConfig(raw), [raw]);
   const [advanced, setAdvanced] = useState(cfg.difficulty === 'custom');
   const [code, setCode] = useState('');
+  const [tab, setTab] = useState<'loadout' | 'bots' | 'match'>('loadout');
   const [codeMsg, setCodeMsg] = useState('');
   const def = getMapDefinition(cfg.mapId);
   const loc = def.locations.find((l) => l.id === cfg.locationId)!;
@@ -93,323 +94,233 @@ export function PracticePage() {
     store.play({ ...cfg, botCount });
   };
 
-  return (
-    <div>
-      <PageHeader kicker="Practice setup" title="Configure your drill">
-        <Button size="lg" onClick={start}>
-          <Play size={20} /> Start practice
-        </Button>
-      </PageHeader>
+  const tabs: { id: typeof tab; label: string }[] = [
+    { id: 'loadout', label: 'Loadout' },
+    { id: 'bots', label: 'Bots' },
+    { id: 'match', label: 'Match' },
+  ];
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_440px]">
-        <div className="space-y-5">
-          <Card title="1 · Map">
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-              {MAP_SUMMARIES.map((m, i) => (
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <PageHeader kicker="Practice vs bots" title="Practice" />
+
+      <div className="grid min-h-0 flex-1 grid-cols-[250px_minmax(0,1fr)_330px] gap-4">
+        {/* left: what to play, and where */}
+        <div className="flex min-h-0 flex-col gap-3">
+          <Card className="!p-3">
+            <div className="mb-2 font-label text-xs font-semibold uppercase tracking-[0.25em] text-dim">Mode</div>
+            <div className="grid gap-1">
+              {(Object.keys(MODE_INFO) as PracticeMode[]).map((m) => (
+                <button
+                  key={m}
+                  title={MODE_INFO[m].desc}
+                  onClick={() => update({ mode: m, botCount: m === 'deathmatch' ? Math.max(cfg.botCount, 4) : Math.min(cfg.botCount, 3) })}
+                  aria-pressed={m === cfg.mode}
+                  className={cx('border px-2.5 py-1.5 text-left font-display text-sm uppercase transition-colors', m === cfg.mode ? 'border-accent bg-accent/15 text-ink' : 'border-white/10 bg-black/20 text-mute hover:text-ink')}
+                >
+                  {MODE_INFO[m].label}
+                </button>
+              ))}
+            </div>
+          </Card>
+          <Card className="min-h-0 flex-1 !p-3">
+            <div className="mb-2 font-label text-xs font-semibold uppercase tracking-[0.25em] text-dim">Map</div>
+            <div className="grid grid-cols-2 gap-1">
+              {MAP_SUMMARIES.map((m) => (
                 <button
                   key={m.id}
                   disabled={!m.playable}
                   onClick={() => update({ mapId: m.id })}
-                  data-active={m.id === cfg.mapId}
-                  className={cx(
-                    'tal-tile border p-3 text-left',
-                    m.id === cfg.mapId ? 'border-accent bg-accent/10' : 'border-line bg-bg/50 hover:border-mute',
-                    !m.playable && 'cursor-not-allowed opacity-45 hover:border-line',
-                  )}
+                  aria-pressed={m.id === cfg.mapId}
+                  title={m.setting}
+                  className={cx('border px-2 py-1.5 text-left font-display text-sm uppercase transition-colors', m.id === cfg.mapId ? 'border-accent bg-accent/15 text-ink' : 'border-white/10 bg-black/20 text-mute hover:text-ink', !m.playable && 'opacity-40')}
                 >
-                  <div className="tabular font-display text-xs font-bold tracking-widest text-dim">{String(i + 1).padStart(2, '0')}</div>
-                  <div className="font-display text-lg font-bold uppercase leading-tight">{m.playable ? m.name : m.setting}</div>
-                  <div className="text-xs text-mute">{m.playable ? m.setting : 'Not built yet'}</div>
-                  {!m.playable && <Lock size={12} className="mt-1 text-dim" />}
+                  {m.name}
                 </button>
               ))}
-            </div>
-          </Card>
-
-          <Card title="2 · Location & side">
-            <Field label="Location">
-              <Segmented
-                value={cfg.locationId}
-                onChange={(v) => update({ locationId: v, playerSpawnId: '', enemySpotIds: [] })}
-                options={def.locations.map((l) => ({ value: l.id, label: l.name }))}
-              />
-              <p className="mt-2 text-sm text-mute">{loc.description}</p>
-            </Field>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Side">
-                <Segmented
-                  value={cfg.side}
-                  onChange={(v: Side) => update({ side: v, playerSpawnId: '', enemySpotIds: [] })}
-                  options={[
-                    { value: 'attack', label: 'Attacking' },
-                    { value: 'defend', label: 'Defending' },
-                  ]}
-                />
-              </Field>
-              <Field label="Player spawn">
-                <Segmented
-                  value={cfg.playerSpawnId}
-                  onChange={(v) => update({ playerSpawnId: v, enemySpotIds: [] })}
-                  options={setup.playerSpawns.map((s) => ({ value: s.id, label: s.name }))}
-                />
-              </Field>
-            </div>
-            <Field label={`Enemy positions (${activeSpots.length} active)`}>
-              <div className="flex flex-wrap gap-1.5">
-                {setup.enemySpots.map((s) => {
-                  const ok = usable.has(s.id);
-                  const on = selectedSpots.includes(s.id) && ok;
-                  return (
-                    <button
-                      key={s.id}
-                      disabled={!ok}
-                      title={ok ? `Toggle ${s.name}` : 'Not peekable from the selected spawn'}
-                      onClick={() => toggleSpot(s.id)}
-                      className={cx(
-                        'border px-3 py-1.5 text-sm transition-colors',
-                        on ? 'border-accent/70 bg-accent/15 text-ink' : 'border-line text-mute hover:text-ink',
-                        !ok && 'cursor-not-allowed line-through opacity-40',
-                      )}
-                    >
-                      {s.name}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-2 text-xs text-dim">Click positions here or on the map. Positions that can't see your spawn are disabled.</p>
-            </Field>
-          </Card>
-
-          <Card title="3 · Mode">
-            <div className="grid gap-2 md:grid-cols-2 2xl:grid-cols-4">
-              {(Object.keys(MODE_INFO) as PracticeMode[]).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => update({ mode: m, botCount: m === 'deathmatch' ? Math.max(cfg.botCount, 4) : Math.min(cfg.botCount, 3) })}
-                  data-active={m === cfg.mode}
-                  className={cx('tal-tile border p-4 text-left', m === cfg.mode ? 'border-accent bg-accent/10' : 'border-line bg-bg/50 hover:border-mute')}
-                >
-                  <div className="font-display text-lg font-bold uppercase">{MODE_INFO[m].label}</div>
-                  <div className="mt-1 text-xs leading-relaxed text-mute">{MODE_INFO[m].desc}</div>
-                </button>
-              ))}
-            </div>
-          </Card>
-
-          <Card title="4 · Loadout">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Primary (key 1)">
-                <GunPicker ids={PRIMARY_WEAPONS} value={cfg.primary} onChange={(v) => update({ primary: v })} />
-              </Field>
-              <Field label="Sidearm (key 2)">
-                <GunPicker ids={SECONDARY_WEAPONS} value={cfg.secondary} onChange={(v) => update({ secondary: v })} />
-              </Field>
-            </div>
-          </Card>
-
-          {cfg.mode === 'spray' ? (
-            <Card title="5 · Bots">
-              <p className="text-sm text-mute">
-                Spray Control has no bots. Stand a few metres from any wall, hold fire for a full magazine and pull the mouse against the recoil. The panel on
-                the right of the screen plots every bullet and scores each spray from 0 (mouse held still) to 100 (recoil fully cancelled).
-              </p>
-            </Card>
-          ) : (
-          <Card
-            title="5 · Bots"
-            right={
-              <Button variant="ghost" size="sm" onClick={() => setAdvanced((a) => !a)}>
-                <SlidersHorizontal size={14} /> {advanced ? 'Hide tuning' : 'Custom tuning'}
-              </Button>
-            }
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <Slider
-                label={cfg.mode === 'deathmatch' ? 'Number of bots' : roundMode ? 'Defenders per round' : 'Bots peeking at once'}
-                value={Math.min(cfg.botCount, maxBots)}
-                min={1}
-                max={maxBots}
-                onChange={(v) => update({ botCount: Math.round(v) })}
-              />
-              <Field label="Difficulty">
-                <Segmented value={cfg.difficulty} onChange={setDifficulty} options={(['easy', 'normal', 'hard', 'radiant', 'custom'] as Difficulty[]).map((d) => ({ value: d, label: DIFFICULTY_LABEL[d] }))} />
-              </Field>
-            </div>
-            <div className="grid gap-x-6 md:grid-cols-2">
-              <Slider
-                label="Headshot chance"
-                value={cfg.tuning.headshotChance}
-                min={0}
-                max={1}
-                step={0.01}
-                onChange={(v) => tune({ headshotChance: v })}
-                format={(v) => (v <= 0 ? 'Never' : `${Math.round(v * 100)}%`)}
-              />
-              <Slider
-                label="Bot damage"
-                value={cfg.tuning.damageMult}
-                min={0.1}
-                max={1.5}
-                step={0.05}
-                onChange={(v) => tune({ damageMult: v })}
-                format={(v) => `${Math.round(v * 100)}%`}
-              />
-            </div>
-            <div className="grid gap-x-6 md:grid-cols-2">
-              <Field label="Bot weapons">
-                <Segmented
-                  value={cfg.botWeapons}
-                  onChange={(v: BotWeapons) => update({ botWeapons: v })}
-                  options={[
-                    { value: 'mixed', label: 'Mixed', title: 'Rifles, SMG, marksman rifle and sidearms (no sniper)' },
-                    { value: 'rifles', label: 'Rifles', title: 'Kestrel and Halcyon only' },
-                    { value: 'pistols', label: 'Sidearms', title: 'Pilot, Whisper and Magnate' },
-                    { value: 'mirror', label: 'Same as mine', title: 'Your primary weapon' },
-                  ]}
-                />
-              </Field>
-              <Slider
-                label="Bots firing at once"
-                value={cfg.tuning.maxAttackers}
-                min={0}
-                max={5}
-                step={1}
-                onChange={(v) => tune({ maxAttackers: Math.round(v) })}
-                format={(v) => (v <= 0 ? 'No limit' : `${v}`)}
-              />
-            </div>
-            <p className="mb-3 text-xs text-dim">
-              Headshot chance is how often a bot aims for your head when it spots you (a Kestrel headshot kills in one bullet); at "Never" bots deal no headshot
-              damage. Bot damage scales every hit you take. "Bots firing at once" makes the others hold fire until a slot frees up. Changing a slider switches the
-              difficulty to Custom.
-            </p>
-            {cfg.mode === 'angle-hold' && (
-              <Field label="Bot behaviour">
-                <Segmented
-                  value={cfg.behavior}
-                  onChange={(v: BotBehavior) => update({ behavior: v })}
-                  options={(Object.keys(BEHAVIOR_INFO) as BotBehavior[]).map((b) => ({ value: b, label: BEHAVIOR_INFO[b].label, title: BEHAVIOR_INFO[b].desc }))}
-                />
-                <p className="mt-2 text-sm text-mute">{BEHAVIOR_INFO[cfg.behavior].desc}</p>
-              </Field>
-            )}
-            {cfg.mode === 'jiggle' && <p className="text-sm text-mute">Jiggle training mixes jiggle peeks, shoulder baits and occasional committed peeks/swings.</p>}
-            {cfg.mode === 'site-clear' && <p className="text-sm text-mute">Defenders start hidden at cover around this location and are placed differently every round. Walk (Shift) to stay quiet: they turn towards footsteps and gunfire.</p>}
-            {cfg.mode === 'retake' && <p className="text-sm text-mute">The charge sits on the nearest site, or among the defenders when there is none close. Stand next to it and hold E (or 4) for 5 seconds; letting go starts the defuse over. The fuse is 45 seconds.</p>}
-            {cfg.mode === 'deathmatch' && <p className="text-sm text-mute">Deathmatch bots navigate the whole map, react to your gunfire and footsteps, and take cover when hurt.</p>}
-            {advanced && (
-              <div className="mt-3 grid gap-x-6 border-t border-line pt-3 md:grid-cols-2">
-                <Slider label="Reaction time (ms)" value={cfg.tuning.reactionMs} min={100} max={1200} step={10} onChange={(v) => tune({ reactionMs: v })} />
-                <Slider label="Shooting accuracy" value={cfg.tuning.accuracy} min={0} max={1} step={0.01} onChange={(v) => tune({ accuracy: v })} format={(v) => `${Math.round(v * 100)}%`} />
-                <Slider label="Peek frequency" value={cfg.tuning.peekFrequency} min={0} max={1} step={0.01} onChange={(v) => tune({ peekFrequency: v })} format={(v) => `${Math.round(v * 100)}%`} />
-                <Slider label="Peek duration (s)" value={cfg.tuning.peekDuration} min={0.2} max={3} step={0.05} onChange={(v) => tune({ peekDuration: v })} />
-                <Slider label="Movement speed" value={cfg.tuning.moveSpeed} min={0.5} max={1.2} step={0.01} onChange={(v) => tune({ moveSpeed: v })} format={(v) => `${Math.round(v * 100)}%`} />
-                <Slider label="Aggression" value={cfg.tuning.aggression} min={0} max={1} step={0.01} onChange={(v) => tune({ aggression: v })} format={(v) => `${Math.round(v * 100)}%`} />
-                <Slider label="Burst length (shots)" value={cfg.tuning.burstLength} min={1} max={12} step={1} onChange={(v) => tune({ burstLength: v })} />
-                <Slider label="Crouch frequency" value={cfg.tuning.crouchChance} min={0} max={1} step={0.01} onChange={(v) => tune({ crouchChance: v })} format={(v) => `${Math.round(v * 100)}%`} />
-              </div>
-            )}
-          </Card>
-          )}
-
-          <Card title="6 · Session">
-            <Field label="Duration">
-              <Segmented value={cfg.durationSec} onChange={(v: number) => update({ durationSec: v })} options={DURATIONS.map((d) => ({ value: d, label: d === 0 ? 'Unlimited' : fmtDuration(d) }))} />
-            </Field>
-            <div className="grid gap-x-6 md:grid-cols-2">
-              <Toggle
-                label="Bots shoot back"
-                hint={cfg.mode === 'deathmatch' || roundMode ? 'Always on in this mode' : 'Turn off for pure aim reps'}
-                checked={cfg.botsShootBack || cfg.mode === 'deathmatch' || roundMode}
-                onChange={(v) => update({ botsShootBack: v })}
-              />
-              <Toggle label="Infinite reserve ammo" hint="Magazines still need reloading" checked={cfg.infiniteAmmo} onChange={(v) => update({ infiniteAmmo: v })} />
             </div>
           </Card>
         </div>
 
-        <div className="xl:sticky xl:top-8 xl:self-start">
-          <Card title="Top-down preview" right={<Badge tone="accent">{loc.name}</Badge>}>
-            <div className="aspect-square w-full border border-line bg-[#0c1218]">
-              <MapPreview
-                mapId={cfg.mapId}
-                locationId={cfg.locationId}
-                side={cfg.side}
-                spawnId={cfg.playerSpawnId}
-                spotIds={activeSpots}
-                onToggleSpot={toggleSpot}
-                onPickSpawn={(id) => update({ playerSpawnId: id, enemySpotIds: [] })}
-                className="h-full w-full"
-              />
-            </div>
-            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-mute">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-info" /> Your spawn & facing
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rotate-45 bg-accent" /> Enemy cover & peek line
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-3 bg-info/30" /> Your field of view
-              </span>
-            </div>
-            <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-line pt-4 text-sm">
-              <dt className="text-dim">Mode</dt>
-              <dd className="text-right">{MODE_INFO[cfg.mode].label}</dd>
-              <dt className="text-dim">Weapon</dt>
-              <dd className="text-right">
-                {WEAPONS[cfg.primary].name} / {WEAPONS[cfg.secondary].name}
-              </dd>
-              <dt className="text-dim">Bots</dt>
-              <dd className="text-right">
-                {Math.min(cfg.botCount, maxBots)} · {DIFFICULTY_LABEL[cfg.difficulty]}
-              </dd>
-              <dt className="text-dim">Duration</dt>
-              <dd className="text-right">{cfg.durationSec ? fmtDuration(cfg.durationSec) : 'Unlimited'}</dd>
-            </dl>
-            <Button size="lg" className="mt-5 w-full" onClick={start}>
-              <Play size={20} /> Start practice
-            </Button>
-            <div className="mt-4 border-t border-line pt-4">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-dim">Share this setup</div>
-              <div className="flex gap-2">
-                <input
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="Paste a TALS1- setup code"
-                  aria-label="Setup code"
-                  className="min-w-0 flex-1 border border-line bg-bg/60 px-2 py-1.5 font-mono text-xs text-ink outline-none focus:border-accent"
+        {/* middle: the map, with your spawn and the enemy positions to click */}
+        <Card className="flex min-h-0 flex-col !p-3">
+          <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <Segmented value={cfg.locationId} onChange={(v) => update({ locationId: v, playerSpawnId: '', enemySpotIds: [] })} options={def.locations.map((l) => ({ value: l.id, label: l.name, title: l.description }))} />
+            <span className="flex-1" />
+            <Segmented
+              value={cfg.side}
+              onChange={(v: Side) => update({ side: v, playerSpawnId: '', enemySpotIds: [] })}
+              options={[
+                { value: 'attack', label: 'Attack' },
+                { value: 'defend', label: 'Defend' },
+              ]}
+            />
+          </div>
+          <div className="relative min-h-0 flex-1">
+            <div className="absolute inset-0 grid place-items-center">
+              <div className="aspect-square h-full max-w-full border border-line bg-[#0c1218]">
+                <MapPreview
+                  mapId={cfg.mapId}
+                  locationId={cfg.locationId}
+                  side={cfg.side}
+                  spawnId={cfg.playerSpawnId}
+                  spotIds={activeSpots}
+                  onToggleSpot={toggleSpot}
+                  onPickSpawn={(id) => update({ playerSpawnId: id, enemySpotIds: [] })}
+                  className="h-full w-full"
                 />
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const loaded = importSetupCode(code);
-                    if (!loaded) return setCodeMsg("That isn't a setup code this version can read.");
-                    store.updatePractice(normaliseConfig(loaded));
-                    setAdvanced(loaded.difficulty === 'custom');
-                    setCodeMsg('Setup loaded.');
-                  }}
-                >
-                  Load
-                </Button>
               </div>
-              <Button
-                variant="outline"
-                className="mt-2 w-full"
-                onClick={() => {
-                  const c = exportSetupCode({ ...cfg, botCount: Math.min(cfg.botCount, maxBots) });
-                  setCode(c);
-                  navigator.clipboard?.writeText(c).then(
-                    () => setCodeMsg('Code copied to the clipboard.'),
-                    () => setCodeMsg('Code is in the box above.'),
-                  );
-                }}
-              >
-                <Copy size={14} /> Copy setup code
-              </Button>
-              {codeMsg && <p className="mt-2 text-xs text-mute">{codeMsg}</p>}
+            </div>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-mute">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-info" /> You · click a blue dot to move
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rotate-45 bg-accent" /> Enemies · click to turn on or off ({activeSpots.length} on)
+            </span>
+          </div>
+        </Card>
+
+        {/* right: loadout, bots and match rules in tabs, and the start button */}
+        <div className="flex min-h-0 flex-col gap-3">
+          <Card className="flex min-h-0 flex-1 flex-col !p-3">
+            <div className="mb-3 grid grid-cols-3 gap-1">
+              {tabs.map((t) => (
+                <button key={t.id} type="button" aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)} className="tal-slab py-2 font-display text-sm uppercase">
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <div className="min-h-0 flex-1">
+              {tab === 'loadout' && (
+                <div className="space-y-3">
+                  <div>
+                    <div className="mb-1.5 font-label text-xs font-semibold uppercase tracking-[0.25em] text-dim">Primary</div>
+                    <GunPicker ids={PRIMARY_WEAPONS} value={cfg.primary} onChange={(v) => update({ primary: v })} />
+                  </div>
+                  <div>
+                    <div className="mb-1.5 font-label text-xs font-semibold uppercase tracking-[0.25em] text-dim">Sidearm</div>
+                    <GunPicker ids={SECONDARY_WEAPONS} value={cfg.secondary} onChange={(v) => update({ secondary: v })} />
+                  </div>
+                </div>
+              )}
+              {tab === 'bots' &&
+                (cfg.mode === 'spray' ? (
+                  <p className="text-sm text-mute">Spray Control has no bots: hold fire at a wall for a full magazine and pull against the recoil. Every spray is scored from 0 to 100.</p>
+                ) : advanced ? (
+                  <div>
+                    <div className="grid grid-cols-2 gap-x-3">
+                      <Slider label="Reaction (ms)" value={cfg.tuning.reactionMs} min={100} max={1200} step={10} onChange={(v) => tune({ reactionMs: v })} />
+                      <Slider label="Accuracy" value={cfg.tuning.accuracy} min={0} max={1} step={0.01} onChange={(v) => tune({ accuracy: v })} />
+                      <Slider label="Peek often" value={cfg.tuning.peekFrequency} min={0} max={1} step={0.01} onChange={(v) => tune({ peekFrequency: v })} />
+                      <Slider label="Peek time (s)" value={cfg.tuning.peekDuration} min={0.2} max={3} step={0.05} onChange={(v) => tune({ peekDuration: v })} />
+                      <Slider label="Speed" value={cfg.tuning.moveSpeed} min={0.5} max={1.2} step={0.01} onChange={(v) => tune({ moveSpeed: v })} />
+                      <Slider label="Aggression" value={cfg.tuning.aggression} min={0} max={1} step={0.01} onChange={(v) => tune({ aggression: v })} />
+                      <Slider label="Burst (shots)" value={cfg.tuning.burstLength} min={1} max={12} step={1} onChange={(v) => tune({ burstLength: v })} />
+                      <Slider label="Crouching" value={cfg.tuning.crouchChance} min={0} max={1} step={0.01} onChange={(v) => tune({ crouchChance: v })} />
+                    </div>
+                    <Button variant="ghost" size="sm" className="mt-1" onClick={() => setAdvanced(false)}>
+                      ◀ Back to bot settings
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <Slider
+                      label={cfg.mode === 'deathmatch' ? 'Bots' : roundMode ? 'Defenders per round' : 'Bots peeking at once'}
+                      value={Math.min(cfg.botCount, maxBots)}
+                      min={1}
+                      max={maxBots}
+                      onChange={(v) => update({ botCount: Math.round(v) })}
+                    />
+                    <Cycler label="Difficulty" value={cfg.difficulty} onChange={setDifficulty} options={(['easy', 'normal', 'hard', 'radiant', 'custom'] as Difficulty[]).map((d) => ({ value: d, label: DIFFICULTY_LABEL[d] }))} />
+                    <div className="grid grid-cols-2 gap-x-3">
+                      <Slider label="Headshots" value={cfg.tuning.headshotChance} min={0} max={1} step={0.01} onChange={(v) => tune({ headshotChance: v })} format={(v) => (v <= 0 ? 'Never' : `${Math.round(v * 100)}%`)} />
+                      <Slider label="Their damage" value={cfg.tuning.damageMult} min={0.1} max={1.5} step={0.05} onChange={(v) => tune({ damageMult: v })} format={(v) => `${Math.round(v * 100)}%`} />
+                    </div>
+                    <Cycler
+                      label="Their guns"
+                      value={cfg.botWeapons}
+                      onChange={(v: BotWeapons) => update({ botWeapons: v })}
+                      options={[
+                        { value: 'mixed', label: 'Mixed' },
+                        { value: 'rifles', label: 'Rifles' },
+                        { value: 'pistols', label: 'Sidearms' },
+                        { value: 'mirror', label: 'Same as mine' },
+                      ]}
+                    />
+                    {cfg.mode === 'angle-hold' && (
+                      <Cycler label="How they peek" value={cfg.behavior} onChange={(v: BotBehavior) => update({ behavior: v })} options={(Object.keys(BEHAVIOR_INFO) as BotBehavior[]).map((b) => ({ value: b, label: BEHAVIOR_INFO[b].label, title: BEHAVIOR_INFO[b].desc }))} />
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => setAdvanced(true)}>
+                      <SlidersHorizontal size={14} /> Fine-tune bots
+                    </Button>
+                  </div>
+                ))}
+              {tab === 'match' && (
+                <div className="space-y-1">
+                  <Cycler label="Length" value={cfg.durationSec} onChange={(v: number) => update({ durationSec: v })} options={DURATIONS.map((d) => ({ value: d, label: d === 0 ? 'No limit' : fmtDuration(d) }))} />
+                  <Toggle
+                    label="Bots shoot back"
+                    hint={cfg.mode === 'deathmatch' || roundMode ? 'Always on in this mode' : 'Off for pure aim practice'}
+                    checked={cfg.botsShootBack || cfg.mode === 'deathmatch' || roundMode}
+                    onChange={(v) => update({ botsShootBack: v })}
+                  />
+                  <Toggle label="Endless ammo" hint="You still reload" checked={cfg.infiniteAmmo} onChange={(v) => update({ infiniteAmmo: v })} />
+                  <div className="border-t border-line pt-2">
+                    <div className="mb-1.5 text-sm text-mute">Share this setup</div>
+                    <div className="flex gap-2">
+                      <input
+                        value={code}
+                        onChange={(e) => setCode(e.target.value)}
+                        placeholder="Paste a setup code"
+                        aria-label="Setup code"
+                        className="min-w-0 flex-1 border border-line bg-bg/60 px-2 py-1.5 font-mono text-xs text-ink outline-none focus:border-accent"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const loaded = importSetupCode(code);
+                          if (!loaded) return setCodeMsg("That code can't be read.");
+                          store.updatePractice(normaliseConfig(loaded));
+                          setAdvanced(loaded.difficulty === 'custom');
+                          setCodeMsg('Setup loaded.');
+                        }}
+                      >
+                        Load
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        title="Copy setup code"
+                        onClick={() => {
+                          const c = exportSetupCode({ ...cfg, botCount: Math.min(cfg.botCount, maxBots) });
+                          setCode(c);
+                          navigator.clipboard?.writeText(c).then(
+                            () => setCodeMsg('Code copied.'),
+                            () => setCodeMsg('The code is in the box.'),
+                          );
+                        }}
+                      >
+                        <Copy size={14} />
+                      </Button>
+                    </div>
+                    {codeMsg && <p className="mt-1 text-xs text-mute">{codeMsg}</p>}
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
+          <button type="button" data-pulse="true" onClick={start} className="tal-gold flex h-[72px] shrink-0 items-center gap-4 px-5 text-left">
+            <Play size={30} className="shrink-0 fill-current" />
+            <span className="min-w-0">
+              <span className="block font-display text-2xl uppercase leading-none">Start</span>
+              <span className="mt-1 block truncate text-sm font-semibold opacity-80">
+                {MODE_INFO[cfg.mode].label} · {def.name} · {cfg.mode === 'spray' ? 'no bots' : `${Math.min(cfg.botCount, maxBots)} bots`}
+              </span>
+            </span>
+          </button>
         </div>
       </div>
     </div>

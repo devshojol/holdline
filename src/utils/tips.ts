@@ -1,4 +1,4 @@
-/** Short gameplay tips, shown in the menu footer and on loading screens. */
+/** Short gameplay tips, shown on loading screens. */
 export const TIPS = [
   'Stop before you shoot: the first bullet is only accurate once you are still.',
   'Keep your crosshair at head height, where an enemy will appear.',

@@ -11,6 +11,7 @@ tools/blender/out/*.png
 tools/blender/out/
 dist-crazygames
 holdline-crazygames.zip
+sunstrike-crazygames.zip
 dist-cg-test
 
 # preview videos for the CrazyGames page: uploaded there, too large for the repository

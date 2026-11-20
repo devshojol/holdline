@@ -4,20 +4,31 @@ export function cx(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(' ');
 }
 
+/**
+ * A screen's header: a Back button to the main menu (Esc does the same), the screen's name, and room on the
+ * right for the screen's own controls. Kept short so the screen below fits the window without scrolling.
+ */
 export function PageHeader({ kicker, title, children }: { kicker: string; title: string; children?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-white/[0.07] pb-4">
-      <div className="flex items-stretch gap-4">
-        {/* a slanted accent bar: every screen's title carries the same mark */}
-        <span aria-hidden="true" className="w-2 shrink-0 -skew-x-12 bg-accent shadow-[0_0_18px_rgba(255,70,85,0.6)]" />
-        <div>
-          <div className="font-display text-sm font-semibold uppercase tracking-[0.3em] text-accent">{kicker}</div>
-          <h1 className="font-display text-4xl font-extrabold uppercase leading-none tracking-[0.04em] text-ink md:text-5xl">{title}</h1>
+    <div className="mb-3 flex shrink-0 items-center justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-3">
+        <button type="button" onClick={() => goHome()} className="tal-slab flex items-center gap-1.5 px-3 py-2 font-display text-sm uppercase" aria-label="Back to the main menu">
+          <span aria-hidden="true">◀</span> Back
+        </button>
+        <div className="min-w-0 leading-none">
+          <div className="font-label text-xs font-semibold uppercase tracking-[0.3em] text-accent">{kicker}</div>
+          <h1 className="truncate font-display text-3xl uppercase text-ink">{title}</h1>
         </div>
       </div>
       {children}
     </div>
   );
+}
+
+let goHome: () => void = () => undefined;
+/** Set once by the app: what the Back button does. */
+export function setBackAction(fn: () => void) {
+  goHome = fn;
 }
 
 export function Card({ children, className, title, right }: { children: ReactNode; className?: string; title?: string; right?: ReactNode }) {
@@ -229,5 +240,46 @@ export function ConfirmButton({ children, confirmLabel = 'Click again to confirm
     >
       {armed ? confirmLabel : children}
     </Button>
+  );
+}
+
+/**
+ * A game-style option picker on one line: the setting's name, then ◀ value ▶. Clicking an arrow steps through
+ * the options (wrapping round); much more compact than a row of chips.
+ */
+export function Cycler<T extends string | number>({
+  label,
+  options,
+  value,
+  onChange,
+  hint,
+  disabled,
+}: {
+  label: string;
+  options: { value: T; label: string; title?: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  hint?: string;
+  /** Read-only: shows the value without arrows (a setting someone else controls). */
+  disabled?: boolean;
+}) {
+  const i = Math.max(0, options.findIndex((o) => o.value === value));
+  const step = (d: number) => onChange(options[(i + d + options.length) % options.length].value);
+  const current = options[i];
+  return (
+    <div className="flex items-center justify-between gap-3 py-1" title={hint ?? current?.title}>
+      <span className="min-w-0 truncate text-sm text-mute">{label}</span>
+      <div className="flex shrink-0 items-center" role="group" aria-label={label}>
+        <button type="button" disabled={disabled} onClick={() => step(-1)} className={cx('tal-slab grid h-8 w-8 place-items-center text-sm', disabled && 'invisible')} aria-label={`Previous ${label}`}>
+          ◀
+        </button>
+        <span className="w-28 truncate px-1 text-center font-display text-sm uppercase text-ink" aria-live="polite">
+          {current?.label}
+        </span>
+        <button type="button" disabled={disabled} onClick={() => step(1)} className={cx('tal-slab grid h-8 w-8 place-items-center text-sm', disabled && 'invisible')} aria-label={`Next ${label}`}>
+          ▶
+        </button>
+      </div>
+    </div>
   );
 }

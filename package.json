@@ -1,8 +1,8 @@
 {
-  "name": "holdline",
+  "name": "sunstrike",
   "private": true,
   "version": "0.1.0",
-  "description": "Holdline: a browser aim trainer where bots peek, swing and spray like real players. Babylon.js + React + TypeScript.",
+  "description": "Sunstrike: an online browser FPS with five-minute deathmatches in sunlit towns, bots filling every room. Babylon.js + React + TypeScript.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,7 +16,7 @@
     "typecheck": "tsc --noEmit && tsc -p server",
     "test": "vitest run",
     "build:single": "node scripts/build-single.mjs",
-    "build:crazygames": "tsc --noEmit && vite build --mode crazygames && cd dist-crazygames && rm -f ../holdline-crazygames.zip && zip -qr ../holdline-crazygames.zip .",
+    "build:crazygames": "tsc --noEmit && vite build --mode crazygames && cd dist-crazygames && rm -f ../sunstrike-crazygames.zip && zip -qr ../sunstrike-crazygames.zip .",
     "test:e2e": "node scripts/e2e.mjs"
   },
   "dependencies": {

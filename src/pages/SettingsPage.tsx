@@ -2,7 +2,7 @@ import { Check, Database, Download, Keyboard, LayoutDashboard, Monitor, MousePoi
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { AudioSettings, GraphicsPreset, GraphicsSettings, HudSettings } from '../types';
 import { store, useAppStore } from '../hooks/useAppStore';
-import { Badge, Button, Card, ConfirmButton, PageHeader, Segmented, Slider, Toggle, cx } from '../components/ui';
+import { Button, Card, ConfirmButton, Cycler, PageHeader, Segmented, Slider, Toggle, cx } from '../components/ui';
 import { DEFAULT_SETTINGS, GRAPHICS_PRESETS } from '../settings/defaults';
 import { mergeDefaults } from '../services/storage';
 import { detectDevice } from '../settings/deviceProfile';
@@ -31,9 +31,9 @@ export function showSettingsSection(section: Section) {
 /** A titled block inside a section, with a rule above it. */
 function Group({ title, children, right }: { title: string; children: ReactNode; right?: ReactNode }) {
   return (
-    <div className="border-t border-white/[0.07] pt-4 first:border-t-0 first:pt-0">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <h3 className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-accent">{title}</h3>
+    <div className="min-w-0">
+      <div className="mb-1.5 flex items-center justify-between gap-3 border-b border-white/[0.07] pb-1">
+        <h3 className="font-display text-sm uppercase text-accent">{title}</h3>
         {right}
       </div>
       {children}
@@ -41,32 +41,12 @@ function Group({ title, children, right }: { title: string; children: ReactNode;
   );
 }
 
-/** One setting: its name (marked when it only applies from the next session), the control, an optional explanation. */
-function Setting({ label, next, note, children }: { label: string; next?: boolean; note?: ReactNode; children: ReactNode }) {
-  return (
-    <div className="grid gap-2 py-2.5 md:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] md:items-start md:gap-6">
-      <div className="pt-1 text-sm text-ink">
-        {label}
-        {next && (
-          <span className="ml-2 inline-block align-middle">
-            <Badge>Next session</Badge>
-          </span>
-        )}
-      </div>
-      <div className="min-w-0">
-        {children}
-        {note && <p className="mt-1.5 text-xs leading-relaxed text-dim">{note}</p>}
-      </div>
-    </div>
-  );
-}
-
 /** The title of an open section, what it is for, and a way to put just this section back to its defaults. */
 function SectionHead({ title, blurb, onReset }: { title: string; blurb: string; onReset?: () => void }) {
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-white/[0.07] pb-4">
+    <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h2 className="font-display text-2xl font-bold uppercase tracking-[0.08em] text-ink">{title}</h2>
+        <h2 className="font-display text-xl uppercase text-ink">{title}</h2>
         <p className="text-sm text-mute">{blurb}</p>
       </div>
       {onReset && (
@@ -86,13 +66,13 @@ export function SettingsPage() {
   };
 
   return (
-    <div>
+    <div className="flex h-full min-h-0 flex-col">
       <PageHeader kicker="Options" title="Settings">
         <span className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest text-dim">
           <Check size={14} className="text-ok" /> Changes save as you make them
         </span>
       </PageHeader>
-      <div className="grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
+      <div className="grid min-h-0 flex-1 grid-cols-[230px_minmax(0,1fr)] gap-4">
         {/* the categories, as a game's options menu: one shows at a time */}
         <nav aria-label="Settings categories" className="tal-rail">
           {SECTIONS.map((sec) => (
@@ -105,7 +85,7 @@ export function SettingsPage() {
             </button>
           ))}
         </nav>
-        <div key={section} className="tal-rise min-w-0">
+        <div key={section} className="tal-rise flex min-h-0 min-w-0 flex-col [&>section]:min-h-0 [&>section]:flex-1">
           {section === 'controls' && <ControlsCard />}
           {section === 'graphics' && <GraphicsCard />}
           {section === 'audio' && <AudioCard />}
@@ -184,74 +164,66 @@ function ControlsCard() {
     <Card>
       <SectionHead
         title="Controls"
-        blurb="Click a key to change it, then press the new key or mouse button."
+        blurb="Every key and mouse button can be changed."
         onReset={() => {
           store.updateSettings((s) => ({ ...s, keys: DEFAULT_KEYS }));
           setNotice('All keys are back to their defaults.');
         }}
       />
-      <div className="space-y-5">
-        <Group
-          title="Mouse"
-          right={
-            <button type="button" className="text-xs uppercase tracking-widest text-mute underline-offset-4 hover:text-ink hover:underline" onClick={() => store.go('sensitivity')}>
-              More on the Sensitivity screen
-            </button>
-          }
-        >
-          <div className="grid gap-x-8 md:grid-cols-2">
-            <Slider label="Sensitivity" value={sens.sensitivity} min={0.01} max={5} step={0.01} onChange={(v) => setS({ sensitivity: v })} format={(v) => `eDPI ${Math.round(v * sens.dpi)} at ${sens.dpi} DPI`} />
-            <Toggle label="Invert vertical look" checked={sens.invertY} onChange={(v) => setS({ invertY: v })} />
-          </div>
-        </Group>
-
-        <div aria-live="polite" className={cx('flex min-h-9 items-center gap-2 border px-3 py-2 text-sm', listening ? 'border-accent/60 bg-accent/10 text-ink' : notice ? 'border-ok/30 bg-ok/5 text-ok' : 'border-transparent text-dim')}>
-          <MousePointer2 size={15} className="shrink-0" />
-          {listening
-            ? `Press a ${listening.keyboardOnly ? 'key' : 'key or mouse button'} for ${labelOf(listening.action)} · Esc cancels · Backspace clears`
-            : (notice ?? 'Each action can have two keys. Esc is kept for pausing.')}
-        </div>
-
-        {BIND_GROUPS.map((group) => (
-          <Group key={group.title} title={group.title}>
-            <div className="hidden grid-cols-[minmax(0,1fr)_8.5rem_8.5rem] gap-2 pb-1 text-xs uppercase tracking-widest text-dim sm:grid">
-              <span>Action</span>
-              <span className="text-center">Key</span>
-              <span className="text-center">Second key</span>
-            </div>
-            <div className="divide-y divide-white/[0.05]">
-              {group.rows.map((row) => (
-                <div key={row.action} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 py-1.5 sm:grid-cols-[minmax(0,1fr)_8.5rem_8.5rem]">
-                  <div className="min-w-0">
-                    <div className="text-sm text-ink">{row.label}</div>
-                    {row.hint && <div className="truncate text-xs text-dim">{row.hint}</div>}
+      <div aria-live="polite" className={cx('mb-3 flex min-h-9 items-center gap-2 border px-3 py-1.5 text-sm', listening ? 'border-accent/60 bg-accent/10 text-ink' : notice ? 'border-ok/30 bg-ok/5 text-ok' : 'border-white/10 text-dim')}>
+        <MousePointer2 size={15} className="shrink-0" />
+        {listening
+          ? `Press a ${listening.keyboardOnly ? 'key' : 'key or mouse button'} for ${labelOf(listening.action)} · Esc cancels · Backspace clears`
+          : (notice ?? 'Click a key, then press the new one. Each action can have two. Esc is kept for pausing.')}
+      </div>
+      <div className="grid grid-cols-3 gap-5">
+        {[[BIND_GROUPS[0]], [BIND_GROUPS[1], BIND_GROUPS[2]], [BIND_GROUPS[3]]].map((column, ci) => (
+          <div key={ci} className="space-y-4">
+            {column.map((group) => (
+              <Group key={group.title} title={group.title}>
+                {group.rows.map((row) => (
+                  <div key={row.action} className="grid grid-cols-[minmax(0,1fr)_4.6rem_4.6rem] items-center gap-1.5 py-[3px]" title={row.hint}>
+                    <div className="truncate text-sm text-ink">{row.label}</div>
+                    {([0, 1] as const).map((slot) => {
+                      const code = keys[row.action][slot];
+                      const active = listening?.action === row.action && listening.slot === slot;
+                      return (
+                        <button
+                          key={slot}
+                          type="button"
+                          aria-label={`${row.label}, ${slot === 0 ? 'key' : 'second key'}: ${code ? keyLabel(code) : 'none'}`}
+                          onClick={() => setListening(active ? null : { action: row.action, slot, keyboardOnly: !!row.keyboardOnly })}
+                          className={cx(
+                            'h-8 truncate border px-1 font-display text-xs uppercase transition-colors',
+                            active
+                              ? 'animate-pulse border-accent bg-accent/20 text-ink'
+                              : code
+                                ? 'border-line bg-bg text-ink hover:border-accent'
+                                : 'border-dashed border-line bg-transparent text-dim hover:border-mute hover:text-mute',
+                          )}
+                        >
+                          {active ? 'Press…' : code ? keyLabel(code) : '+'}
+                        </button>
+                      );
+                    })}
                   </div>
-                  {([0, 1] as const).map((slot) => {
-                    const code = keys[row.action][slot];
-                    const active = listening?.action === row.action && listening.slot === slot;
-                    return (
-                      <button
-                        key={slot}
-                        type="button"
-                        aria-label={`${row.label}, ${slot === 0 ? 'key' : 'second key'}: ${code ? keyLabel(code) : 'none'}`}
-                        onClick={() => setListening(active ? null : { action: row.action, slot, keyboardOnly: !!row.keyboardOnly })}
-                        className={cx(
-                          'h-9 min-w-[5.5rem] border px-2 font-display text-sm font-semibold uppercase tracking-wider transition-colors sm:min-w-0',
-                          active
-                            ? 'animate-pulse border-accent bg-accent/20 text-ink'
-                            : code
-                              ? 'border-line bg-bg text-ink hover:border-mute'
-                              : 'border-dashed border-line bg-transparent text-dim hover:border-mute hover:text-mute',
-                        )}
-                      >
-                        {active ? 'Press…' : code ? keyLabel(code) : '+ Add'}
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          </Group>
+                ))}
+              </Group>
+            ))}
+            {ci === 2 && (
+              <Group
+                title="Mouse"
+                right={
+                  <button type="button" className="text-xs uppercase text-mute hover:text-ink" onClick={() => store.go('sensitivity')}>
+                    More ▶
+                  </button>
+                }
+              >
+                <Slider label="Sensitivity" value={sens.sensitivity} min={0.01} max={5} step={0.01} onChange={(v) => setS({ sensitivity: v })} format={(v) => `eDPI ${Math.round(v * sens.dpi)}`} />
+                <Toggle label="Invert look" checked={sens.invertY} onChange={(v) => setS({ invertY: v })} />
+              </Group>
+            )}
+          </div>
         ))}
       </div>
     </Card>
@@ -271,6 +243,7 @@ function GraphicsCard() {
     store.updateSettings((s) => ({ ...s, graphics: { ...s.graphics, ...GRAPHICS_PRESETS[p], preset: p } }));
   };
   const suggested = device.preset[0].toUpperCase() + device.preset.slice(1);
+  const next = ' (from the next match)';
 
   return (
     <Card>
@@ -279,162 +252,66 @@ function GraphicsCard() {
         blurb="Pick a preset, then fine-tune. Lower settings run smoother on slower computers."
         onReset={() => store.updateSettings((s) => ({ ...s, graphics: DEFAULT_SETTINGS.graphics }))}
       />
-      <div className="space-y-5">
-        <Group title="Quality">
-          <Setting
-            label="Preset"
-            note={
-              <>
-                Suggested for this computer:{' '}
-                <button type="button" className="text-accent underline" onClick={() => preset(device.preset)}>
-                  {suggested}
-                </button>{' '}
-                <span className="text-dim">({device.gpu || 'unknown graphics card'})</span>. Potato is for computers without a graphics card.
-              </>
-            }
-          >
-            <Segmented
-              value={g.preset}
-              onChange={preset}
-              options={[
-                { value: 'potato', label: 'Potato' },
-                { value: 'low', label: 'Low' },
-                { value: 'medium', label: 'Medium' },
-                { value: 'high', label: 'High' },
-                { value: 'custom', label: 'Custom' },
-              ]}
-            />
-          </Setting>
-        </Group>
-
+      <div className="mb-3 flex flex-wrap items-center gap-3 border border-white/10 bg-black/20 px-3 py-2">
+        <span className="font-display text-sm uppercase text-accent">Preset</span>
+        <Segmented
+          value={g.preset}
+          onChange={preset}
+          options={[
+            { value: 'potato', label: 'Potato' },
+            { value: 'low', label: 'Low' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'high', label: 'High' },
+            { value: 'custom', label: 'Custom' },
+          ]}
+        />
+        <span className="text-xs text-dim">
+          Best here:{' '}
+          <button type="button" className="text-accent underline" onClick={() => preset(device.preset)}>
+            {suggested}
+          </button>
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-x-6 gap-y-4">
         <Group title="Display">
-          <Slider label="Resolution scale" value={g.resolutionScale} min={0.5} max={1} step={0.05} onChange={(v) => setG({ resolutionScale: v })} format={(v) => `${Math.round(v * 100)}% of your screen's resolution`} />
-          <Toggle
-            label="Adaptive resolution"
-            hint="Lowers the resolution while the frame rate is under 60 (or your limit) and restores it afterwards."
-            checked={g.adaptiveResolution}
-            onChange={(v) => setG({ adaptiveResolution: v, preset: g.preset })}
+          <Slider label="Resolution" value={g.resolutionScale} min={0.5} max={1} step={0.05} onChange={(v) => setG({ resolutionScale: v })} format={(v) => `${Math.round(v * 100)}% of your screen`} />
+          <Cycler
+            label="Frame rate limit"
+            value={g.fpsCap}
+            onChange={(v) => setG({ fpsCap: v, preset: g.preset })}
+            options={[
+              { value: 0, label: 'Unlimited' },
+              { value: 30, label: '30' },
+              { value: 60, label: '60' },
+              { value: 120, label: '120' },
+              { value: 144, label: '144' },
+            ]}
           />
-          <Setting label="Frame rate limit">
-            <Segmented
-              value={g.fpsCap}
-              onChange={(v) => setG({ fpsCap: v, preset: g.preset })}
-              options={[
-                { value: 0, label: 'Unlimited' },
-                { value: 30, label: '30' },
-                { value: 60, label: '60' },
-                { value: 120, label: '120' },
-                { value: 144, label: '144' },
-              ]}
-            />
-          </Setting>
+          <Toggle label="Adaptive resolution" hint="Drops the resolution while the frame rate is low" checked={g.adaptiveResolution} onChange={(v) => setG({ adaptiveResolution: v, preset: g.preset })} />
           {/* on CrazyGames the site's own fullscreen button is the only one allowed */}
-          {!__CRAZYGAMES__ && (
-            <Toggle
-              label="Fullscreen on start"
-              hint="Fills the screen when a session starts."
-              checked={g.fullscreen}
-              onChange={(v) => setG({ fullscreen: v, preset: g.preset })}
-            />
-          )}
+          {!__CRAZYGAMES__ && <Toggle label="Fullscreen on start" checked={g.fullscreen} onChange={(v) => setG({ fullscreen: v, preset: g.preset })} />}
         </Group>
-
         <Group title="Detail">
-          <Setting label="Shadows" next>
-            <Segmented
-              value={g.shadows}
-              onChange={(v) => setG({ shadows: v })}
-              options={[
-                { value: 'off', label: 'Off' },
-                { value: 'medium', label: 'Medium' },
-                { value: 'high', label: 'High' },
-              ]}
-            />
-          </Setting>
-          <Setting label="Effects" next note="Bullet holes, sparks and the muzzle light.">
-            <Segmented
-              value={g.effects}
-              onChange={(v) => setG({ effects: v })}
-              options={[
-                { value: 'low', label: 'Low' },
-                { value: 'medium', label: 'Medium' },
-                { value: 'high', label: 'High' },
-              ]}
-            />
-          </Setting>
-          <Setting label="Lighting" next>
-            <Segmented
-              value={g.lighting}
-              onChange={(v) => setG({ lighting: v })}
-              options={[
-                { value: 'simple', label: 'Simple' },
-                { value: 'full', label: 'Full' },
-              ]}
-            />
-          </Setting>
-          <Setting label="Textures" next>
-            <Segmented
-              value={g.textureQuality}
-              onChange={(v) => setG({ textureQuality: v })}
-              options={[
-                { value: 'low', label: 'Low' },
-                { value: 'high', label: 'High' },
-              ]}
-            />
-          </Setting>
-          <Toggle label="Anti-aliasing" hint="Smooths jagged edges (FXAA)." checked={g.antialias} onChange={(v) => setG({ antialias: v })} />
-          <Toggle label="Post-processing" hint="Tone mapping, contrast and vignette." checked={g.postFx} onChange={(v) => setG({ postFx: v })} />
+          <Cycler label="Shadows" hint={`Sun shadows${next}`} value={g.shadows} onChange={(v) => setG({ shadows: v })} options={[{ value: 'off', label: 'Off' }, { value: 'medium', label: 'Medium' }, { value: 'high', label: 'High' }]} />
+          <Cycler label="Effects" hint={`Bullet holes, sparks, muzzle light${next}`} value={g.effects} onChange={(v) => setG({ effects: v })} options={[{ value: 'low', label: 'Low' }, { value: 'medium', label: 'Medium' }, { value: 'high', label: 'High' }]} />
+          <Cycler label="Lighting" hint={`Lighting${next}`} value={g.lighting} onChange={(v) => setG({ lighting: v })} options={[{ value: 'simple', label: 'Simple' }, { value: 'full', label: 'Full' }]} />
+          <Cycler label="Textures" hint={`Texture detail${next}`} value={g.textureQuality} onChange={(v) => setG({ textureQuality: v })} options={[{ value: 'low', label: 'Low' }, { value: 'high', label: 'High' }]} />
+          <Toggle label="Smooth edges" hint="Anti-aliasing (FXAA)" checked={g.antialias} onChange={(v) => setG({ antialias: v })} />
+          <Toggle label="Colour grading" hint="Tone mapping, contrast, vignette" checked={g.postFx} onChange={(v) => setG({ postFx: v })} />
         </Group>
-
         <Group title="Models">
-          {__LOCAL_MODELS__ && (
-            <Setting label="Guns" next note="Simple guns are built from basic shapes and are lighter on slow computers.">
-              <Segmented
-                value={g.gunModels}
-                onChange={(v) => setG({ gunModels: v })}
-                options={[
-                  { value: 'skins', label: 'Detailed' },
-                  { value: 'simple', label: 'Simple' },
-                ]}
-              />
-            </Setting>
-          )}
-          <Setting label="Your arms" next>
-            <Segmented
-              value={!__LOCAL_MODELS__ && g.fpArms === 'animated' ? 'rigged' : g.fpArms}
-              onChange={(v) => setG({ fpArms: v })}
-              options={[
-                ...(__LOCAL_MODELS__ ? [{ value: 'animated' as const, label: 'Animated' }] : []),
-                { value: 'rigged', label: 'Posed arms' },
-                { value: 'simple', label: 'Simple hands' },
-              ]}
-            />
-          </Setting>
-          {__LOCAL_MODELS__ && (
-            <Setting label="Soldiers" next note="Practice dummies are much lighter: pick them on slow computers or for big deathmatches.">
-              <Segmented
-                value={g.botModel}
-                onChange={(v) => setG({ botModel: v })}
-                options={[
-                  { value: 'agent', label: 'Soldiers' },
-                  { value: 'dummy', label: 'Practice dummy' },
-                ]}
-              />
-            </Setting>
-          )}
-        </Group>
-
-        <Group title="Advanced">
-          <Setting label="Renderer" next note="WebGPU is used only where the browser supports it, and falls back to WebGL 2 by itself.">
-            <Segmented
-              value={g.renderer}
-              onChange={(v) => setG({ renderer: v, preset: g.preset })}
-              options={[
-                { value: 'webgl2', label: 'WebGL 2' },
-                { value: 'webgpu', label: 'WebGPU (experimental)' },
-              ]}
-            />
-          </Setting>
+          {__LOCAL_MODELS__ && <Cycler label="Guns" hint={`Simple guns are lighter on slow computers${next}`} value={g.gunModels} onChange={(v) => setG({ gunModels: v })} options={[{ value: 'skins', label: 'Detailed' }, { value: 'simple', label: 'Simple' }]} />}
+          <Cycler
+            label="Your arms"
+            hint={`Your first-person arms${next}`}
+            value={!__LOCAL_MODELS__ && g.fpArms === 'animated' ? 'rigged' : g.fpArms}
+            onChange={(v) => setG({ fpArms: v })}
+            options={[...(__LOCAL_MODELS__ ? [{ value: 'animated' as const, label: 'Animated' }] : []), { value: 'rigged', label: 'Posed' }, { value: 'simple', label: 'Simple' }]}
+          />
+          {__LOCAL_MODELS__ && <Cycler label="Soldiers" hint={`Dummies are much lighter for big matches${next}`} value={g.botModel} onChange={(v) => setG({ botModel: v })} options={[{ value: 'agent', label: 'Soldiers' }, { value: 'dummy', label: 'Dummies' }]} />}
+          <div className="h-3" />
+          <Cycler label="Renderer" hint={`WebGPU falls back to WebGL 2 where unsupported${next}`} value={g.renderer} onChange={(v) => setG({ renderer: v, preset: g.preset })} options={[{ value: 'webgl2', label: 'WebGL 2' }, { value: 'webgpu', label: 'WebGPU (beta)' }]} />
+          <p className="mt-1 text-xs text-dim">Shadows, effects, lighting, textures and models change from the next match.</p>
         </Group>
       </div>
     </Card>
@@ -456,7 +333,7 @@ function AudioCard() {
         blurb="Footsteps tell you where enemies are: keep them loud enough to hear."
         onReset={() => store.updateSettings((s) => ({ ...s, audio: DEFAULT_SETTINGS.audio }))}
       />
-      <div className="grid gap-x-8 md:grid-cols-2">
+      <div>
         <Slider label="Master volume" value={a.master} min={0} max={1} step={0.01} onChange={(v) => setA({ master: v })} format={pct} />
         <Slider label="Guns" value={a.weapons} min={0} max={1} step={0.01} onChange={(v) => setA({ weapons: v })} format={pct} />
         <Slider label="Footsteps" value={a.footsteps} min={0} max={1} step={0.01} onChange={(v) => setA({ footsteps: v })} format={pct} />
@@ -478,9 +355,9 @@ function HudCard() {
         blurb="Show only what helps you: a quieter screen makes enemies easier to spot."
         onReset={() => store.updateSettings((s) => ({ ...s, hud: DEFAULT_SETTINGS.hud }))}
       />
-      <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-x-8 gap-y-4">
         <Group title="Information">
-          <div className="grid gap-x-8 md:grid-cols-2">
+          <div>
             <Toggle label="Health and shield" checked={h.showHealth} onChange={(v) => setH({ showHealth: v })} />
             <Toggle label="Weapon and ammo" checked={h.showAmmo} onChange={(v) => setH({ showAmmo: v })} />
             <Toggle label="Timer" checked={h.showTimer} onChange={(v) => setH({ showTimer: v })} />
@@ -489,14 +366,14 @@ function HudCard() {
           </div>
         </Group>
         <Group title="Combat feedback">
-          <div className="grid gap-x-8 md:grid-cols-2">
+          <div>
             <Toggle label="Hit markers" checked={h.showHitmarkers} onChange={(v) => setH({ showHitmarkers: v })} />
             <Toggle label="Damage direction" checked={h.showDamageIndicator} onChange={(v) => setH({ showDamageIndicator: v })} />
             <Toggle label="Moving-shot warning" hint="Reminds you to stop before you shoot." checked={h.showMoveWarning} onChange={(v) => setH({ showMoveWarning: v })} />
           </div>
         </Group>
         <Group title="Minimap">
-          <div className="grid gap-x-8 md:grid-cols-2">
+          <div>
             <Toggle label="Minimap" checked={h.showMinimap} onChange={(v) => setH({ showMinimap: v })} />
             <Slider
               label="Practice: show enemies within"
@@ -510,7 +387,7 @@ function HudCard() {
           </div>
         </Group>
         <Group title="Performance">
-          <div className="grid gap-x-8 md:grid-cols-2">
+          <div>
             <Toggle label="Frame rate counter" checked={h.showFps} onChange={(v) => setH({ showFps: v })} />
             <Toggle label="Detailed performance" checked={h.showPerfMetrics} onChange={(v) => setH({ showPerfMetrics: v })} />
           </div>
@@ -542,7 +419,7 @@ function DataCard() {
               const blob = new Blob([json], { type: 'application/json' });
               const a = document.createElement('a');
               a.href = URL.createObjectURL(blob);
-              a.download = 'holdline-settings.json';
+              a.download = 'sunstrike-settings.json';
               a.click();
               setTimeout(() => URL.revokeObjectURL(a.href), 1000);
             } catch {
